@@ -56,7 +56,7 @@ export default function PlanningProdInfoPage() {
     setDetailLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}`, {
+      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=knitting`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

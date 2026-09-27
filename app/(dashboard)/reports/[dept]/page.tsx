@@ -200,9 +200,9 @@ export default function DepartmentReportPage({ params }: PageProps) {
                             {pItem.planType || 'Pending'}
                           </span>
                         </td>
-                        <td>{formatDateDisplay(pItem.planStart)}</td>
-                        <td>{formatDateDisplay(pItem.planEnd)}</td>
-                        <td>{pItem.unit || '—'}</td>
+                        <td>{formatDateDisplay(pItem.startDate || pItem.planStart)}</td>
+                        <td>{formatDateDisplay(pItem.endDate || pItem.planEnd)}</td>
+                        <td>{pItem.unit || pItem.Unit || item.Unit || item.unit || '—'}</td>
                         <td>
                           <span className="badge badge-xs badge-outline font-semibold">
                             {ord[`${dept}PlanStatus`] || 'Pending'}

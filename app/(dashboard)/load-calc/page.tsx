@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Gauge,
   Download,
@@ -88,8 +89,18 @@ function calculateLoadAllocation(pendingQty: number, planStartVal: any, planEndV
   };
 }
 
-export default function LoadCalculationPage() {
-  const [activeTab, setActiveTab] = useState<'detailed' | 'summary'>('summary');
+function LoadCalculationContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'detailed' | 'summary'>(
+    tabParam === 'detailed' ? 'detailed' : 'summary'
+  );
+
+  useEffect(() => {
+    if (tabParam === 'detailed' || tabParam === 'summary') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const [selectedDept, setSelectedDept] = useState<string>('knitting');
   const [loading, setLoading] = useState(false);
   const [downloadingDept, setDownloadingDept] = useState<string | null>(null);
@@ -465,5 +476,22 @@ export default function LoadCalculationPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoadCalculationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="relative min-h-[400px]">
+          <ExpLoadingSpinner
+            message="Loading Capacity & Load Forecasting..."
+            subMessage="Synchronizing 5-month projection matrix"
+          />
+        </div>
+      }
+    >
+      <LoadCalculationContent />
+    </Suspense>
   );
 }
