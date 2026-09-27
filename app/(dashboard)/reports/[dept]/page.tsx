@@ -14,6 +14,7 @@ import {
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -97,7 +98,7 @@ export default function DepartmentReportPage({ params }: PageProps) {
             className="w-full max-w-[280px] py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
           >
             {downloading ? (
-              <span className="loading loading-spinner loading-xs" />
+              <InlineSpinner size={16} />
             ) : (
               <FileSpreadsheet className="h-4 w-4" />
             )}

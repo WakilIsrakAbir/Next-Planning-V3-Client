@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 export default function FileUploadPage() {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null);
@@ -187,7 +189,7 @@ export default function FileUploadPage() {
             >
               {uploading ? (
                 <>
-                  <span className="loading loading-spinner loading-xs" /> Streaming to GridFS & Parsing...
+                  <InlineSpinner size={14} /> Streaming to GridFS & Parsing...
                 </>
               ) : (
                 <>
@@ -221,8 +223,8 @@ export default function FileUploadPage() {
             <tbody className="text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
-                    <span className="loading loading-spinner text-primary" />
+                  <td colSpan={6} className="p-8 text-center">
+                    <ExpLoadingSpinner message="Loading Archives..." size="sm" overlay={false} />
                   </td>
                 </tr>
               ) : files.length === 0 ? (

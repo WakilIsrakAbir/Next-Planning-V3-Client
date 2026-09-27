@@ -18,6 +18,7 @@ import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -258,7 +259,7 @@ export default function TrackingPage({ params }: PageProps) {
             disabled={saveLoading || orders.length === 0}
             className="btn btn-sm btn-primary gap-2 font-bold shadow-md shadow-primary/25"
           >
-            {saveLoading ? <span className="loading loading-spinner loading-xs" /> : <Save className="w-4 h-4" />}
+            {saveLoading ? <InlineSpinner size={14} /> : <Save className="w-4 h-4" />}
             Save Actual Tracking
           </button>
         </div>

@@ -15,6 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -884,7 +885,7 @@ export default function OrderPlanningDetailPage() {
             className="px-4 md:px-6 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-50"
           >
             {saving ? (
-              <span className="loading loading-spinner loading-xs" />
+              <InlineSpinner size={14} />
             ) : (
               <Save className="h-3.5 w-3.5" />
             )}
@@ -1971,7 +1972,7 @@ export default function OrderPlanningDetailPage() {
               disabled={saving}
               className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
             >
-              {saving ? <span className="loading loading-spinner loading-xs" /> : <Save className="h-3 w-3" />}
+              {saving ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
               Save Planning Schedule
             </button>
           </div>

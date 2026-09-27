@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Sliders, Plus, Edit2, Trash2, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 export default function SetupPage() {
   const [units, setUnits] = useState<any[]>([]);
@@ -161,7 +163,9 @@ export default function SetupPage() {
 
           <div className="p-4 space-y-2">
             {loading ? (
-              <div className="p-8 text-center"><span className="loading loading-spinner text-primary" /></div>
+              <div className="p-6 text-center">
+                <ExpLoadingSpinner message="Loading Units..." size="sm" overlay={false} />
+              </div>
             ) : (
               units.map((u) => (
                 <div
@@ -209,7 +213,9 @@ export default function SetupPage() {
 
           <div className="p-4 space-y-2">
             {loading ? (
-              <div className="p-8 text-center"><span className="loading loading-spinner text-primary" /></div>
+              <div className="p-6 text-center">
+                <ExpLoadingSpinner message="Loading Processes..." size="sm" overlay={false} />
+              </div>
             ) : (
               processes.map((p) => (
                 <div
@@ -301,7 +307,7 @@ export default function SetupPage() {
                   disabled={addLoading}
                   className="btn btn-sm btn-primary font-bold"
                 >
-                  {addLoading ? <span className="loading loading-spinner loading-xs" /> : 'Save Option'}
+                  {addLoading ? <><InlineSpinner size={12} /> Saving...</> : 'Save Option'}
                 </button>
               </div>
             </form>

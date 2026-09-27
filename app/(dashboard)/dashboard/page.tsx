@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 export default function DashboardPage() {
   const [recentFiles, setRecentFiles] = useState<any[]>([]);
@@ -231,7 +232,9 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center"><span className="loading loading-spinner text-primary" /></div>
+          <div className="p-6 text-center">
+            <ExpLoadingSpinner message="Loading Upload Archives..." size="sm" overlay={false} />
+          </div>
         ) : recentFiles.length === 0 ? (
           <div className="text-center py-8 text-xs text-base-content/60">No files uploaded yet.</div>
         ) : (

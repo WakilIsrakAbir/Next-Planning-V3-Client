@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 export default function RootPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function RootPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-100">
-      <span className="loading loading-spinner loading-lg text-primary" />
+      <ExpLoadingSpinner message="Loading Epylion PPC Suite..." subMessage="Please wait" overlay={false} />
     </div>
   );
 }

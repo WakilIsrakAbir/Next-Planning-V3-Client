@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { API_BASE } from '@/lib/constants';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-base-100">
-        <span className="loading loading-spinner loading-lg text-primary" />
+        <ExpLoadingSpinner message="Verifying Session..." subMessage="Epylion PPC Suite V3" overlay={false} />
       </div>
     );
   }

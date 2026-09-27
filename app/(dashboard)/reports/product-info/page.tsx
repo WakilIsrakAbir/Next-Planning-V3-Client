@@ -199,8 +199,8 @@ export default function ProductInfoPage() {
                         <tr>
                           <td colSpan={7} className="bg-base-200/30 p-4">
                             {loadingDetails ? (
-                              <div className="flex py-6 justify-center">
-                                <span className="loading loading-spinner text-primary" />
+                              <div className="flex py-4 justify-center">
+                                <ExpLoadingSpinner message="Loading Details..." size="sm" overlay={false} />
                               </div>
                             ) : orderDetails ? (
                               <div className="space-y-4">

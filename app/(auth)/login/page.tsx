@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, User, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -136,7 +137,7 @@ export default function LoginPage() {
             className="btn btn-primary w-full font-bold shadow-lg shadow-primary/25 mt-2"
           >
             {loading ? (
-              <span className="loading loading-spinner loading-sm" />
+              <><InlineSpinner size={16} /> Signing in...</>
             ) : (
               <>
                 <LogIn className="h-4 w-4 mr-1" />

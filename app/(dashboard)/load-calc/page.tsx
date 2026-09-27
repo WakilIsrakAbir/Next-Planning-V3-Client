@@ -16,6 +16,7 @@ import {
 import * as XLSX from 'xlsx';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 const LOAD_DEPTS = [
   { key: 'knitting', label: 'Knitting', pendingQtyField: 'KnitBala' },
@@ -358,7 +359,7 @@ function LoadCalculationContent() {
                 className="btn btn-primary btn-sm w-full gap-2 font-bold shadow-md shadow-primary/20"
               >
                 {downloadingDept === d.key ? (
-                  <span className="loading loading-spinner loading-xs" />
+                  <InlineSpinner size={14} />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}

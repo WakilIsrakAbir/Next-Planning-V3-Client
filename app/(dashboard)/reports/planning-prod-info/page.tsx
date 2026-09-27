@@ -189,8 +189,8 @@ export default function PlanningProdInfoPage() {
           </div>
 
           {detailLoading ? (
-            <div className="p-20 text-center">
-              <span className="loading loading-spinner loading-lg text-primary" />
+            <div className="p-12 text-center">
+              <ExpLoadingSpinner message="Loading Order Details..." size="sm" overlay={false} />
             </div>
           ) : (
             <div className="space-y-6">

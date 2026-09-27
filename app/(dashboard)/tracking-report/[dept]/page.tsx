@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -175,7 +176,7 @@ export default function TrackingReportPage({ params }: PageProps) {
               className="btn btn-primary btn-sm flex-1 gap-2 font-bold shadow-md shadow-primary/20"
             >
               {downloading === 'excel-Pending' ? (
-                <span className="loading loading-spinner loading-xs" />
+                <InlineSpinner size={14} />
               ) : (
                 <Download className="h-4 w-4" />
               )}
@@ -228,7 +229,7 @@ export default function TrackingReportPage({ params }: PageProps) {
               className="btn btn-success text-white btn-sm flex-1 gap-2 font-bold shadow-md"
             >
               {downloading === 'excel-Complete' ? (
-                <span className="loading loading-spinner loading-xs" />
+                <InlineSpinner size={14} />
               ) : (
                 <Download className="h-4 w-4" />
               )}

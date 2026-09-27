@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import InlineSpinner from '@/components/common/InlineSpinner';
 
 // ==========================================================
 // RBAC STRUCTURE DEFINITIONS (Matching Exp System)
@@ -852,7 +853,7 @@ export default function UserManagementPage() {
               disabled={creating}
               className="btn btn-primary btn-sm w-full font-bold shadow-md mt-2"
             >
-              {creating ? <span className="loading loading-spinner loading-xs" /> : <Plus className="h-4 w-4" />}
+              {creating ? <InlineSpinner size={14} /> : <Plus className="h-4 w-4" />}
               Create User
             </button>
           </form>
@@ -1533,7 +1534,7 @@ export default function UserManagementPage() {
                   disabled={savingEdit}
                   className="btn btn-primary btn-sm font-bold"
                 >
-                  {savingEdit ? <span className="loading loading-spinner loading-xs" /> : 'Save Changes'}
+                  {savingEdit ? <><InlineSpinner size={12} /> Saving...</> : 'Save Changes'}
                 </button>
               </div>
             </form>
