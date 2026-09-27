@@ -86,7 +86,7 @@ export default function ExpPagination({
           id="rowsPerPage"
           value={limit}
           onChange={(e) => handleLimitChange(Number(e.target.value))}
-          className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-400 bg-gray-50 text-gray-800 cursor-pointer text-xs"
+          className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-emerald-400 bg-gray-50 text-gray-800 cursor-pointer text-xs"
         >
           {limitOptions.map((opt) => (
             <option key={opt} value={opt}>

@@ -78,8 +78,8 @@ export default function DepartmentReportPage({ params }: PageProps) {
           Updated {dept.toUpperCase()} Report
         </h2>
 
-        <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[480px] w-full border-t-[5px] border-t-[#3b82f6] hover:-translate-y-1 transition-transform">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#dbeafe] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
+        <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[480px] w-full border-t-[5px] border-t-emerald-600 hover:-translate-y-1 transition-transform">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
             <Layers className="h-8 w-8 sm:h-10 sm:w-10" />
           </div>
 
@@ -94,7 +94,7 @@ export default function DepartmentReportPage({ params }: PageProps) {
           <button
             onClick={downloadExcel}
             disabled={downloading}
-            className="w-full max-w-[280px] py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold rounded shadow-md transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+            className="w-full max-w-[280px] py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
           >
             {downloading ? (
               <span className="loading loading-spinner loading-xs" />
@@ -146,7 +146,7 @@ export default function DepartmentReportPage({ params }: PageProps) {
             </button>
             <button
               onClick={downloadExcel}
-              className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition flex items-center gap-1.5 shadow-sm"
+              className="px-4 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
             >
               <Download className="h-3.5 w-3.5" /> Excel Export
             </button>
@@ -185,9 +185,9 @@ export default function DepartmentReportPage({ params }: PageProps) {
                   return (
                     <tr
                       key={ord._id || ord.orderNo}
-                      className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors"
+                      className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-colors"
                     >
-                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] font-bold text-blue-600 dark:text-blue-400">
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] font-bold text-emerald-700 dark:text-emerald-400">
                         {ord.orderNo}
                       </td>
                       <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] font-semibold">

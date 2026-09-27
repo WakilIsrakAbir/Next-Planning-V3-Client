@@ -857,14 +857,14 @@ export default function OrderPlanningDetailPage() {
         <div className="flex items-center w-full sm:w-auto">
           <Link
             href={`/planning/${dept}`}
-            className="mr-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 transition"
+            className="mr-3 text-gray-700 dark:text-gray-300 hover:text-emerald-600 transition"
             title="Back to Planning List"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
-            Order Planning: <span className="text-blue-600 dark:text-blue-400 font-mono">{orderNo}</span>
-            <span className="ml-2 px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-[10px] uppercase font-bold">
+            Order Planning: <span className="text-emerald-700 dark:text-emerald-400 font-mono">{orderNo}</span>
+            <span className="ml-2 px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 text-[10px] uppercase font-bold">
               {deptMeta.name}
             </span>
           </h3>
@@ -881,7 +881,7 @@ export default function OrderPlanningDetailPage() {
           <button
             onClick={handleSavePlanning}
             disabled={saving}
-            className="px-4 md:px-6 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+            className="px-4 md:px-6 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-50"
           >
             {saving ? (
               <span className="loading loading-spinner loading-xs" />
@@ -1002,14 +1002,14 @@ export default function OrderPlanningDetailPage() {
             </div>
 
             {/* Order Status matching Exp index.html lines 1426-1432 */}
-            <div className="flex items-center mt-1 border border-blue-200 dark:border-blue-800 rounded p-1 bg-blue-50 dark:bg-blue-900/20">
-              <span className="w-[115px] text-[11px] font-semibold text-blue-700 dark:text-blue-400 shrink-0">
+            <div className="flex items-center mt-1 border border-emerald-200 dark:border-emerald-800/50 rounded p-1 bg-emerald-50/60 dark:bg-emerald-950/20">
+              <span className="w-[115px] text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 shrink-0">
                 Order Status
               </span>
               <select
                 value={orderStatus}
                 onChange={(e) => setOrderStatus(e.target.value)}
-                className="flex-1 min-w-0 px-2 py-1 border border-blue-300 dark:border-blue-700 rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-blue-700 dark:text-blue-400 cursor-pointer outline-none"
+                className="flex-1 min-w-0 px-2 py-1 border border-emerald-300 dark:border-emerald-700/50 rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-emerald-800 dark:text-emerald-300 cursor-pointer outline-none focus:border-emerald-500"
               >
                 <option value="On Process">On Process</option>
                 <option value="Completed">Completed</option>
@@ -1027,7 +1027,7 @@ export default function OrderPlanningDetailPage() {
                 type="text"
                 readOnly
                 value={order.buyer || 'N/A'}
-                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-bold text-blue-700 dark:text-blue-400 outline-none"
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-bold text-emerald-700 dark:text-emerald-400 outline-none"
               />
             </div>
 
@@ -1221,9 +1221,9 @@ export default function OrderPlanningDetailPage() {
       <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden flex flex-col">
         <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center justify-between border-b border-gray-200 dark:border-[#2a3346]">
           <div className="flex items-center">
-            <Layers className="h-4 w-4 text-blue-500 mr-2" />
+            <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-2" />
             <span>Department Fabric Items</span>
-            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
+            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-bold">
               {planItems.length}
             </span>
           </div>
@@ -1311,7 +1311,7 @@ export default function OrderPlanningDetailPage() {
                 {/* Delivery: Floor Planning Columns (detailed-view.js lines 383-391) */}
                 {dept === 'delivery' && (
                   <>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200">
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-100 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200">
                       Floor Planning
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
@@ -1568,7 +1568,7 @@ export default function OrderPlanningDetailPage() {
                 return (
                   <tr
                     key={item.itemId || idx}
-                    className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
+                    className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
                   >
                     <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-bold text-gray-500">
                       {idx + 1}
@@ -1613,7 +1613,7 @@ export default function OrderPlanningDetailPage() {
                           <select
                             value={item.unit || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
-                            className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                            className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-emerald-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
                             {unitOptions.map((u) => (
@@ -1627,7 +1627,7 @@ export default function OrderPlanningDetailPage() {
                           <select
                             value={item.processName || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
-                            className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                            className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-emerald-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
                             {processOptions.map((p) => (
@@ -1685,7 +1685,7 @@ export default function OrderPlanningDetailPage() {
                           value={item.yarnDate || ''}
                           onChange={(e) => handleYarnDateChange(idx, e.target.value)}
                           title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
-                          className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
+                          className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
                         />
                       </td>
                     )}
@@ -1693,17 +1693,17 @@ export default function OrderPlanningDetailPage() {
                     {/* Delivery Floor Schedule (detailed-view.js lines 383-391) */}
                     {dept === 'delivery' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-50/40 dark:bg-transparent">
                           <input
                             type="date"
                             value={item.floorStartDate || ''}
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
-                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-emerald-50/70 dark:bg-emerald-950/20 ${inputDisabledClass}`}
                           />
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-50/40 dark:bg-transparent">
                           <input
                             type="date"
                             value={item.floorEndDate || ''}
@@ -1711,7 +1711,7 @@ export default function OrderPlanningDetailPage() {
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
-                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-emerald-50/70 dark:bg-emerald-950/20 ${inputDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
@@ -1720,7 +1720,7 @@ export default function OrderPlanningDetailPage() {
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
-                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${inputDisabledClass}`}
+                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none cursor-pointer ${inputDisabledClass}`}
                           >
                             <option value="">Select</option>
                             <option value="Confirm">Confirm</option>
@@ -1739,7 +1739,7 @@ export default function OrderPlanningDetailPage() {
                         disabled={isInputsDisabled}
                         title={disabledTitle}
                         onChange={(e) => handleStartDateChange(idx, e.target.value)}
-                        className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                        className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none ${inputDisabledClass}`}
                       />
                     </td>
 
@@ -1752,7 +1752,7 @@ export default function OrderPlanningDetailPage() {
                         disabled={isInputsDisabled}
                         title={disabledTitle}
                         onChange={(e) => handleEndDateChange(idx, e.target.value)}
-                        className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                        className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none ${inputDisabledClass}`}
                       />
                     </td>
 
@@ -1763,7 +1763,7 @@ export default function OrderPlanningDetailPage() {
                         disabled={isInputsDisabled}
                         title={disabledTitle}
                         onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
-                        className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass} ${
+                        className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none cursor-pointer font-bold ${inputDisabledClass} ${
                           item.planType === 'Confirm'
                             ? 'text-green-700 bg-green-50 dark:bg-green-950/30 border-green-300'
                             : item.planType === 'Tentative'
@@ -1785,7 +1785,7 @@ export default function OrderPlanningDetailPage() {
                         disabled={!isUnitProcessReady}
                         onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
                         placeholder="Limitation"
-                        className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
+                        className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none ${
                           !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
                         }`}
                       />
@@ -1799,7 +1799,7 @@ export default function OrderPlanningDetailPage() {
                         disabled={!isUnitProcessReady}
                         onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
                         placeholder="Notes"
-                        className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
+                        className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none ${
                           !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
                         }`}
                       />

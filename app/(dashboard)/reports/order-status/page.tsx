@@ -337,7 +337,7 @@ export default function OrderStatusPage() {
                   </div>
                   <div className="bg-base-200/60 p-3 rounded-lg border border-base-300">
                     <span className="text-[10px] uppercase font-bold text-base-content/60 block">Knit Prod</span>
-                    <span className="text-base font-black text-blue-600 mt-1">{knitProd.toLocaleString()}</span>
+                    <span className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-1">{knitProd.toLocaleString()}</span>
                   </div>
                   <div className="bg-base-200/60 p-3 rounded-lg border border-base-300">
                     <span className="text-[10px] uppercase font-bold text-base-content/60 block">Dyeing Prod</span>
@@ -354,7 +354,7 @@ export default function OrderStatusPage() {
                   </div>
                   <div className="bg-base-200/60 p-3 rounded-lg border border-base-300">
                     <span className="text-[10px] uppercase font-bold text-base-content/60 block">Knit Bala</span>
-                    <span className="text-base font-black text-blue-600 mt-1">{knitBala.toLocaleString()}</span>
+                    <span className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-1">{knitBala.toLocaleString()}</span>
                   </div>
                   <div className="bg-base-200/60 p-3 rounded-lg border border-base-300">
                     <span className="text-[10px] uppercase font-bold text-base-content/60 block">Dyeing Bala</span>
@@ -379,7 +379,7 @@ export default function OrderStatusPage() {
                     <table className="table table-xs w-full text-center">
                       <thead className="bg-base-200 text-[10px]">
                         <tr>
-                          <th colSpan={3} className="bg-blue-500/10 text-blue-700 border-r border-base-300">
+                          <th colSpan={3} className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-r border-base-300">
                             Knitting Plan
                           </th>
                           <th colSpan={3} className="bg-emerald-500/10 text-emerald-700 border-r border-base-300">
@@ -412,9 +412,9 @@ export default function OrderStatusPage() {
                       </thead>
                       <tbody className="text-xs font-semibold">
                         <tr>
-                          <td className="border-r border-base-200 text-blue-600">{formatDateDisplay(kStart) || '—'}</td>
-                          <td className="border-r border-base-200 text-blue-600">{formatDateDisplay(kEnd) || '—'}</td>
-                          <td className="border-r border-base-300 font-bold bg-blue-500/5">{kType}</td>
+                          <td className="border-r border-base-200 text-emerald-700 dark:text-emerald-400">{formatDateDisplay(kStart) || '—'}</td>
+                          <td className="border-r border-base-200 text-emerald-700 dark:text-emerald-400">{formatDateDisplay(kEnd) || '—'}</td>
+                          <td className="border-r border-base-300 font-bold bg-emerald-500/5">{kType}</td>
 
                           <td className="border-r border-base-200 text-emerald-600">{formatDateDisplay(dStart) || '—'}</td>
                           <td className="border-r border-base-200 text-emerald-600">{formatDateDisplay(dEnd) || '—'}</td>

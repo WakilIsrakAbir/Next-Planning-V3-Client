@@ -182,19 +182,19 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
           <div className="flex flex-col sm:flex-row w-full xl:w-auto items-stretch sm:items-center gap-2">
             <form
               onSubmit={handleGlobalSearch}
-              className="flex items-center gap-1 bg-blue-50 dark:bg-[#1e2330] border border-blue-200 dark:border-[#2a3346] rounded p-1 px-2 flex-1 xl:flex-none shadow-sm"
+              className="flex items-center gap-1 bg-emerald-50/70 dark:bg-[#1e2330] border border-emerald-200 dark:border-[#2a3346] rounded p-1 px-2 flex-1 xl:flex-none shadow-sm"
             >
-              <Search className="h-3.5 w-3.5 text-blue-500 ml-1" />
+              <Search className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 ml-1" />
               <input
                 type="text"
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 placeholder="Search Booking No..."
-                className="w-full xl:w-56 px-2 py-1 border border-blue-300 dark:border-blue-700 rounded text-xs focus:border-blue-500 outline-none bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-100"
+                className="w-full xl:w-56 px-2 py-1 border border-emerald-300 dark:border-[#2a3346] rounded text-xs focus:border-emerald-500 outline-none bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-100"
               />
               <button
                 type="submit"
-                className="px-3 py-1 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition text-xs whitespace-nowrap"
+                className="px-3 py-1 bg-emerald-600 text-white font-bold rounded shadow hover:bg-emerald-700 transition text-xs whitespace-nowrap"
               >
                 Search
               </button>
@@ -221,8 +221,8 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
             }}
             className={`px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap shadow-sm ${
               activeBuyer === ''
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-[#1f2637] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-200 dark:hover:bg-[#283347]'
+                ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                : 'bg-gray-100 dark:bg-[#1f2637] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] hover:bg-emerald-50/50 dark:hover:bg-[#283347]'
             }`}
           >
             ALL BUYERS ({availableBuyers.length})
@@ -236,8 +236,8 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
               }}
               className={`px-3 py-1 rounded text-xs transition whitespace-nowrap font-medium ${
                 activeBuyer === b
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
-                  : 'bg-gray-100 dark:bg-[#1f2637] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-200 dark:hover:bg-[#283347]'
+                  ? 'bg-emerald-600 text-white font-bold shadow-sm shadow-emerald-600/20'
+                  : 'bg-gray-100 dark:bg-[#1f2637] text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] hover:bg-emerald-50/50 dark:hover:bg-[#283347]'
               }`}
             >
               {b}
@@ -379,19 +379,19 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                 displayedOrders.map((o) => (
                   <tr
                     key={o._id || o.orderNo}
-                    className="hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors bg-white dark:bg-[#151921]"
+                    className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors bg-white dark:bg-[#151921]"
                   >
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
                       <Link
                         href={`/planning/${dept}/${encodeURIComponent(o.orderNo)}`}
-                        className="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition shadow-sm inline-flex items-center"
+                        className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded hover:bg-emerald-600 hover:text-white transition shadow-sm inline-flex items-center"
                         title="View/Edit detailed planning"
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </Link>
                     </td>
 
-                    <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-blue-700 dark:text-blue-400 font-bold">
+                    <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-emerald-700 dark:text-emerald-400 font-bold">
                       <Link
                         href={`/planning/${dept}/${encodeURIComponent(o.orderNo)}`}
                         className="hover:underline"

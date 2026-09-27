@@ -59,13 +59,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-6 text-white shadow-xl lg:p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-800 p-6 text-white shadow-xl lg:p-8">
         <div className="relative z-10 max-w-2xl">
           <div className="badge badge-warning text-xs font-bold mb-2">Textile PPC Suite V3</div>
           <h2 className="text-2xl font-black tracking-tight lg:text-3xl">
             Epylion Production Planning Dashboard
           </h2>
-          <p className="mt-2 text-sm text-blue-100">
+          <p className="mt-2 text-sm text-emerald-100">
             Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations. Select an operation from the sidebar to begin.
           </p>
         </div>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
             className="card bg-base-100 border border-base-300 p-5 shadow-sm hover:border-primary hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-blue-500/10 p-3 text-blue-500 group-hover:scale-105 transition-transform">
+              <div className="rounded-xl bg-teal-500/10 p-3 text-teal-600 group-hover:scale-105 transition-transform">
                 <Activity className="h-6 w-6" />
               </div>
               <div>
