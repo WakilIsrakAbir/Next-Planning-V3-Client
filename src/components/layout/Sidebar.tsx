@@ -18,6 +18,7 @@ import {
   ChevronRight,
   User,
   Menu,
+  LogOut,
 } from 'lucide-react';
 import { IUser } from '@/types/user';
 
@@ -166,7 +167,20 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   useEffect(() => {
     try {
       const stored = localStorage.getItem('user');
-      if (stored) setCurrentUser(JSON.parse(stored));
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      } else {
+        const username = localStorage.getItem('username');
+        const role = localStorage.getItem('role');
+        if (username) {
+          setCurrentUser({
+            username,
+            role: (role || 'Admin') as any,
+            status: (localStorage.getItem('status') || 'active') as any,
+            permissions: JSON.parse(localStorage.getItem('permissions') || '{}'),
+          } as any);
+        }
+      }
     } catch {}
   }, []);
 
@@ -218,17 +232,50 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
             : '-translate-x-full lg:-ml-[280px]'
         }`}
       >
-        {/* Brand bar (Clean, hamburger is located in top Header to the right) */}
+        {/* Brand bar (Clean, matching Exp index.html lines 472-477) */}
         <div className="flex h-16 shrink-0 items-center border-b border-base-300 px-4">
           <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20 shrink-0">
               EP
             </div>
             <div className="min-w-0">
-              <span className="font-extrabold text-sm tracking-tight text-primary block truncate">Next Planning V3</span>
-              <p className="text-[10px] text-base-content/60 leading-none truncate">Epylion Manufacturing</p>
+              <span className="font-extrabold text-sm tracking-tight text-primary block truncate">Textile Planning Solution</span>
+              <p className="text-[10px] text-base-content/60 leading-none truncate">Next Planning V3 • Epylion</p>
             </div>
           </Link>
+        </div>
+
+        {/* User Profile Bar (matching Exp index.html lines 479-488) */}
+        <div className="py-2 px-3 border-b border-base-300 flex items-center justify-between bg-base-200/50 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm shadow-emerald-600/20">
+              {(currentUser?.username || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-bold block truncate text-base-content">
+                {currentUser?.username || 'Loading...'}
+              </span>
+              <span className="text-[10px] text-base-content/60 block truncate font-medium">
+                {currentUser?.role || 'Planner'}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              localStorage.removeItem('username');
+              localStorage.removeItem('role');
+              localStorage.removeItem('permissions');
+              localStorage.removeItem('status');
+              localStorage.removeItem('sessionExpiresAt');
+              window.location.href = '/login';
+            }}
+            className="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/10 shrink-0"
+            title="Sign Out"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {/* Navigation list */}

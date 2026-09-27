@@ -27,6 +27,17 @@ export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) 
       const stored = localStorage.getItem('user');
       if (stored) {
         setCurrentUser(JSON.parse(stored));
+      } else {
+        const username = localStorage.getItem('username');
+        const role = localStorage.getItem('role');
+        if (username) {
+          setCurrentUser({
+            username,
+            role: (role || 'Admin') as any,
+            status: (localStorage.getItem('status') || 'active') as any,
+            permissions: JSON.parse(localStorage.getItem('permissions') || '{}'),
+          } as any);
+        }
       }
     } catch {}
 

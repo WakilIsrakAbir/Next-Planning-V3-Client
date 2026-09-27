@@ -26,8 +26,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     const token = localStorage.getItem('token');
-    if (!token) {
-      router.replace('/login');
+    const sessionExpiresAt = Number(localStorage.getItem('sessionExpiresAt'));
+    if (!token || (sessionExpiresAt && Date.now() >= sessionExpiresAt)) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+      localStorage.removeItem('permissions');
+      localStorage.removeItem('status');
+      localStorage.removeItem('sessionExpiresAt');
+      router.replace(sessionExpiresAt && Date.now() >= sessionExpiresAt ? '/login?expired=midnight' : '/login');
       return;
     }
     setAuthorized(true);

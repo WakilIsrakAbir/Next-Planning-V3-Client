@@ -14,6 +14,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('expired') === 'midnight') {
+        setError('Your session expired at 12:00 AM. Please login again.');
+      }
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password) {
@@ -74,12 +83,17 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl transition-all">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-black text-primary-content shadow-lg shadow-primary/30">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white shadow-lg shadow-emerald-600/30">
             EP
           </div>
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-white">Next Planning V3</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Epylion Textile & Garment Manufacturing Planning Platform
+          <h1 className="mt-4 text-2xl font-extrabold tracking-wide text-emerald-400">
+            Textile Planning Solution
+          </h1>
+          <p className="mt-1 text-xs font-medium text-emerald-200/80">
+            Developed by Wakil Israk Abir
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Sign in to your account
           </p>
         </div>
 
