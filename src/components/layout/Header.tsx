@@ -10,9 +10,10 @@ import { IUser } from '@/types/user';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
-export default function Header({ onToggleSidebar }: HeaderProps) {
+export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [countdown, setCountdown] = useState<{ hours: number; minutes: number; seconds: number }>({
@@ -49,7 +50,8 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
-          className="btn btn-ghost btn-square btn-sm lg:hidden"
+          className="btn btn-ghost btn-square btn-sm text-base-content hover:text-primary hover:bg-base-200 transition-transform active:scale-95"
+          title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
           aria-label="Toggle Sidebar"
         >
           <Menu className="h-5 w-5" />

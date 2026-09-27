@@ -66,16 +66,8 @@ export default function DashboardPage() {
             Epylion Production Planning Dashboard
           </h2>
           <p className="mt-2 text-sm text-blue-100">
-            Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations.
+            Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations. Select an operation from the sidebar to begin.
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link href="/management/upload" className="btn btn-sm bg-white text-blue-900 hover:bg-blue-50 font-bold border-none">
-              <UploadCloud className="w-4 h-4 mr-1" /> Upload Workbooks
-            </Link>
-            <Link href="/planning/knitting" className="btn btn-sm btn-outline text-white hover:bg-white/10 font-bold">
-              View Planning Grid <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Link>
-          </div>
         </div>
         <div className="absolute -right-8 -bottom-8 opacity-10">
           <Layers className="w-80 h-80" />

@@ -8,10 +8,15 @@ import { API_BASE } from '@/lib/constants';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
+    // If mobile screen, collapse by default
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       router.replace('/login');
@@ -47,12 +52,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden bg-base-200 text-base-content antialiased">
-      {/* Sidebar Navigation */}
-      <Sidebar isOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+      {/* Sidebar Navigation with smooth desktop collapse */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((prev) => !prev)}
+        onCloseMobile={() => setSidebarOpen(false)}
+      />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-all duration-300">
+        <Header
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          isSidebarOpen={sidebarOpen}
+        />
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
           {children}
         </main>

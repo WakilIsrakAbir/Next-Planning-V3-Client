@@ -16,13 +16,14 @@ import {
   UserCog,
   ChevronDown,
   ChevronRight,
-  LogOut,
   User,
+  Menu,
 } from 'lucide-react';
 import { IUser } from '@/types/user';
 
 interface SidebarProps {
   isOpen: boolean;
+  onToggle: () => void;
   onCloseMobile: () => void;
 }
 
@@ -145,7 +146,7 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
   },
 ];
 
-export default function Sidebar({ isOpen, onCloseMobile }: SidebarProps) {
+export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
 
@@ -171,11 +172,6 @@ export default function Sidebar({ isOpen, onCloseMobile }: SidebarProps) {
 
   const toggleSection = (section: string) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = '/login';
   };
 
   /**
@@ -207,40 +203,32 @@ export default function Sidebar({ isOpen, onCloseMobile }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex w-[280px] flex-col border-r border-base-300 bg-base-100 transition-transform duration-300 lg:static lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 flex h-full w-[280px] shrink-0 flex-col border-r border-base-300 bg-base-100 transition-all duration-300 ease-in-out lg:static ${
+          isOpen
+            ? 'translate-x-0 lg:ml-0'
+            : '-translate-x-full lg:-ml-[280px]'
         }`}
       >
-        {/* Brand bar */}
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-base-300 px-5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20">
+        {/* Brand bar with hamburger collapse toggle */}
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-base-300 px-4">
+          <Link href="/dashboard" onClick={onCloseMobile} className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20 shrink-0">
               EP
             </div>
-            <div>
-              <span className="font-extrabold text-sm tracking-tight text-primary">Textile Planning</span>
-              <p className="text-[10px] text-base-content/60 leading-none">Enterprise Solution V3</p>
-            </div>
-          </div>
-        </div>
-
-        {/* User mini profile bar */}
-        <div className="flex items-center justify-between border-b border-base-300 px-4 py-3 bg-base-200/50">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-              {(currentUser?.username || 'U').charAt(0).toUpperCase()}
-            </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold truncate">{currentUser?.username || 'Loading...'}</p>
-              <span className="text-[10px] font-semibold text-primary/80">{currentUser?.role || 'Planner'}</span>
+              <span className="font-extrabold text-sm tracking-tight text-primary block truncate">Next Planning V3</span>
+              <p className="text-[10px] text-base-content/60 leading-none truncate">Epylion Manufacturing</p>
             </div>
-          </div>
+          </Link>
+
+          {/* Hamburger Collapse button */}
           <button
-            onClick={handleLogout}
-            className="btn btn-ghost btn-circle btn-xs text-error"
-            title="Logout"
+            onClick={onToggle}
+            className="btn btn-ghost btn-square btn-sm text-base-content/70 hover:text-primary shrink-0"
+            title="Collapse Sidebar"
+            aria-label="Collapse Sidebar"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
 
