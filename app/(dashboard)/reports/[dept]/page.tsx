@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { FileSpreadsheet, Download, Search, Printer, Filter, CheckCircle2 } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  Download,
+  Search,
+  Printer,
+  Filter,
+  CheckCircle2,
+  Layers,
+  FileDown,
+} from 'lucide-react';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
@@ -18,6 +27,7 @@ export default function DepartmentReportPage({ params }: PageProps) {
   const [orders, setOrders] = useState<any[]>([]);
   const [planMap, setPlanMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [search, setSearch] = useState('');
   const [buyer, setBuyer] = useState('');
 
@@ -46,175 +56,174 @@ export default function DepartmentReportPage({ params }: PageProps) {
   }, [dept]);
 
   const downloadExcel = () => {
+    setDownloading(true);
     const token = localStorage.getItem('token');
     window.open(`${API_BASE}/api/orders/report-download/${dept}?token=${token}`, '_blank');
+    setTimeout(() => setDownloading(false), 2000);
   };
 
   const filteredOrders = orders.filter((o) => {
     if (buyer && o.buyer !== buyer) return false;
-    if (search && !o.orderNo.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !String(o.orderNo || '').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   const availableBuyers = Array.from(new Set(orders.map((o) => o.buyer))).filter(Boolean).sort();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6 text-primary" />
-            Confirmed & Tentative Report: <span className="uppercase">{dept}</span>
-          </h2>
-          <p className="text-xs text-base-content/60">
-            Consolidated operational schedule with full fabric specifications and confirmed dates.
-          </p>
-        </div>
+    <div className="space-y-6 pb-20 max-w-[1850px] mx-auto text-[11px] animate-fade-in">
+      {/* Prominent Exp Report Action Card matching index.html lines 1347-1375 */}
+      <div className="bg-white dark:bg-[#151921] rounded-md shadow-sm border border-gray-200 dark:border-[#2a3346] w-full p-6 sm:p-8 flex flex-col items-center justify-center text-center">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#313644] dark:text-gray-100 mb-6">
+          Updated {dept.toUpperCase()} Report
+        </h2>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => window.print()}
-            className="btn btn-sm btn-outline font-bold shadow-sm"
-          >
-            <Printer className="w-4 h-4 mr-1" /> Print Report
-          </button>
+        <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[480px] w-full border-t-[5px] border-t-[#3b82f6] hover:-translate-y-1 transition-transform">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#dbeafe] dark:bg-blue-950/40 text-[#2563eb] dark:text-blue-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
+            <Layers className="h-8 w-8 sm:h-10 sm:w-10" />
+          </div>
+
+          <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
+            Updated Report
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-6 leading-relaxed">
+            Extract all data (both Confirm & Tentative). All buyers will be combined into a{' '}
+            <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
+          </p>
+
           <button
             onClick={downloadExcel}
-            className="btn btn-sm btn-primary font-bold shadow-sm shadow-primary/25"
+            disabled={downloading}
+            className="w-full max-w-[280px] py-3 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold rounded shadow-md transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
           >
-            <Download className="w-4 h-4 mr-1" /> Download Excel
+            {downloading ? (
+              <span className="loading loading-spinner loading-xs" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            <span>Download {dept.toUpperCase()} Data</span>
           </button>
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="card bg-base-100 p-4 border border-base-300 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-base-content/60" />
-          <select
-            value={buyer}
-            onChange={(e) => setBuyer(e.target.value)}
-            className="select select-bordered select-sm text-xs font-semibold"
-          >
-            <option value="">All Buyers ({availableBuyers.length})</option>
-            {availableBuyers.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
+      {/* Detailed Confirmed & Tentative Orders Table for Inspection & Print */}
+      <div className="card bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] shadow-sm rounded-sm overflow-hidden">
+        {/* Sub Header & Controls */}
+        <div className="bg-gray-100 dark:bg-[#1f2637] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 dark:border-[#2a3346]">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <select
+              value={buyer}
+              onChange={(e) => setBuyer(e.target.value)}
+              className="px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded text-xs font-semibold bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-200"
+            >
+              <option value="">All Buyers ({availableBuyers.length})</option>
+              {availableBuyers.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+
+            <div className="relative">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Order No..."
+                className="w-48 px-2 py-1 pl-7 border border-gray-300 dark:border-[#2a3346] rounded text-xs outline-none bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-200"
+              />
+              <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2 top-2" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="px-3 py-1.5 border border-gray-300 dark:border-[#2a3346] rounded text-xs font-bold hover:bg-gray-200 dark:hover:bg-[#283347] transition flex items-center gap-1.5"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print
+            </button>
+            <button
+              onClick={downloadExcel}
+              className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Download className="h-3.5 w-3.5" /> Excel Export
+            </button>
+          </div>
         </div>
 
-        <div className="relative">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter Booking / Order No..."
-            className="input input-bordered input-sm w-48 sm:w-64 pl-8 text-xs"
-          />
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-base-content/50" />
-        </div>
-      </div>
-
-      {/* Report Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
-        {/* Exact Exp 3-Ring Loading Overlay */}
-        {loading && (
-          <ExpLoadingSpinner
-            message="Generating Department Report..."
-            subMessage="Processing synchronized department records"
-          />
-        )}
-
-        <div className="overflow-x-auto custom-scrollbar flex-1">
-          <table className="table table-xs w-full">
-            <thead className="bg-base-200/80 text-xs font-bold">
-              <tr>
-                <th>Booking / Order No</th>
-                <th>Buyer</th>
-                <th>Style</th>
-                <th>Color</th>
-                <th>Construction</th>
-                <th>GSM</th>
-                <th>Req Qty</th>
-                <th>Plan Type</th>
-                <th>Plan Start</th>
-                <th>Plan End</th>
-                <th>Unit</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-xs">
-              {!loading && filteredOrders.length === 0 ? (
+        {/* Data Table */}
+        <div className="overflow-x-auto custom-scrollbar">
+          {loading ? (
+            <div className="p-12">
+              <ExpLoadingSpinner message={`Generating ${dept.toUpperCase()} consolidated report...`} overlay={false} />
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">
+              No Confirmed or Tentative data available for {dept.toUpperCase()}.
+            </div>
+          ) : (
+            <table className="w-full text-left whitespace-nowrap min-w-[900px] border-collapse">
+              <thead className="bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346] text-gray-700 dark:text-gray-200 text-[10px] font-bold">
                 <tr>
-                  <td colSpan={12} className="p-12 text-center text-base-content/60">
-                    No confirmed or tentative orders found for {dept.toUpperCase()}.
-                  </td>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346]">Order No</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346]">Buyer</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346]">Style</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">Booking Date</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">Plan Status</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346]">Gmt Unit / Floor</th>
+                  <th className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">Fabric Items</th>
                 </tr>
-              ) : (
-                filteredOrders.flatMap((ord) => {
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-[#2a3346] text-[11px]">
+                {filteredOrders.map((ord) => {
                   const items = ord[`${dept}Items`] || [];
-                  const plan = planMap[ord.orderNo];
-                  const planItems = plan ? plan[dept] || [] : [];
-                  const planItemMap = new Map();
-                  planItems.forEach((pi: any) => {
-                    if (pi.itemId) planItemMap.set(pi.itemId, pi);
-                  });
+                  const statusKey = `${dept}PlanStatus`;
+                  const planStatus = ord[statusKey] || 'Pending';
 
-                  if (items.length === 0) {
-                    return (
-                      <tr key={ord.orderNo} className="hover">
-                        <td className="font-bold text-primary">{ord.orderNo}</td>
-                        <td>{ord.buyer}</td>
-                        <td>{ord.style || '—'}</td>
-                        <td colSpan={9} className="text-base-content/50 italic">
-                          No fabric item breakdown
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return items.map((item: any, idx: number) => {
-                    const pItem = planItemMap.get(item.itemId || `row-${idx}`) || {};
-                    return (
-                      <tr key={`${ord.orderNo}-${idx}`} className="hover">
-                        <td className="font-bold text-primary">{ord.orderNo}</td>
-                        <td>{ord.buyer}</td>
-                        <td>{ord.style || '—'}</td>
-                        <td className="font-semibold">{item.Color || item.color || '—'}</td>
-                        <td>{item.FabricConstruction || item.fabricConstruction || '—'}</td>
-                        <td>{item.GSM || item.gsm || '—'}</td>
-                        <td className="font-mono">{item.RequiredQtyKgs || item.reqQty || '—'}</td>
-                        <td>
-                          <span
-                            className={`badge badge-xs font-bold ${
-                              pItem.planType === 'Confirm'
-                                ? 'badge-success'
-                                : pItem.planType === 'Tentative'
-                                ? 'badge-warning'
-                                : 'badge-neutral'
-                            }`}
-                          >
-                            {pItem.planType || 'Pending'}
-                          </span>
-                        </td>
-                        <td>{formatDateDisplay(pItem.startDate || pItem.planStart)}</td>
-                        <td>{formatDateDisplay(pItem.endDate || pItem.planEnd)}</td>
-                        <td>{pItem.unit || pItem.Unit || item.Unit || item.unit || '—'}</td>
-                        <td>
-                          <span className="badge badge-xs badge-outline font-semibold">
-                            {ord[`${dept}PlanStatus`] || 'Pending'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  });
-                })
-              )}
-            </tbody>
-          </table>
+                  return (
+                    <tr
+                      key={ord._id || ord.orderNo}
+                      className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] font-bold text-blue-600 dark:text-blue-400">
+                        {ord.orderNo}
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] font-semibold">
+                        {ord.buyer || 'N/A'}
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346]">
+                        {ord.style || '—'}
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
+                        {formatDateDisplay(ord.bookingDate)}
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            planStatus === 'Confirm'
+                              ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300'
+                              : planStatus === 'Tentative'
+                              ? 'bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {planStatus}
+                        </span>
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346]">
+                        {ord.gmtUnit || ord.floor || '—'}
+                      </td>
+                      <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center font-bold">
+                        {items.length}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
