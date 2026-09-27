@@ -35,13 +35,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Heartbeat daemon to maintain online status
     const pingHeartbeat = async () => {
       try {
-        await fetch(`${API_BASE}/api/auth/heartbeat`, {
+        const res = await fetch(`${API_BASE}/api/auth/heartbeat`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setAuthorized(false);
+          router.replace('/login');
+        }
       } catch {}
     };
 
