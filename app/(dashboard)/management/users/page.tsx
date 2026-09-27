@@ -256,10 +256,10 @@ export default function UserManagementPage() {
                       <td className="font-bold flex items-center gap-2">
                         <div className="avatar placeholder">
                           <div className="h-7 w-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
-                            {u.username.charAt(0).toUpperCase()}
+                            {(u.username || 'U').charAt(0).toUpperCase()}
                           </div>
                         </div>
-                        {u.username}
+                        {u.username || 'Unknown'}
                       </td>
                       <td>
                         <span

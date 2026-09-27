@@ -84,14 +84,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <div className="flex items-center gap-2 pl-2 border-l border-base-300">
             <div className="avatar placeholder">
               <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
-                {currentUser.username.charAt(0).toUpperCase()}
+                {(currentUser.username || 'U').charAt(0).toUpperCase()}
               </div>
             </div>
             <div className="hidden flex-col text-left leading-tight sm:flex">
-              <span className="text-xs font-bold">{currentUser.username}</span>
+              <span className="text-xs font-bold">{currentUser.username || 'User'}</span>
               <span className="text-[10px] text-base-content/60 flex items-center gap-0.5">
                 <ShieldCheck className="h-2.5 w-2.5 text-success" />
-                {currentUser.role}
+                {currentUser.role || 'Planner'}
               </span>
             </div>
           </div>
