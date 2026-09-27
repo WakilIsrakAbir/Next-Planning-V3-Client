@@ -1,48 +1,62 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Save,
   CheckCircle2,
   AlertCircle,
-  FileSpreadsheet,
-  Info,
-  Calendar,
+  Clock,
   Layers,
+  Calendar,
   Sparkles,
-  Lock,
+  Info,
 } from 'lucide-react';
-import { API_BASE, DEPARTMENTS, STATUS_COLORS } from '@/lib/constants';
-import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
-interface PageProps {
-  params: Promise<{
-    dept: string;
-    orderNo: string;
-  }>;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+const DEPARTMENTS: Record<string, { name: string; label: string }> = {
+  knitting: { name: 'Knitting Plan', label: 'Knitting' },
+  dyeing: { name: 'Dyeing Plan', label: 'Dyeing' },
+  finishing: { name: 'Finishing Plan', label: 'Finishing' },
+  delivery: { name: 'Delivery Plan', label: 'Delivery' },
+  yd: { name: 'YD Plan', label: 'YD' },
+};
+
+function formatDateDisplay(d: any): string {
+  if (!d || d === '-' || d === 'N/A') return '—';
+  try {
+    const parsed = new Date(d);
+    if (isNaN(parsed.getTime())) return String(d);
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = parsed.toLocaleString('en-US', { month: 'short' });
+    const year = parsed.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch {
+    return String(d);
+  }
 }
 
-export default function OrderPlanningDetailPage({ params }: PageProps) {
+export default function OrderPlanningDetailPage() {
+  const params = useParams();
   const router = useRouter();
-  const resolvedParams = use(params);
-  const dept = resolvedParams.dept.toLowerCase();
-  const orderNo = decodeURIComponent(resolvedParams.orderNo);
+
+  const dept = (params.dept as string)?.toLowerCase() || 'knitting';
+  const orderNo = params.orderNo as string;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
   const [order, setOrder] = useState<any>(null);
   const [planData, setPlanData] = useState<any>(null);
   const [planItems, setPlanItems] = useState<any[]>([]);
   const [orderStatus, setOrderStatus] = useState<string>('On Process');
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
-  // Master dropdown options (Unit & Process)
+  // Dynamic dropdown options for Dyeing / Finishing
   const [unitOptions, setUnitOptions] = useState<string[]>(['EFL', 'EKL', 'Ext', 'Outside']);
   const [processOptions, setProcessOptions] = useState<string[]>([
     'Solid',
@@ -54,16 +68,28 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     'DF',
   ]);
 
-  const deptMeta = DEPARTMENTS[dept] || { name: dept.toUpperCase() };
+  const deptMeta = DEPARTMENTS[dept] || { name: dept.toUpperCase(), label: dept };
 
+  // 1. Resolve Admin / Approver Role accurately from localStorage user object
   useEffect(() => {
-    const role = (localStorage.getItem('role') || '').toLowerCase();
-    setIsAdmin(role === 'admin' || role === 'approver');
+    let role = '';
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        role = u.role || '';
+      }
+    } catch {}
+    if (!role) {
+      role = localStorage.getItem('role') || localStorage.getItem('userRole') || '';
+    }
+    const isUserAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'approver';
+    setIsAdmin(isUserAdmin);
   }, []);
 
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 3800);
   };
 
   useEffect(() => {
@@ -148,7 +174,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
         };
       });
 
-      // Parity with Exp: Delivery Floor default dates from Dyeing plan
+      // Parity with Exp detailed-view.js lines 361-380: Delivery Floor default dates from Dyeing plan
       if (dept === 'delivery') {
         merged.forEach((item: any) => {
           const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
@@ -159,20 +185,20 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
           const hasDyePlanType = Boolean(
             dItem?.planType && dItem.planType !== 'Select' && dItem.planType !== '-' && dItem.planType !== ''
           );
+
           if (hasDyePlanType) {
-            if (!item.floorStartDate && dItem?.startDate) {
-              const d = new Date(dItem.startDate);
-              if (!isNaN(d.getTime())) {
-                d.setDate(d.getDate() + 7);
-                item.floorStartDate = d.toISOString().split('T')[0];
-              }
+            const dyeStart = dItem?.startDate || dItem?.planStart;
+            const dyeEnd = dItem?.endDate || dItem?.planEnd;
+
+            if (!item.floorStartDate && dyeStart) {
+              const d = new Date(dyeStart);
+              d.setDate(d.getDate() + 7);
+              item.floorStartDate = d.toISOString().split('T')[0];
             }
-            if (!item.floorEndDate && dItem?.endDate) {
-              const d = new Date(dItem.endDate);
-              if (!isNaN(d.getTime())) {
-                d.setDate(d.getDate() + 7);
-                item.floorEndDate = d.toISOString().split('T')[0];
-              }
+            if (!item.floorEndDate && dyeEnd) {
+              const d = new Date(dyeEnd);
+              d.setDate(d.getDate() + 7);
+              item.floorEndDate = d.toISOString().split('T')[0];
             }
             if (!item.floorPlanType) {
               item.floorPlanType = 'Tentative';
@@ -190,6 +216,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     }
   };
 
+  // Helper to extract upstream Knitting and Dyeing plans for cross-department checks
   const getUpstreamPlans = (item: any) => {
     const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
     const myConst = String(item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
@@ -231,23 +258,11 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     return { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected };
   };
 
-  // Check if Dyeing row is ready (Exp detailed-view.js line 579)
-  const isDyeRowReady = (item: any) => {
-    if (dept !== 'dyeing') return true;
-    const u = String(item.unit || '').trim();
-    const p = String(item.processName || '').trim();
-    return u !== '' && u !== 'Select' && p !== '' && p !== 'Select';
-  };
+  // ==========================================================
+  // EXACT EXP CONDITIONS (from detailed-view.js & table-headers.js)
+  // ==========================================================
 
-  // Check if Delivery row is ready (Exp detailed-view.js line 563)
-  const isDeliRowReady = (item: any) => {
-    if (dept !== 'delivery') return true;
-    const { dyeItem } = getUpstreamPlans(item);
-    const dyeStart = dyeItem?.startDate || dyeItem?.planStart;
-    return Boolean(dyeStart && dyeStart !== '-' && dyeStart !== '');
-  };
-
-  // Exp validation: isValidStartDate (detailed-view.js lines 640-662)
+  // 1. isValidStartDate (Exp detailed-view.js lines 640-662)
   const isValidStartDate = (item: any, newStart: string): boolean => {
     if (!newStart) return true;
     const endVal = item.endDate;
@@ -256,20 +271,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       return false;
     }
 
-    if (dept === 'knitting') {
-      const yarnVal = item.yarnDate;
-      if (
-        yarnVal &&
-        yarnVal !== '-' &&
-        yarnVal !== 'N/A' &&
-        new Date(newStart).setHours(0, 0, 0, 0) < new Date(yarnVal).setHours(0, 0, 0, 0)
-      ) {
-        showToast('Knitting Planning Start Date cannot be less than Yarn Date!');
-        return false;
-      }
-    }
-
-    if (dept === 'dyeing') {
+    if (dept === 'dyeing' && newStart) {
       const { knitItem } = getUpstreamPlans(item);
       const knitStart = knitItem?.startDate || knitItem?.planStart;
       const knitEnd = knitItem?.endDate || knitItem?.planEnd;
@@ -286,19 +288,10 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
     }
 
-    if (dept === 'delivery') {
-      const { dyeItem } = getUpstreamPlans(item);
-      const dyeStart = dyeItem?.startDate || dyeItem?.planStart;
-      if (dyeStart && dyeStart !== '-' && new Date(newStart).setHours(0, 0, 0, 0) < new Date(dyeStart).setHours(0, 0, 0, 0)) {
-        showToast('Delivery Start Date cannot be before Dyeing Start Date!');
-        return false;
-      }
-    }
-
     return true;
   };
 
-  // Exp validation: isValidEndDate (detailed-view.js lines 664-686)
+  // 2. isValidEndDate (Exp detailed-view.js lines 664-686)
   const isValidEndDate = (item: any, newEnd: string): boolean => {
     if (!newEnd) return true;
     const startVal = item.startDate;
@@ -307,7 +300,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       return false;
     }
 
-    if (dept === 'dyeing') {
+    if (dept === 'dyeing' && newEnd) {
       const { knitItem } = getUpstreamPlans(item);
       const knitStart = knitItem?.startDate || knitItem?.planStart;
       const knitEnd = knitItem?.endDate || knitItem?.planEnd;
@@ -324,27 +317,20 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
     }
 
-    if (dept === 'delivery') {
-      const { dyeItem } = getUpstreamPlans(item);
-      const dyeEnd = dyeItem?.endDate || dyeItem?.planEnd;
-      if (dyeEnd && dyeEnd !== '-' && new Date(newEnd).setHours(0, 0, 0, 0) < new Date(dyeEnd).setHours(0, 0, 0, 0)) {
-        showToast('Delivery End Date cannot be before Dyeing End Date!');
-        return false;
-      }
-    }
-
     return true;
   };
 
-  // Exp validation: isValidPlanType (detailed-view.js lines 688-728)
+  // 3. isValidPlanType (Exp detailed-view.js lines 688-728)
   const isValidPlanType = (item: any, startVal: string, endVal: string, planTypeVal: string): boolean => {
     if (!planTypeVal || planTypeVal === 'Select') return true;
 
+    // Both Start and End are required
     if ((planTypeVal === 'Confirm' || planTypeVal === 'Tentative') && (!startVal || !endVal)) {
       showToast('Start and End dates are required to set Plan Type.');
       return false;
     }
 
+    // Knitting specific: Confirm requires Yarn Date (table-headers.js line 221)
     if (dept === 'knitting' && planTypeVal === 'Confirm') {
       const yarnVal = item.yarnDate;
       if (!yarnVal || yarnVal === '-' || yarnVal === 'N/A') {
@@ -353,7 +339,8 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
     }
 
-    if (dept === 'dyeing') {
+    // Dyeing specific: checks knitting plan and final confirmation
+    if (dept === 'dyeing' && planTypeVal) {
       const { knitItem } = getUpstreamPlans(item);
       const knitStart = knitItem?.startDate || knitItem?.planStart;
       const knitEnd = knitItem?.endDate || knitItem?.planEnd;
@@ -370,7 +357,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
 
       if (planTypeVal === 'Confirm') {
-        const finalConf = String(order?.finalConfirmation || order?.generalInfo?.FinalConf || '').trim().toLowerCase();
+        const finalConf = String(order?.finalConfirmation || '').trim().toLowerCase();
         if (finalConf === 'no') {
           showToast("Cannot confirm Dyeing because Final Confirmation is 'No'.");
           return false;
@@ -378,7 +365,8 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
     }
 
-    if (dept === 'delivery') {
+    // Delivery specific: Confirm requires Dyeing not Tentative or blank
+    if (dept === 'delivery' && planTypeVal) {
       const { dyeItem } = getUpstreamPlans(item);
       const dyeType = String(dyeItem?.planType || '').trim();
 
@@ -391,233 +379,220 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     return true;
   };
 
-  // Comprehensive Change Handler with Row 1 Cascading Auto-Fill (detailed-view.js lines 730-858)
-  const handleItemChange = (index: number, field: string, value: any) => {
-    // 1. UNIT & PROCESS (Dyeing)
-    if (dept === 'dyeing' && (field === 'unit' || field === 'processName')) {
+  // ==========================================================
+  // EVENT HANDLERS WITH EXP CASCADING AUTO-FILL (index === 0)
+  // ==========================================================
+
+  // 1. Yarn Date Change (Knitting) - Exp table-headers.js autoFillYarnDate
+  const handleYarnDateChange = (index: number, val: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        // Cascades to all rows
+        return next.map((it) => {
+          const updated = { ...it, yarnDate: val };
+          // If yarn date removed and planType was Confirm, reset it
+          if (!val && updated.planType === 'Confirm') {
+            updated.planType = '';
+          }
+          if (val && updated.startDate && updated.startDate < val) {
+            updated.startDate = val;
+          }
+          if (val && updated.endDate && updated.endDate < (updated.startDate || val)) {
+            updated.endDate = updated.startDate || val;
+          }
+          return updated;
+        });
+      } else {
+        const updated = { ...next[index], yarnDate: val };
+        if (!val && updated.planType === 'Confirm') {
+          updated.planType = '';
+          showToast("Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
+        }
+        if (val && updated.startDate && updated.startDate < val) {
+          updated.startDate = val;
+        }
+        if (val && updated.endDate && updated.endDate < (updated.startDate || val)) {
+          updated.endDate = updated.startDate || val;
+        }
+        next[index] = updated;
+        return next;
+      }
+    });
+
+    if (index === 0 && !val) {
+      showToast("Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
+    }
+  };
+
+  // 2. Start Date Change - Exp detailed-view.js lines 730-755
+  const handleStartDateChange = (index: number, newStart: string) => {
+    const currentItem = planItems[index];
+
+    if (!isValidStartDate(currentItem, newStart)) {
       setPlanItems((prev) => {
         const next = [...prev];
-        if (index === 0) {
-          // Cascading: Row 1 auto-fills all other rows
-          return next.map((it) => ({ ...it, [field]: value }));
-        } else {
-          next[index] = { ...next[index], [field]: value };
-          return next;
-        }
+        next[index] = { ...next[index], startDate: '' };
+        return next;
       });
       return;
     }
 
-    // 2. YARN DATE (Knitting)
-    if (dept === 'knitting' && field === 'yarnDate') {
-      setPlanItems((prev) => {
-        const next = [...prev];
-        if (index === 0) {
-          // Cascading auto-fill all rows
-          return next.map((it) => {
-            const updated = { ...it, yarnDate: value };
-            if (!value && updated.planType === 'Confirm') {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        // Row 1 changes: auto-fill all items if valid
+        return next.map((it, idx) => {
+          if (idx === 0) {
+            const updated = { ...it, startDate: newStart };
+            if (updated.endDate && updated.endDate < newStart) {
+              updated.endDate = newStart;
+            }
+            if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
               updated.planType = '';
             }
-            if (value && updated.startDate && updated.startDate < value) {
-              updated.startDate = value;
+            return updated;
+          }
+
+          if (isValidStartDate(it, newStart)) {
+            const updated = { ...it, startDate: newStart };
+            if (updated.endDate && updated.endDate < newStart) {
+              updated.endDate = newStart;
             }
-            if (value && updated.endDate && updated.endDate < (updated.startDate || value)) {
-              updated.endDate = updated.startDate || value;
+            if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
+              updated.planType = '';
             }
             return updated;
-          });
-        } else {
-          const item = { ...next[index], yarnDate: value };
-          if (!value && item.planType === 'Confirm') {
-            item.planType = '';
-            showToast("Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
+          } else {
+            return { ...it, startDate: '' };
           }
-          if (value && item.startDate && item.startDate < value) {
-            item.startDate = value;
-          }
-          if (value && item.endDate && item.endDate < (item.startDate || value)) {
-            item.endDate = item.startDate || value;
-          }
-          next[index] = item;
-          return next;
-        }
-      });
-      if (index === 0 && !value) {
-        showToast("Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
-      }
-      return;
-    }
-
-    // 3. START DATE (with cascading if index === 0)
-    if (field === 'startDate') {
-      const currentItem = planItems[index];
-      if (!isValidStartDate(currentItem, value)) {
-        setPlanItems((prev) => {
-          const next = [...prev];
-          next[index] = { ...next[index], startDate: '' };
-          return next;
         });
-        return;
+      } else {
+        const updated = { ...next[index], startDate: newStart };
+        if (updated.endDate && updated.endDate < newStart) {
+          updated.endDate = newStart;
+        }
+        if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
+          updated.planType = '';
+        }
+        next[index] = updated;
+        return next;
       }
+    });
+  };
 
+  // 3. End Date Change - Exp detailed-view.js lines 757-782
+  const handleEndDateChange = (index: number, newEnd: string) => {
+    const currentItem = planItems[index];
+
+    if (!isValidEndDate(currentItem, newEnd)) {
       setPlanItems((prev) => {
         const next = [...prev];
-        if (index === 0) {
-          return next.map((it, idx) => {
-            if (idx === 0) {
-              const updated = { ...it, startDate: value };
-              if ((dept === 'delivery' || dept === 'yd') && value) {
-                const d = new Date(value);
-                d.setDate(d.getDate() - 4);
-                updated.floorStartDate = d.toISOString().split('T')[0];
-              }
-              if (!isValidPlanType(updated, value, updated.endDate, updated.planType)) {
-                updated.planType = '';
-              }
-              return updated;
-            }
-
-            if (isValidStartDate(it, value)) {
-              const updated = { ...it, startDate: value };
-              if ((dept === 'delivery' || dept === 'yd') && value) {
-                const d = new Date(value);
-                d.setDate(d.getDate() - 4);
-                updated.floorStartDate = d.toISOString().split('T')[0];
-              }
-              if (!isValidPlanType(updated, value, updated.endDate, updated.planType)) {
-                updated.planType = '';
-              }
-              return updated;
-            } else {
-              return { ...it, startDate: '' };
-            }
-          });
-        } else {
-          const updated = { ...next[index], startDate: value };
-          if ((dept === 'delivery' || dept === 'yd') && value) {
-            const d = new Date(value);
-            d.setDate(d.getDate() - 4);
-            updated.floorStartDate = d.toISOString().split('T')[0];
-          }
-          if (!isValidPlanType(updated, value, updated.endDate, updated.planType)) {
-            updated.planType = '';
-          }
-          next[index] = updated;
-          return next;
-        }
+        next[index] = { ...next[index], endDate: '' };
+        return next;
       });
       return;
     }
 
-    // 4. END DATE (with cascading if index === 0)
-    if (field === 'endDate') {
-      const currentItem = planItems[index];
-      if (!isValidEndDate(currentItem, value)) {
-        setPlanItems((prev) => {
-          const next = [...prev];
-          next[index] = { ...next[index], endDate: '' };
-          return next;
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it, idx) => {
+          if (idx === 0) {
+            const updated = { ...it, endDate: newEnd };
+            if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
+              updated.planType = '';
+            }
+            return updated;
+          }
+
+          if (isValidEndDate(it, newEnd)) {
+            const updated = { ...it, endDate: newEnd };
+            if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
+              updated.planType = '';
+            }
+            return updated;
+          } else {
+            return { ...it, endDate: '' };
+          }
         });
-        return;
+      } else {
+        const updated = { ...next[index], endDate: newEnd };
+        if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
+          updated.planType = '';
+        }
+        next[index] = updated;
+        return next;
       }
+    });
+  };
 
+  // 4. Plan Type Change - Exp detailed-view.js lines 784-818
+  const handlePlanTypeChange = (index: number, newPlan: string) => {
+    const currentItem = planItems[index];
+
+    if (!isValidPlanType(currentItem, currentItem.startDate, currentItem.endDate, newPlan)) {
       setPlanItems((prev) => {
         const next = [...prev];
-        if (index === 0) {
-          return next.map((it, idx) => {
-            if (idx === 0) {
-              const updated = { ...it, endDate: value };
-              if ((dept === 'delivery' || dept === 'yd') && value) {
-                const d = new Date(value);
-                d.setDate(d.getDate() - 4);
-                updated.floorEndDate = d.toISOString().split('T')[0];
-              }
-              if (!isValidPlanType(updated, updated.startDate, value, updated.planType)) {
-                updated.planType = '';
-              }
-              return updated;
-            }
-
-            if (isValidEndDate(it, value)) {
-              const updated = { ...it, endDate: value };
-              if ((dept === 'delivery' || dept === 'yd') && value) {
-                const d = new Date(value);
-                d.setDate(d.getDate() - 4);
-                updated.floorEndDate = d.toISOString().split('T')[0];
-              }
-              if (!isValidPlanType(updated, updated.startDate, value, updated.planType)) {
-                updated.planType = '';
-              }
-              return updated;
-            } else {
-              return { ...it, endDate: '' };
-            }
-          });
-        } else {
-          const updated = { ...next[index], endDate: value };
-          if ((dept === 'delivery' || dept === 'yd') && value) {
-            const d = new Date(value);
-            d.setDate(d.getDate() - 4);
-            updated.floorEndDate = d.toISOString().split('T')[0];
-          }
-          if (!isValidPlanType(updated, updated.startDate, value, updated.planType)) {
-            updated.planType = '';
-          }
-          next[index] = updated;
-          return next;
-        }
+        next[index] = { ...next[index], planType: '' };
+        return next;
       });
       return;
     }
 
-    // 5. PLAN TYPE (with cascading if index === 0)
-    if (field === 'planType') {
-      const currentItem = planItems[index];
-      if (!isValidPlanType(currentItem, currentItem.startDate, currentItem.endDate, value)) {
-        setPlanItems((prev) => {
-          const next = [...prev];
-          next[index] = { ...next[index], planType: '' };
-          return next;
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it, idx) => {
+          if (idx === 0) {
+            return { ...it, planType: newPlan };
+          }
+
+          if (!newPlan) {
+            return { ...it, planType: '' };
+          }
+
+          if (isValidPlanType(it, it.startDate, it.endDate, newPlan)) {
+            return { ...it, planType: newPlan };
+          } else {
+            return { ...it, planType: '' };
+          }
         });
-        return;
+      } else {
+        next[index] = { ...next[index], planType: newPlan };
+        return next;
       }
+    });
+  };
 
-      setPlanItems((prev) => {
-        const next = [...prev];
-        if (index === 0) {
-          return next.map((it, idx) => {
-            if (idx === 0) return { ...it, planType: value };
-            if (!value) return { ...it, planType: '' };
-            if (isValidPlanType(it, it.startDate, it.endDate, value)) {
-              return { ...it, planType: value };
-            } else {
-              return { ...it, planType: '' };
-            }
-          });
-        } else {
-          next[index] = { ...next[index], planType: value };
-          return next;
-        }
-      });
-      return;
-    }
+  // 5. Unit / Process Cascading (Dyeing) - Exp detailed-view.js lines 603-631
+  const handleUnitProcessChange = (index: number, field: 'unit' | 'processName', value: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it) => ({ ...it, [field]: value }));
+      } else {
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      }
+    });
+  };
 
-    // 6. FLOOR DATES (Floor Start, Floor End, Floor Plan Type)
-    if (field === 'floorStartDate' || field === 'floorEndDate' || field === 'floorPlanType') {
-      setPlanItems((prev) => {
-        const next = [...prev];
-        if (index === 0) {
-          return next.map((it) => ({ ...it, [field]: value }));
-        } else {
-          next[index] = { ...next[index], [field]: value };
-          return next;
-        }
-      });
-      return;
-    }
+  // 6. Floor Planning Cascading (Delivery) - Exp detailed-view.js lines 820-857
+  const handleFloorChange = (index: number, field: 'floorStartDate' | 'floorEndDate' | 'floorPlanType', value: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it) => ({ ...it, [field]: value }));
+      } else {
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      }
+    });
+  };
 
-    // 7. OTHER FIELDS (limitation, remarks, yarnOkDate, matchingOptionDate)
+  // Generic limitation / remarks update
+  const handleTextChange = (index: number, field: 'limitation' | 'remarks', value: string) => {
     setPlanItems((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -625,104 +600,180 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     });
   };
 
-  // Exp pre-save validation suite (save-planning.js lines 4-167)
+  // ==========================================================
+  // COMPREHENSIVE SAVE PLANNING VALIDATION (Exp save-planning.js)
+  // ==========================================================
   const handleSavePlanning = async () => {
     if (planItems.length === 0) {
       showToast('No fabric items to save! Please upload department data first.');
       return;
     }
 
-    for (let i = 0; i < planItems.length; i++) {
-      const it = planItems[i];
-      const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(it);
+    let validationFailed = false;
 
-      // Start vs End Date
-      if (it.startDate && it.endDate && new Date(it.startDate) > new Date(it.endDate)) {
-        showToast(`Row #${i + 1}: Save failed: End date cant be less than start date.`);
-        return;
+    // Check downstream department confirmation lock (save-planning.js lines 23-35)
+    const checkDownstreamConfirm = (itemId: string) => {
+      if (!planData) return false;
+      if (dept === 'dyeing' && planData.delivery) {
+        const del = planData.delivery.find((d: any) => d.itemId === itemId);
+        return del && del.planType === 'Confirm';
+      }
+      if (dept === 'knitting' && planData.dyeing) {
+        const dye = planData.dyeing.find((d: any) => d.itemId === itemId);
+        return dye && dye.planType === 'Confirm';
+      }
+      return false;
+    };
+
+    const savedMap = new Map();
+    ((planData && planData[dept]) || []).forEach((it: any) => {
+      if (it.itemId) savedMap.set(it.itemId, it);
+    });
+
+    for (const item of planItems) {
+      const itemId = item.itemId;
+      const existing = savedMap.get(itemId);
+      const wasConfirmed = existing && existing.planType === 'Confirm';
+
+      // 1. Only admin can revert or modify a Confirmed plan
+      if (wasConfirmed && !isAdmin && item.planType !== 'Confirm') {
+        showToast('Save failed: Only Admin can change a Confirmed plan!');
+        validationFailed = true;
+        break;
       }
 
-      // Floor Start vs Floor End
-      if (it.floorStartDate && it.floorEndDate && new Date(it.floorStartDate) > new Date(it.floorEndDate)) {
-        showToast(`Row #${i + 1}: Save failed: End date cant be less than start date.`);
-        return;
+      // 2. Downstream confirmation lock for non-admin
+      if (!isAdmin && checkDownstreamConfirm(itemId)) {
+        const wasStart = existing ? existing.startDate : '';
+        const wasEnd = existing ? existing.endDate : '';
+        const wasType = existing ? existing.planType : '';
+
+        if (item.startDate !== wasStart || item.endDate !== wasEnd || item.planType !== wasType) {
+          showToast(`Save failed: Cannot change ${dept} because the next department is already Confirmed!`);
+          validationFailed = true;
+          break;
+        }
       }
 
-      // Plan Type requires dates
-      if ((it.planType === 'Confirm' || it.planType === 'Tentative') && (!it.startDate || !it.endDate)) {
-        showToast(`Row #${i + 1}: Save failed: Plan Type selected without Start and End dates.`);
-        return;
+      // 3. Start > End date
+      if (item.startDate && item.endDate && new Date(item.startDate) > new Date(item.endDate)) {
+        showToast('Save failed: End date cant be less than start date.');
+        validationFailed = true;
+        break;
       }
 
-      // Knitting conditions
+      // 4. Floor start > Floor end
+      if (item.floorStartDate && item.floorEndDate && new Date(item.floorStartDate) > new Date(item.floorEndDate)) {
+        showToast('Save failed: End date cant be less than start date.');
+        validationFailed = true;
+        break;
+      }
+
+      // 5. Plan type selected without start or end date
+      if ((item.planType === 'Confirm' || item.planType === 'Tentative') && (!item.startDate || !item.endDate)) {
+        showToast('Save failed: Plan Type selected without Start and End dates.');
+        validationFailed = true;
+        break;
+      }
+
+      // 6. Knitting specific checks
       if (dept === 'knitting') {
-        const hasYarn = it.yarnDate && it.yarnDate.trim() !== '' && it.yarnDate !== '-' && it.yarnDate !== 'N/A';
-        if (it.planType === 'Confirm' && !hasYarn) {
-          showToast(`Row #${i + 1}: Save failed: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!`);
-          return;
+        if (item.planType === 'Confirm' && (!item.yarnDate || item.yarnDate === '-' || item.yarnDate === 'N/A')) {
+          showToast("Save failed: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
+          validationFailed = true;
+          break;
         }
-        if (it.startDate && hasYarn && new Date(it.startDate).setHours(0, 0, 0, 0) < new Date(it.yarnDate).setHours(0, 0, 0, 0)) {
-          showToast(`Row #${i + 1}: Save failed: Knitting Planning Start Date cannot be less than Yarn Date!`);
-          return;
+        if (item.startDate && item.yarnDate && item.yarnDate !== '-' && item.yarnDate !== 'N/A') {
+          if (new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(item.yarnDate).setHours(0, 0, 0, 0)) {
+            showToast('Save failed: Knitting Planning Start Date cannot be less than Yarn Date!');
+            validationFailed = true;
+            break;
+          }
         }
       }
 
-      // Dyeing conditions
+      // 7. Dyeing specific checks
       if (dept === 'dyeing') {
-        const hasDyePlanInput = Boolean(
-          it.startDate || it.endDate || (it.planType && it.planType !== 'Select' && it.planType !== '')
-        );
-        if (hasDyePlanInput && !isKnitTypeSelected) {
-          showToast(`Row #${i + 1}: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!`);
-          return;
+        const { knitItem } = getUpstreamPlans(item);
+        const knitType = knitItem?.planType;
+        const knitStart = knitItem?.startDate || knitItem?.planStart;
+        const knitEnd = knitItem?.endDate || knitItem?.planEnd;
+
+        const hasDyePlanInput = Boolean(item.startDate || item.endDate || (item.planType && item.planType !== 'Select'));
+
+        if (hasDyePlanInput && (!knitType || knitType === 'Select' || knitType === '-' || knitType === '')) {
+          showToast('Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!');
+          validationFailed = true;
+          break;
         }
-        if (it.startDate && knitItem?.startDate && new Date(it.startDate).setHours(0, 0, 0, 0) < new Date(knitItem.startDate).setHours(0, 0, 0, 0)) {
-          showToast(`Row #${i + 1}: Save failed: Dyeing Start Date cannot be before Knitting Start Date!`);
-          return;
+
+        if (item.startDate && knitStart && knitStart !== '-' && new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(knitStart).setHours(0, 0, 0, 0)) {
+          showToast('Save failed: Dyeing Start Date cannot be before Knitting Start Date!');
+          validationFailed = true;
+          break;
         }
-        if (it.endDate && knitItem?.endDate && new Date(it.endDate).setHours(0, 0, 0, 0) < new Date(knitItem.endDate).setHours(0, 0, 0, 0)) {
-          showToast(`Row #${i + 1}: Save failed: Dyeing End Date cannot be before Knitting End Date!`);
-          return;
+
+        if (item.endDate && knitEnd && knitEnd !== '-' && new Date(item.endDate).setHours(0, 0, 0, 0) < new Date(knitEnd).setHours(0, 0, 0, 0)) {
+          showToast('Save failed: Dyeing End Date cannot be before Knitting End Date!');
+          validationFailed = true;
+          break;
         }
       }
 
-      // Delivery conditions
+      // 8. Delivery specific checks
       if (dept === 'delivery') {
+        const { dyeItem } = getUpstreamPlans(item);
+        const dyeType = dyeItem?.planType;
+        const dyeStart = dyeItem?.startDate || dyeItem?.planStart;
+        const dyeEnd = dyeItem?.endDate || dyeItem?.planEnd;
+
         const hasDeliPlanInput = Boolean(
-          it.startDate ||
-            it.endDate ||
-            (it.planType && it.planType !== 'Select' && it.planType !== '') ||
-            it.floorStartDate ||
-            it.floorEndDate ||
-            (it.floorPlanType && it.floorPlanType !== 'Select' && it.floorPlanType !== '')
+          item.startDate || item.endDate || (item.planType && item.planType !== 'Select') || item.floorStartDate || item.floorEndDate
         );
-        if (hasDeliPlanInput && !isDyeTypeSelected) {
-          showToast(`Row #${i + 1}: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!`);
-          return;
+
+        if (hasDeliPlanInput && (!dyeType || dyeType === 'Select' || dyeType === '-' || dyeType === '')) {
+          showToast('Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!');
+          validationFailed = true;
+          break;
         }
-        if (it.startDate && dyeItem?.startDate && new Date(it.startDate).setHours(0, 0, 0, 0) < new Date(dyeItem.startDate).setHours(0, 0, 0, 0)) {
-          showToast(`Row #${i + 1}: Save failed: Delivery Start Date cannot be before Dyeing Start Date!`);
-          return;
+
+        const isDyeingBlank = !dyeStart || dyeStart === '-' || dyeStart === '';
+        if (hasDeliPlanInput && isDyeingBlank) {
+          showToast('Save failed: Cannot input Delivery. Dyeing plan is missing!');
+          validationFailed = true;
+          break;
         }
-        if (it.endDate && dyeItem?.endDate && new Date(it.endDate).setHours(0, 0, 0, 0) < new Date(dyeItem.endDate).setHours(0, 0, 0, 0)) {
-          showToast(`Row #${i + 1}: Save failed: Delivery End Date cannot be before Dyeing End Date!`);
-          return;
+
+        if (item.startDate && dyeStart && dyeStart !== '-' && new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(dyeStart).setHours(0, 0, 0, 0)) {
+          showToast('Save failed: Delivery Start Date cannot be before Dyeing Start Date!');
+          validationFailed = true;
+          break;
         }
+
+        if (item.endDate && dyeEnd && dyeEnd !== '-' && new Date(item.endDate).setHours(0, 0, 0, 0) < new Date(dyeEnd).setHours(0, 0, 0, 0)) {
+          showToast('Save failed: Delivery End Date cannot be before Dyeing End Date!');
+          validationFailed = true;
+          break;
+        }
+      }
+    }
+
+    if (validationFailed) return;
+
+    // Confirm when marking order as Completed (save-planning.js line 171)
+    const prevStatus = planData?.[`${dept}Status`] || 'On Process';
+    let finalStatus = orderStatus;
+    if (finalStatus === 'Completed' && prevStatus !== 'Completed') {
+      if (!confirm(`Are you sure you want to mark order '${orderNo}' as Completed? It will be moved to the Completed List.`)) {
+        setOrderStatus(prevStatus);
+        return;
       }
     }
 
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-
-      // Auto-transition to Confirm if all items are Confirm
-      let finalStatus = orderStatus;
-      if (planItems.length > 0 && planItems.every((it) => it.planType === 'Confirm')) {
-        finalStatus = 'Confirm';
-        setOrderStatus('Confirm');
-      }
-
-      const res = await fetch(`${API_BASE}/api/orders/save-dates`, {
+      const res = await fetch(`${API_BASE}/api/orders/planning-dates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -742,6 +793,8 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
       }
 
       showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
+      // Refresh to update saved states
+      fetchOrderAndDropdowns();
     } catch (err: any) {
       showToast(err.message || 'Error saving planning schedule.');
     } finally {
@@ -784,14 +837,14 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
   const displayQty = order.requiredQtyKgs || (totalItemQty > 0 ? totalItemQty : '—');
 
   return (
-    <div className="space-y-4 pb-20 max-w-[1800px] mx-auto animate-fade-in text-[11px]">
-      {/* Toast notification matching Exp */}
+    <div className="space-y-4 pb-20 max-w-[1850px] mx-auto animate-fade-in text-[11px]">
+      {/* Toast alert notification matching Exp */}
       {toast && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
           <div
             className={`alert ${
               toast.type === 'success' ? 'alert-success' : 'alert-error'
-            } shadow-lg text-xs font-bold py-2 px-4 rounded border`}
+            } shadow-lg text-xs font-bold py-2.5 px-4 rounded border`}
           >
             {toast.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
             <span>{toast.message}</span>
@@ -799,132 +852,402 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Top Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-[#2a3346] pb-3">
-        <div className="flex items-center gap-3">
+      {/* Top Header Bar matching Exp index.html lines 1381-1398 */}
+      <div className="bg-gray-100 dark:bg-[#1f2637] border-b border-gray-200 dark:border-[#2a3346] flex flex-col sm:flex-row items-start sm:items-center px-4 py-2 shrink-0 justify-between w-full gap-2 rounded-sm shadow-sm">
+        <div className="flex items-center w-full sm:w-auto">
           <Link
             href={`/planning/${dept}`}
-            className="btn btn-ghost btn-sm btn-square border border-gray-300 dark:border-[#2a3346] hover:border-primary"
-            title="Return to Planning List"
+            className="mr-3 text-gray-700 dark:text-gray-300 hover:text-blue-600 transition"
+            title="Back to Planning List"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black tracking-tight text-gray-800 dark:text-gray-100">
-                Order Planning: <span className="text-blue-600 dark:text-blue-400 font-mono">{orderNo}</span>
-              </h1>
-              <span className="badge badge-sm badge-outline font-bold uppercase">{deptMeta.name}</span>
-            </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Buyer: <span className="font-semibold text-gray-800 dark:text-gray-200">{order.buyer || 'N/A'}</span> • Style:{' '}
-              <span className="font-semibold text-gray-800 dark:text-gray-200">{order.style || 'N/A'}</span>
-            </p>
-          </div>
+          <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
+            Order Planning: <span className="text-blue-600 dark:text-blue-400 font-mono">{orderNo}</span>
+            <span className="ml-2 px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-[10px] uppercase font-bold">
+              {deptMeta.name}
+            </span>
+          </h3>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-[#1f2637] px-3 py-1.5 rounded border border-gray-300 dark:border-[#2a3346]">
-            <span className="text-[11px] font-bold text-gray-600 dark:text-gray-400">Status:</span>
-            <select
-              value={orderStatus}
-              onChange={(e) => setOrderStatus(e.target.value)}
-              className="select select-bordered select-xs font-bold text-[11px] bg-white dark:bg-[#151921]"
-            >
-              <option value="On Process">On Process</option>
-              <option value="Confirm">Confirm</option>
-              <option value="Tentative">Tentative</option>
-              <option value="Completed">Completed</option>
-            </select>
-          </div>
+        <div className="flex gap-2 w-full sm:w-auto justify-end items-center">
+          <Link
+            href={`/planning/${dept}`}
+            className="px-3 md:px-4 py-1.5 border border-gray-300 dark:border-[#2a3346] text-xs font-bold rounded hover:bg-gray-200 dark:hover:bg-[#283347] text-gray-700 dark:text-gray-300 transition"
+          >
+            Back
+          </Link>
 
           <button
             onClick={handleSavePlanning}
-            className="btn btn-primary btn-sm text-xs font-bold shadow-sm gap-1.5"
             disabled={saving}
+            className="px-4 md:px-6 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
           >
-            {saving ? <span className="loading loading-spinner loading-xs" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? (
+              <span className="loading loading-spinner loading-xs" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
             Save Planning
           </button>
         </div>
       </div>
 
-      {/* General Information Card (Exp Parity) */}
-      <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden">
-        <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center border-b border-gray-200 dark:border-[#2a3346]">
-          <Layers className="h-3.5 w-3.5 text-blue-500 mr-2" /> General Information
-        </div>
-        <div className="p-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-[11px]">
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Booking / EWO</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200 font-mono">{order.orderNo}</span>
+      {/* ==========================================================
+          GENERAL INFORMATION & PLANNING CARD
+          Exact Replica of Exp index.html lines 1403-1478 & detailed-view.js lines 193-219
+         ========================================================== */}
+      <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] p-3 md:p-4 rounded-sm shadow-sm shrink-0 w-full max-w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-2.5">
+          {/* Column 1 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                EWO No.
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.orderNo || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Booking No.
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.orderNo || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Booking Date
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.bookingDate)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Gmt Unit
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.gmtUnit || order.bookingUnit || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-semibold"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Floor
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.floor || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Final Confirmation
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.finalConfirmation || ''}
+                className={`flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-bold outline-none ${
+                  String(order.finalConfirmation).trim().toLowerCase() === 'no'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-green-600 dark:text-green-400'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                BP Status
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.bpStatus || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                PMC
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.pmc || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-medium"
+              />
+            </div>
+
+            {/* Order Status matching Exp index.html lines 1426-1432 */}
+            <div className="flex items-center mt-1 border border-blue-200 dark:border-blue-800 rounded p-1 bg-blue-50 dark:bg-blue-900/20">
+              <span className="w-[115px] text-[11px] font-semibold text-blue-700 dark:text-blue-400 shrink-0">
+                Order Status
+              </span>
+              <select
+                value={orderStatus}
+                onChange={(e) => setOrderStatus(e.target.value)}
+                className="flex-1 min-w-0 px-2 py-1 border border-blue-300 dark:border-blue-700 rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-blue-700 dark:text-blue-400 cursor-pointer outline-none"
+              >
+                <option value="On Process">On Process</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Order Qty (Kg)</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200 font-mono">
-              {Number(displayQty).toLocaleString()}
-            </span>
+
+          {/* Column 2 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Buyer Name(s)
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.buyer || 'N/A'}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-bold text-blue-700 dark:text-blue-400 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Buyer Team
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.buyerTeam || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Booked By
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.bookedBy || order.bookingBy || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Style
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.style || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Order Qty. (Kg)
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={displayQty !== '—' ? Number(displayQty).toLocaleString() : '—'}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-mono font-bold"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Event Day
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={order.eventDay || ''}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                1st Shipment Date
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.ship1)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                Last Shipment Date
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.shipLast)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Yarn date
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.yarnDate)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-medium"
+              />
+            </div>
           </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Booking Date</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">
-              {formatDateDisplay(order.bookingDate)}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Gmt Unit / Floor</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">
-              {order.gmtUnit || order.bookingUnit || '—'} / {order.floor || order.unit || '—'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Final Confirmation</span>
-            <span
-              className={`font-bold ${
-                String(order.finalConfirmation).toLowerCase() === 'no' ? 'text-red-500' : 'text-green-600'
-              }`}
-            >
-              {order.finalConfirmation || '—'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block text-[10px]">PMC</span>
-            <span className="font-medium text-gray-800 dark:text-gray-200">{order.pmc || '—'}</span>
+
+          {/* Column 3 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Deli. Start
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.deliStart)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Deli. End
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.deliEnd)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Knitting Start
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.knitStart)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Knitting End
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.knitEnd)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Dyeing Start
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.dyeStart)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
+                T&A Dyeing End
+              </span>
+              <input
+                type="text"
+                readOnly
+                value={formatDateDisplay(order.dyeEnd)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
+              />
+            </div>
+
+            {/* Fabric Notes matching Exp index.html lines 1471-1475 */}
+            <div className="p-1 bg-gray-100 dark:bg-[#1f2637] text-center font-bold text-xs mt-1 border border-gray-200 dark:border-[#2a3346] text-gray-700 dark:text-gray-300">
+              Fabric Notes
+            </div>
+            <textarea
+              readOnly
+              value={order.fabricNotes || ''}
+              className="w-full h-11 p-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[10px] text-gray-700 dark:text-gray-200 outline-none resize-none"
+            />
           </div>
         </div>
       </div>
 
-      {/* Fabric Items Table matching Exp table-headers.js and detailed-view.js */}
+      {/* ==========================================================
+          DEPARTMENT FABRIC ITEMS TABLE (2-TIER EXP DESIGN)
+         ========================================================== */}
       <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden flex flex-col">
         <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center justify-between border-b border-gray-200 dark:border-[#2a3346]">
           <div className="flex items-center">
-            <FileSpreadsheet className="h-3.5 w-3.5 text-blue-500 mr-2" />
+            <Layers className="h-4 w-4 text-blue-500 mr-2" />
             <span>Department Fabric Items</span>
-            <span className="ml-2 px-1.5 py-0.2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-[10px] font-mono">
+            <span className="ml-2 px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
               {planItems.length}
             </span>
           </div>
-          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">
+          <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 italic">
             Row 1 changes auto-fill all items below
           </span>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar w-full bg-white dark:bg-[#151921]">
+        <div className="overflow-x-auto custom-scrollbar w-full">
           <table className="w-full text-left whitespace-nowrap border-collapse min-w-[1600px]">
-            {/* 2-Tier Dual Header Structure matching Exp */}
-            <thead className="bg-white dark:bg-[#151921] shadow-xs">
-              {/* Main Header Row */}
+            {/* 2-Tier Header Structure matching Exp table-headers.js */}
+            <thead className="bg-white dark:bg-[#151921] shadow-sm select-none">
+              {/* Main Top Header Row */}
               <tr className="text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]">
                 <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center w-8">
                   #
                 </th>
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[80px]">
+                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                   Color
                 </th>
 
                 {dept !== 'yd' && (
                   <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                       FabricConstruction
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
@@ -933,14 +1256,14 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                   </>
                 )}
 
-                {/* YD Left Columns */}
+                {/* YD Extra left cols */}
                 {dept === 'yd' && (
                   <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[90px]">
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                       Booking Type
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      YDB
+                      YDB#
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                       YD Booking Date
@@ -948,7 +1271,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                   </>
                 )}
 
-                {/* Dyeing / Finishing Unit & Process dropdowns */}
+                {/* Dyeing / Finishing: Unit & Process Name */}
                 {(dept === 'dyeing' || dept === 'finishing') && (
                   <>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
@@ -960,47 +1283,44 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                   </>
                 )}
 
-                {/* Dyeing: Knitting Upstream Planning columns */}
+                {/* Dyeing: Upstream Knitting Plan Columns (detailed-view.js line 307) */}
                 {dept === 'dyeing' && (
                   <>
                     <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                       Knitting Planning
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Knitting Plan Type
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Knit Plan Type
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                      Knitting Limitation
+                      Knit Limitation
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                      Remarks (Knitting)
+                      Knit Remarks
                     </th>
                   </>
                 )}
 
-                {/* Knitting: Yarn Date */}
+                {/* Knitting: Yarn Date Column */}
                 {dept === 'knitting' && (
-                  <th
-                    rowSpan={2}
-                    className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[95px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-400 font-bold"
-                  >
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200 min-w-[95px]">
                     Yarn Date
                   </th>
                 )}
 
-                {/* Delivery: Floor Planning */}
+                {/* Delivery: Floor Planning Columns (detailed-view.js lines 383-391) */}
                 {dept === 'delivery' && (
                   <>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      Delivery Planning (Floor)
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200">
+                      Floor Planning
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
-                      Plan Type (Floor)
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Floor Plan Type
                     </th>
                   </>
                 )}
 
-                {/* Standard Department Planning Header Block */}
+                {/* Current Department Planning Block */}
                 <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                   {dept === 'knitting'
                     ? 'Knitting Planning'
@@ -1041,27 +1361,6 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     </th>
                     <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                       Knitting Planning
-                    </th>
-                  </>
-                )}
-
-                {/* YD Extra Columns */}
-                {dept === 'yd' && (
-                  <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Yarn Ok<br />Date
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Matching<br />Option Date
-                    </th>
-                    <th colSpan={3} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      YD Planning (Floor)
-                    </th>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      T&A YD Plan
-                    </th>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      Knit Plan
                     </th>
                   </>
                 )}
@@ -1153,7 +1452,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                       DYED
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px] text-orange-600 font-bold">
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                       YD BALANCE
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
@@ -1166,80 +1465,103 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                 )}
               </tr>
 
-              {/* Sub Header Row */}
-              <tr className="text-[9px] bg-gray-50 dark:bg-[#181f2c] border-b border-gray-300 dark:border-[#2a3346] text-gray-600 dark:text-gray-400 font-semibold">
-                {/* Sub headers for Dyeing Knitting block */}
+              {/* Sub-Header Row with Start Date / End Date labels */}
+              <tr className="text-[9px] bg-gray-50 dark:bg-[#181f2c] border-b border-gray-300 dark:border-[#2a3346]">
                 {dept === 'dyeing' && (
                   <>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Start Date</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">End Date</th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
                   </>
                 )}
 
-                {/* Sub headers for Delivery Floor block */}
                 {dept === 'delivery' && (
                   <>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Start Date</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">End Date</th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Floor Start
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Floor End
+                    </th>
                   </>
                 )}
 
-                {/* Standard department Start/End Date */}
-                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Start Date</th>
-                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">End Date</th>
+                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                  Start Date
+                </th>
+                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                  End Date
+                </th>
 
-                {/* Sub headers for Delivery Dyeing & Knitting blocks */}
                 {dept === 'delivery' && (
                   <>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Start Date</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">End Date</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Start Date</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">End Date</th>
-                  </>
-                )}
-
-                {/* Sub headers for YD */}
-                {dept === 'yd' && (
-                  <>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">YD Start</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">YD End</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Plan Type</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">YD T&A Start</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">YD T&A End</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Knit Start</th>
-                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center">Knit End</th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
                   </>
                 )}
               </tr>
             </thead>
 
-            {/* Table Body matching Exp detailed-view.js */}
-            <tbody className="text-[10px] bg-white dark:bg-[#151921] text-gray-700 dark:text-gray-200 divide-y divide-gray-200 dark:divide-[#2a3346]">
+            {/* Table Body */}
+            <tbody className="text-[10px] bg-white dark:bg-[#151921] text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-[#2a3346]">
               {planItems.map((item, idx) => {
-                const { knitItem, dyeItem } = getUpstreamPlans(item);
+                const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(item);
 
-                // Gating checks matching Exp
-                const dyeReady = isDyeRowReady(item);
-                const deliReady = isDeliRowReady(item);
-                const isConfirmed = item.planType === 'Confirm';
-                const isLockedByConfirm = isConfirmed && !isAdmin;
+                // Gating checks matching Exp detailed-view.js:
+                // Dyeing: requires Unit & Process to be selected (lines 579-586)
+                const isUnitProcessReady =
+                  dept !== 'dyeing' ||
+                  (Boolean(item.unit) && item.unit !== 'Select' && Boolean(item.processName) && item.processName !== 'Select');
 
-                // Inputs disabled state
-                const isRowPlanningDisabled =
-                  (dept === 'dyeing' && !dyeReady) ||
-                  (dept === 'delivery' && !deliReady) ||
-                  isLockedByConfirm;
+                // Dyeing: disabled if Knitting Plan Type is not selected (line 302)
+                const isDyeKnitLocked = dept === 'dyeing' && !isKnitTypeSelected;
 
-                const disabledClass = isRowPlanningDisabled
-                  ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed'
+                // Delivery: disabled if Dyeing Plan Type is not selected (line 357)
+                const isDeliDyeLocked = dept === 'delivery' && !isDyeTypeSelected;
+
+                // Non-Admin lock: ONLY lock if item was already Confirmed and user is NOT admin
+                const isSavedConfirmed = item.planType === 'Confirm';
+                const isNonAdminLocked = isSavedConfirmed && !isAdmin;
+
+                // Dyeing input disabled
+                const isDyeInputsDisabled = !isUnitProcessReady || isDyeKnitLocked || isNonAdminLocked;
+
+                // Delivery input disabled
+                const isDeliInputsDisabled = isDeliDyeLocked || isNonAdminLocked;
+
+                // General input disabled state
+                const isInputsDisabled =
+                  dept === 'dyeing'
+                    ? isDyeInputsDisabled
+                    : dept === 'delivery'
+                    ? isDeliInputsDisabled
+                    : isNonAdminLocked;
+
+                const inputDisabledClass = isInputsDisabled
+                  ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed text-gray-400'
                   : 'bg-white dark:bg-[#151921]';
 
                 const disabledTitle =
-                  dept === 'dyeing' && !dyeReady
+                  dept === 'dyeing' && isDyeKnitLocked
+                    ? 'Knitting Plan type selection is mandatory to input Dyeing plan'
+                    : dept === 'dyeing' && !isUnitProcessReady
                     ? 'Unit & Process Name must be selected before planning'
-                    : dept === 'delivery' && !deliReady
-                    ? 'Dyeing plan is required before inputting Delivery plan'
-                    : isLockedByConfirm
+                    : dept === 'delivery' && isDeliDyeLocked
+                    ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
+                    : isNonAdminLocked
                     ? 'Only Admin can modify Confirmed plan'
                     : undefined;
 
@@ -1290,7 +1612,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                           <select
                             value={item.unit || ''}
-                            onChange={(e) => handleItemChange(idx, 'unit', e.target.value)}
+                            onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
                             className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
@@ -1304,7 +1626,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
                           <select
                             value={item.processName || ''}
-                            onChange={(e) => handleItemChange(idx, 'processName', e.target.value)}
+                            onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
                             className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
@@ -1361,7 +1683,7 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         <input
                           type="date"
                           value={item.yarnDate || ''}
-                          onChange={(e) => handleItemChange(idx, 'yarnDate', e.target.value)}
+                          onChange={(e) => handleYarnDateChange(idx, e.target.value)}
                           title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
                           className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
                         />
@@ -1375,12 +1697,10 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                           <input
                             type="date"
                             value={item.floorStartDate || ''}
-                            disabled={!deliReady || isLockedByConfirm}
+                            disabled={isDeliInputsDisabled}
                             title={disabledTitle}
-                            onChange={(e) => handleItemChange(idx, 'floorStartDate', e.target.value)}
-                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${
-                              !deliReady || isLockedByConfirm ? 'opacity-60 cursor-not-allowed' : ''
-                            }`}
+                            onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
+                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${inputDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40">
@@ -1388,23 +1708,19 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                             type="date"
                             value={item.floorEndDate || ''}
                             min={item.floorStartDate || undefined}
-                            disabled={!deliReady || isLockedByConfirm}
+                            disabled={isDeliInputsDisabled}
                             title={disabledTitle}
-                            onChange={(e) => handleItemChange(idx, 'floorEndDate', e.target.value)}
-                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${
-                              !deliReady || isLockedByConfirm ? 'opacity-60 cursor-not-allowed' : ''
-                            }`}
+                            onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
+                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50 dark:bg-blue-950/20 ${inputDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
                             value={item.floorPlanType || ''}
-                            disabled={!deliReady || isLockedByConfirm}
+                            disabled={isDeliInputsDisabled}
                             title={disabledTitle}
-                            onChange={(e) => handleItemChange(idx, 'floorPlanType', e.target.value)}
-                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${
-                              !deliReady || isLockedByConfirm ? 'opacity-60 cursor-not-allowed' : ''
-                            }`}
+                            onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
+                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${inputDisabledClass}`}
                           >
                             <option value="">Select</option>
                             <option value="Confirm">Confirm</option>
@@ -1420,10 +1736,10 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         type="date"
                         value={item.startDate || ''}
                         min={dept === 'knitting' ? item.yarnDate || undefined : undefined}
-                        disabled={isRowPlanningDisabled}
+                        disabled={isInputsDisabled}
                         title={disabledTitle}
-                        onChange={(e) => handleItemChange(idx, 'startDate', e.target.value)}
-                        className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${disabledClass}`}
+                        onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                        className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
                       />
                     </td>
 
@@ -1433,10 +1749,10 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         type="date"
                         value={item.endDate || ''}
                         min={item.startDate || (dept === 'knitting' ? item.yarnDate || undefined : undefined)}
-                        disabled={isRowPlanningDisabled}
+                        disabled={isInputsDisabled}
                         title={disabledTitle}
-                        onChange={(e) => handleItemChange(idx, 'endDate', e.target.value)}
-                        className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${disabledClass}`}
+                        onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                        className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
                       />
                     </td>
 
@@ -1444,14 +1760,14 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                       <select
                         value={item.planType || ''}
-                        disabled={isRowPlanningDisabled}
+                        disabled={isInputsDisabled}
                         title={disabledTitle}
-                        onChange={(e) => handleItemChange(idx, 'planType', e.target.value)}
-                        className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${disabledClass} ${
+                        onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                        className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass} ${
                           item.planType === 'Confirm'
-                            ? 'text-green-600'
+                            ? 'text-green-700 bg-green-50 dark:bg-green-950/30 border-green-300'
                             : item.planType === 'Tentative'
-                            ? 'text-yellow-600'
+                            ? 'text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300'
                             : ''
                         }`}
                       >
@@ -1465,12 +1781,12 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                       <input
                         type="text"
-                        placeholder="Limitation"
                         value={item.limitation || ''}
-                        disabled={dept === 'dyeing' && !dyeReady}
-                        onChange={(e) => handleItemChange(idx, 'limitation', e.target.value)}
+                        disabled={!isUnitProcessReady}
+                        onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                        placeholder="Limitation"
                         className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
-                          dept === 'dyeing' && !dyeReady ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed' : ''
+                          !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
                         }`}
                       />
                     </td>
@@ -1479,17 +1795,17 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                       <input
                         type="text"
-                        placeholder="Notes"
                         value={item.remarks || ''}
-                        disabled={dept === 'dyeing' && !dyeReady}
-                        onChange={(e) => handleItemChange(idx, 'remarks', e.target.value)}
+                        disabled={!isUnitProcessReady}
+                        onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                        placeholder="Notes"
                         className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
-                          dept === 'dyeing' && !dyeReady ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed' : ''
+                          !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
                         }`}
                       />
                     </td>
 
-                    {/* Upstream Dyeing & Knitting columns for Delivery (detailed-view.js lines 409-414) */}
+                    {/* Delivery: Upstream Dyeing & Knitting readouts */}
                     {dept === 'delivery' && (
                       <>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
@@ -1520,173 +1836,114 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                       </>
                     )}
 
-                    {/* YD Extra Columns (detailed-view.js lines 487-502) */}
-                    {dept === 'yd' && (
-                      <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                          <input
-                            type="date"
-                            value={item.yarnOkDate || ''}
-                            onChange={(e) => handleItemChange(idx, 'yarnOkDate', e.target.value)}
-                            className="row-yarn-ok-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                          <input
-                            type="date"
-                            value={item.matchingOptionDate || ''}
-                            onChange={(e) => handleItemChange(idx, 'matchingOptionDate', e.target.value)}
-                            className="row-matching-option-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                          <input
-                            type="date"
-                            value={item.floorStartDate || ''}
-                            onChange={(e) => handleItemChange(idx, 'floorStartDate', e.target.value)}
-                            className="row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                          <input
-                            type="date"
-                            value={item.floorEndDate || ''}
-                            min={item.floorStartDate || undefined}
-                            onChange={(e) => handleItemChange(idx, 'floorEndDate', e.target.value)}
-                            className="row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                          <select
-                            value={item.floorPlanType || ''}
-                            onChange={(e) => handleItemChange(idx, 'floorPlanType', e.target.value)}
-                            className="row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer"
-                          >
-                            <option value="">Select</option>
-                            <option value="Confirm">Confirm</option>
-                            <option value="Tentative">Tentative</option>
-                          </select>
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-                          {formatDateDisplay(item['YD T&A Start'] || item.YDTnAStart)}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-                          {formatDateDisplay(item['YD T&A End'] || item.YDTnAEnd)}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-                          {formatDateDisplay(knitItem?.startDate || knitItem?.planStart || order.knitStart)}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-                          {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd || order.knitEnd)}
-                        </td>
-                      </>
-                    )}
-
-                    {/* Department Specific Metric Rows (Exp Parity) */}
+                    {/* Knitting Production & Balance columns */}
                     {dept === 'knitting' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Grey Req.'] || item.GreyReq || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.GreyReq || item.greyReq || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Knit Prod.'] || item.KnitProd || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.KnitProd || item.knitProd || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono text-orange-600 font-bold">
-                          {(item['Knit. Bala.'] || item.KnitBala || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
+                          {item.KnitBala || item.knitBala || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Yarn req.'] || item.YarnReq || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.YarnReq || item.yarnReq || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Allocated Qty '] || item['Allocated Qty'] || item.AllocatedQty || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.AllocatedQty || item.allocatedQty || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Yarn bala.'] || item.YarnBala || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.YarnBala || item.yarnBala || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px] font-mono">
-                          {item['Allowance %'] !== undefined ? `${(Number(item['Allowance %']) * 100).toFixed(0)}%` : '—'}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.Allowance || item.allowance || '—'}
                         </td>
                       </>
                     )}
 
+                    {/* Dyeing / Finishing Production columns */}
                     {(dept === 'dyeing' || dept === 'finishing') && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['BP Qty'] || item.BPQty || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.BPQty || item.bpQty || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Dyeing Prod.'] || item.DyeingProd || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.DyeingProd || item.dyeingProd || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono text-orange-600 font-bold">
-                          {(item['Dyeing Bala.'] || item.DyeingBala || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
+                          {item.DyeingBala || item.dyeingBala || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Knit Prod.'] || item.KnitProd || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.KnitProd || item.knitProd || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['Knit. Bala.'] || item.KnitBala || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.KnitBala || item.knitBala || '—'}
                         </td>
                       </>
                     )}
 
+                    {/* Delivery Production & Stock columns */}
                     {dept === 'delivery' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.RequiredQtyKgs || item['Req Qty'] || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.RequiredQtyKgs || item.requiredQtyKgs || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.NetReceivedQtyKgs || item.NetReceivedQty || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.NetReceivedQtyKgs || item.netReceivedQtyKgs || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.NetDeliveryQtyKgs || item.NetDeliveryQty || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.NetDeliveryQtyKgs || item.netDeliveryQtyKgs || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono text-orange-600 font-bold">
-                          {(item['Deli. Bal.'] || item.DeliBal || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
+                          {item.DeliBal || item.deliBal || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.RFD || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.RFD || item.rfd || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.Slowmoving || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.Slowmoving || item.slowmoving || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['FF Stock'] || item.FFStock || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.FFStock || item.ffStock || 0}
                         </td>
                       </>
                     )}
 
+                    {/* YD Extra Right columns */}
                     {dept === 'yd' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
                             type="number"
-                            value={item['Barrier Qty.'] !== undefined ? item['Barrier Qty.'] : ''}
-                            onChange={(e) => handleItemChange(idx, 'Barrier Qty.', e.target.value)}
-                            className="row-barrier-qty w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none"
+                            value={item['Barrier Qty.'] || item.barrierQty || ''}
+                            onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                            className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
                           />
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
                             type="number"
-                            value={item['Workable Qty.'] !== undefined ? item['Workable Qty.'] : ''}
-                            onChange={(e) => handleItemChange(idx, 'Workable Qty.', e.target.value)}
-                            className="row-workable-qty w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none"
+                            value={item['Workable Qty.'] || item.workableQty || ''}
+                            onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                            className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
                           />
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['YD REQ.'] || item.YDReq || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item['YD REQ.'] || item.ydReq || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item.DYED || item.Dyed || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.DYED || item.dyed || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono text-orange-600 font-bold">
-                          {(item['YD BALANCE'] || item.YDBalance || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item['YD BALANCE'] || item.ydBalance || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono">
-                          {(item['YD Delivered'] || item.YDDelivered || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item['YD Delivered'] || item.ydDelivered || 0}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-mono text-red-600 font-bold">
-                          {(item['YD DELIVERY BALANCE'] || 0).toLocaleString()}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-red-600 font-bold">
+                          {item['YD DELIVERY BALANCE'] || item.ydDeliveryBalance || '—'}
                         </td>
                       </>
                     )}
@@ -1697,23 +1954,22 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
           </table>
         </div>
 
-        {/* Bottom Save Bar */}
-        <div className="bg-gray-100 dark:bg-[#1f2637] p-2.5 border-t border-gray-200 dark:border-[#2a3346] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <p className="text-[11px] text-gray-600 dark:text-gray-400">
-            Total <span className="font-bold text-gray-800 dark:text-gray-200">{planItems.length}</span> fabric items
-            ready for schedule synchronization.
-          </p>
+        {/* Footer info & Save trigger */}
+        <div className="p-3 bg-gray-50 dark:bg-[#181f2c] border-t border-gray-200 dark:border-[#2a3346] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <span className="text-gray-500 dark:text-gray-400">
+            Total <strong className="text-gray-800 dark:text-gray-200">{planItems.length}</strong> fabric items ready for schedule synchronization.
+          </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push(`/planning/${dept}`)}
-              className="btn btn-ghost btn-xs text-[11px] font-semibold"
+            <Link
+              href={`/planning/${dept}`}
+              className="btn btn-ghost btn-xs font-semibold"
             >
               Cancel
-            </button>
+            </Link>
             <button
               onClick={handleSavePlanning}
-              className="btn btn-primary btn-xs text-[11px] font-bold shadow-xs gap-1"
               disabled={saving}
+              className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
             >
               {saving ? <span className="loading loading-spinner loading-xs" /> : <Save className="h-3 w-3" />}
               Save Planning Schedule
