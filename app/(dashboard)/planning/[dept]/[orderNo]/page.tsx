@@ -773,7 +773,7 @@ export default function OrderPlanningDetailPage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/orders/planning-dates`, {
+      const res = await fetch(`${API_BASE}/api/orders/save-dates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
