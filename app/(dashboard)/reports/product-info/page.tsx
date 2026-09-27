@@ -3,12 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Search, ChevronRight, ChevronDown, Download, RefreshCw } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import ExpPagination from '@/components/common/ExpPagination';
 
 export default function ProductInfoPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -22,7 +25,7 @@ export default function ProductInfoPage() {
         orders: any[];
         total: number;
         totalPages: number;
-      }>(`/api/orders/all-list?page=${page}&limit=10&search=${encodeURIComponent(search)}`);
+      }>(`/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
       setOrders(res.orders || []);
       setTotalCount(res.total || 0);
       setTotalPages(res.totalPages || 1);
@@ -35,7 +38,7 @@ export default function ProductInfoPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [page, search]);
+  }, [page, limit, search]);
 
   const toggleExpand = async (orderNo: string) => {
     if (expandedOrder === orderNo) {
@@ -102,17 +105,21 @@ export default function ProductInfoPage() {
       </div>
 
       {/* Order List Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <span className="loading loading-spinner loading-lg text-primary" />
-          </div>
-        ) : orders.length === 0 ? (
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+        {/* Exact Exp 3-Ring Loading Overlay */}
+        {loading && (
+          <ExpLoadingSpinner
+            message="Compiling Product Info..."
+            subMessage="Fetching orders and color specifications"
+          />
+        )}
+
+        {!loading && orders.length === 0 ? (
           <div className="p-8 text-center text-sm text-base-content/60">
             No orders found matching your search.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="table table-sm">
               <thead className="bg-base-200/50 text-[11px] uppercase tracking-wider font-extrabold">
                 <tr>
@@ -263,28 +270,18 @@ export default function ProductInfoPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 bg-base-100">
-          <div className="text-xs text-base-content/60">
-            Page <span className="font-bold">{page}</span> of <span className="font-bold">{totalPages}</span>
-          </div>
-          <div className="join">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="join-item btn btn-outline btn-xs"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="join-item btn btn-outline btn-xs"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        {/* Exact Exp Pagination Bar */}
+        <ExpPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalCount}
+          limit={limit}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

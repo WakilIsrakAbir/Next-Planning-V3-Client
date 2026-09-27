@@ -23,6 +23,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 // ==========================================================
 // RBAC STRUCTURE DEFINITIONS (Matching Exp System)
@@ -901,8 +902,8 @@ export default function UserManagementPage() {
 
           {/* User Directory Cards Grid */}
           {loading ? (
-            <div className="flex h-64 items-center justify-center">
-              <span className="loading loading-spinner loading-lg text-primary" />
+            <div className="flex h-48 items-center justify-center">
+              <ExpLoadingSpinner message="Loading Directory..." size="sm" overlay={false} />
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="card bg-base-100 border border-base-300 p-8 text-center text-sm text-base-content/60">

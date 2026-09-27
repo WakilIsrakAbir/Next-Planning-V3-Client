@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { API_BASE, DEPARTMENTS, STATUS_COLORS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 interface PageProps {
   params: Promise<{
@@ -206,11 +207,12 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center flex-col gap-3">
-        <span className="loading loading-spinner loading-lg text-primary" />
-        <p className="text-xs font-semibold text-base-content/60 animate-pulse">
-          Loading detailed planning schedule for Order #{orderNo}...
-        </p>
+      <div className="flex h-[80vh] items-center justify-center flex-col">
+        <ExpLoadingSpinner
+          message={`Loading detailed planning schedule for Order #${orderNo}...`}
+          subMessage="Fetching synchronized item milestones and master dropdown options"
+          overlay={false}
+        />
       </div>
     );
   }

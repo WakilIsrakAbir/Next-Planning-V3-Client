@@ -14,11 +14,17 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay, calcLeadDay, calcOTTStatus } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import ExpPagination from '@/components/common/ExpPagination';
 
 export default function PlanningProdInfoPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [planData, setPlanData] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -28,12 +34,14 @@ export default function PlanningProdInfoPage() {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/orders/all-list?page=1&limit=50&search=${encodeURIComponent(search)}`, {
+        const res = await fetch(`${API_BASE}/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
           setOrders(data.orders || []);
+          setTotal(data.total || 0);
+          setTotalPages(data.totalPages || 1);
         }
       } catch (err) {
         console.error('Failed to load orders for PPI:', err);
@@ -42,7 +50,7 @@ export default function PlanningProdInfoPage() {
       }
     };
     fetchOrders();
-  }, [search]);
+  }, [page, limit, search]);
 
   const loadOrderDetail = async (orderNo: string) => {
     setDetailLoading(true);
@@ -92,8 +100,16 @@ export default function PlanningProdInfoPage() {
           </div>
 
           {/* Order List Table */}
-          <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+            {/* Exact Exp 3-Ring Loading Overlay */}
+            {loading && (
+              <ExpLoadingSpinner
+                message="Processing PPI Records..."
+                subMessage="Fetching 3-section order specifications"
+              />
+            )}
+
+            <div className="overflow-x-auto flex-1">
               <table className="table table-sm w-full">
                 <thead className="bg-base-200/60 text-xs">
                   <tr>
@@ -105,13 +121,7 @@ export default function PlanningProdInfoPage() {
                   </tr>
                 </thead>
                 <tbody className="text-xs">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center">
-                        <span className="loading loading-spinner text-primary" />
-                      </td>
-                    </tr>
-                  ) : orders.length === 0 ? (
+                  {!loading && orders.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-12 text-center text-base-content/60">
                         No orders found.
@@ -142,6 +152,19 @@ export default function PlanningProdInfoPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Exact Exp Pagination Bar */}
+            <ExpPagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              limit={limit}
+              onPageChange={(newPage) => setPage(newPage)}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
           </div>
         </>
       ) : (

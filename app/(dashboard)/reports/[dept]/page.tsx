@@ -4,6 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import { FileSpreadsheet, Download, Search, Printer, Filter, CheckCircle2 } from 'lucide-react';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -118,8 +119,16 @@ export default function DepartmentReportPage({ params }: PageProps) {
       </div>
 
       {/* Report Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+        {/* Exact Exp 3-Ring Loading Overlay */}
+        {loading && (
+          <ExpLoadingSpinner
+            message="Generating Department Report..."
+            subMessage="Processing synchronized department records"
+          />
+        )}
+
+        <div className="overflow-x-auto custom-scrollbar flex-1">
           <table className="table table-xs w-full">
             <thead className="bg-base-200/80 text-xs font-bold">
               <tr>
@@ -138,14 +147,7 @@ export default function DepartmentReportPage({ params }: PageProps) {
               </tr>
             </thead>
             <tbody className="text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan={12} className="p-12 text-center">
-                    <span className="loading loading-spinner text-primary" />
-                    <p className="mt-2 text-xs text-base-content/60">Generating report view...</p>
-                  </td>
-                </tr>
-              ) : filteredOrders.length === 0 ? (
+              {!loading && filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="p-12 text-center text-base-content/60">
                     No confirmed or tentative orders found for {dept.toUpperCase()}.

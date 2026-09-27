@@ -16,6 +16,8 @@ import {
 import { API_BASE, DEPARTMENTS, STATUS_COLORS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import ExpPagination from '@/components/common/ExpPagination';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -33,6 +35,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
   const [buyer, setBuyer] = useState('');
   const [availableBuyers, setAvailableBuyers] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
 
@@ -64,7 +67,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
         status: activeTab,
         buyer,
         page: String(page),
-        limit: '10',
+        limit: String(limit),
         search,
       });
 
@@ -87,7 +90,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
 
   useEffect(() => {
     fetchOrders();
-  }, [dept, activeTab, buyer, page]);
+  }, [dept, activeTab, buyer, page, limit]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,8 +188,11 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
       </div>
 
       {/* Orders Data Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+        {/* Exact Exp 3-Ring Loading Overlay */}
+        {loading && <ExpLoadingSpinner message="Processing Department Data..." />}
+
+        <div className="overflow-x-auto custom-scrollbar flex-1">
           <table className="table table-sm w-full">
             <thead className="bg-base-200/60 text-xs">
               <tr>
@@ -201,14 +207,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
               </tr>
             </thead>
             <tbody className="text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="p-12 text-center">
-                    <span className="loading loading-spinner text-primary" />
-                    <p className="mt-2 text-xs text-base-content/60">Loading orders...</p>
-                  </td>
-                </tr>
-              ) : orders.length === 0 ? (
+              {!loading && orders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-12 text-center text-base-content/60">
                     No {activeTab} orders found for {dept.toUpperCase()}.
@@ -250,29 +249,18 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
           </table>
         </div>
 
-        {/* Pagination Bar */}
-        <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 text-xs">
-          <span className="text-base-content/60">
-            Total {totalOrders} orders (Page {page} of {totalPages})
-          </span>
-          <div className="join">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="btn btn-xs join-item"
-            >
-              Prev
-            </button>
-            <button className="btn btn-xs join-item btn-active">{page}</button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="btn btn-xs join-item"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        {/* Exact Exp Pagination Bar */}
+        <ExpPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalOrders}
+          limit={limit}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );

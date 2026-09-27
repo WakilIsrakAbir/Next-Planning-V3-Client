@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { API_BASE, STATUS_COLORS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import ExpPagination from '@/components/common/ExpPagination';
 
 function parseNum(val: any): number {
   if (val === undefined || val === null || val === '' || val === '-') return 0;
@@ -26,6 +28,7 @@ export default function OrderStatusPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -40,7 +43,7 @@ export default function OrderStatusPage() {
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
-        limit: '15',
+        limit: String(limit),
         search,
       });
 
@@ -63,7 +66,7 @@ export default function OrderStatusPage() {
 
   useEffect(() => {
     fetchOrderStatus();
-  }, [page]);
+  }, [page, limit]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,8 +201,16 @@ export default function OrderStatusPage() {
       </div>
 
       {/* Orders Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+        {/* Exact Exp 3-Ring Loading Overlay */}
+        {loading && (
+          <ExpLoadingSpinner
+            message="Compiling Order Data..."
+            subMessage="Fetching records from all departments"
+          />
+        )}
+
+        <div className="overflow-x-auto custom-scrollbar flex-1">
           <table className="table table-sm w-full">
             <thead className="bg-base-200/60 text-xs">
               <tr>
@@ -215,14 +226,7 @@ export default function OrderStatusPage() {
               </tr>
             </thead>
             <tbody className="text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="p-12 text-center">
-                    <span className="loading loading-spinner text-primary" />
-                    <p className="mt-2 text-xs text-base-content/60">Loading pipeline status...</p>
-                  </td>
-                </tr>
-              ) : orders.length === 0 ? (
+              {!loading && orders.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="p-12 text-center text-base-content/60">
                     No orders found.
@@ -275,29 +279,18 @@ export default function OrderStatusPage() {
           </table>
         </div>
 
-        {/* Pagination Bar */}
-        <div className="flex items-center justify-between border-t border-base-300 px-4 py-3 text-xs">
-          <span className="text-base-content/60">
-            Total {total} orders (Page {page} of {totalPages})
-          </span>
-          <div className="join">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="btn btn-xs join-item"
-            >
-              Prev
-            </button>
-            <button className="btn btn-xs join-item btn-active">{page}</button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="btn btn-xs join-item"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        {/* Exact Exp Pagination Bar */}
+        <ExpPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          limit={limit}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* Detailed Modal replicating Exp order-status.js */}

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 const LOAD_DEPTS = [
   { key: 'knitting', label: 'Knitting', pendingQtyField: 'KnitBala' },
@@ -397,11 +398,12 @@ export default function LoadCalculationPage() {
             </div>
 
             {loading ? (
-              <div className="p-16 flex flex-col items-center justify-center gap-3">
-                <RefreshCw className="h-7 w-7 text-primary animate-spin" />
-                <span className="text-xs font-semibold text-base-content/60">
-                  Calculating 5-month capacity allocations...
-                </span>
+              <div className="p-16 flex items-center justify-center">
+                <ExpLoadingSpinner
+                  message="Loading Summary Data..."
+                  subMessage="Please wait while data is being processed"
+                  overlay={false}
+                />
               </div>
             ) : summaryRows.length === 0 ? (
               <div className="p-16 text-center text-base-content/60">

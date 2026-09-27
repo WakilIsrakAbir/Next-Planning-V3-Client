@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
+import ExpPagination from '@/components/common/ExpPagination';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -61,6 +63,7 @@ export default function TrackingPage({ params }: PageProps) {
 
   // Pagination
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -80,7 +83,7 @@ export default function TrackingPage({ params }: PageProps) {
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
-        limit: '15',
+        limit: String(limit),
         buyer: selectedBuyer,
         search,
         status: activeTab,
@@ -123,7 +126,7 @@ export default function TrackingPage({ params }: PageProps) {
 
   useEffect(() => {
     fetchTracking();
-  }, [dept, activeTab, selectedBuyer, page]);
+  }, [dept, activeTab, selectedBuyer, page, limit]);
 
   const handleRowChange = (orderNo: string, field: string, value: string) => {
     setEditedRows((prev) => {
@@ -408,20 +411,18 @@ export default function TrackingPage({ params }: PageProps) {
       </div>
 
       {/* Interactive Tracking Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-16 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="h-7 w-7 text-primary animate-spin" />
-            <span className="text-xs font-semibold text-base-content/60">Loading tracking execution records...</span>
-          </div>
-        ) : orders.length === 0 ? (
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[380px]">
+        {/* Exact Exp 3-Ring Loading Overlay */}
+        {loading && <ExpLoadingSpinner message="Processing Tracking Data..." />}
+
+        {!loading && orders.length === 0 ? (
           <div className="p-16 text-center text-base-content/60 space-y-2">
             <AlertCircle className="h-8 w-8 mx-auto text-base-content/30" />
             <p className="text-sm font-bold">No {activeTab} tracking records found.</p>
             <p className="text-xs">Adjust your search or filter parameters to find confirmed plans.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto custom-scrollbar">
+          <div className="overflow-x-auto custom-scrollbar flex-1">
             <table className="table table-xs w-full">
               <thead className="bg-base-200/80 text-[11px] font-bold">
                 <tr>
@@ -547,34 +548,18 @@ export default function TrackingPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Pagination Bar */}
-        {orders.length > 0 && (
-          <div className="flex items-center justify-between p-3 border-t border-base-200 text-xs">
-            <span className="text-base-content/60">
-              Showing {(page - 1) * 15 + 1} to {Math.min(page * 15, total)} of {total} orders
-            </span>
-
-            <div className="join">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="join-item btn btn-xs btn-outline"
-              >
-                Prev
-              </button>
-              <button className="join-item btn btn-xs btn-outline no-animation pointer-events-none">
-                Page {page} of {totalPages}
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="join-item btn btn-xs btn-outline"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Exact Exp Pagination Bar */}
+        <ExpPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          limit={limit}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
       </div>
     </div>
   );
