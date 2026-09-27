@@ -175,6 +175,15 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   };
 
   /**
+   * Only close mobile drawer when clicking a navigation link on mobile screen widths (< 1024px)
+   */
+  const handleNavClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onCloseMobile();
+    }
+  };
+
+  /**
    * Check if a specific menu item is allowed for the logged in user
    */
   const isMenuItemAllowed = (groupKey: string, itemKey: string): boolean => {
@@ -209,9 +218,9 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
             : '-translate-x-full lg:-ml-[280px]'
         }`}
       >
-        {/* Brand bar with hamburger collapse toggle */}
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-base-300 px-4">
-          <Link href="/dashboard" onClick={onCloseMobile} className="flex items-center gap-2.5 min-w-0">
+        {/* Brand bar (Clean, hamburger is located in top Header to the right) */}
+        <div className="flex h-16 shrink-0 items-center border-b border-base-300 px-4">
+          <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20 shrink-0">
               EP
             </div>
@@ -220,16 +229,6 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
               <p className="text-[10px] text-base-content/60 leading-none truncate">Epylion Manufacturing</p>
             </div>
           </Link>
-
-          {/* Hamburger Collapse button */}
-          <button
-            onClick={onToggle}
-            className="btn btn-ghost btn-square btn-sm text-base-content/70 hover:text-primary shrink-0"
-            title="Collapse Sidebar"
-            aria-label="Collapse Sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Navigation list */}
@@ -237,7 +236,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
           {/* Dashboard Home */}
           <Link
             href="/dashboard"
-            onClick={onCloseMobile}
+            onClick={handleNavClick}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
               pathname === '/dashboard'
                 ? 'bg-primary text-primary-content shadow-sm'
@@ -287,7 +286,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                         <Link
                           key={item.key}
                           href={item.href}
-                          onClick={onCloseMobile}
+                          onClick={handleNavClick}
                           className={`block px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors truncate ${
                             active
                               ? 'bg-primary/10 text-primary font-bold'

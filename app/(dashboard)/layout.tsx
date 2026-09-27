@@ -12,9 +12,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    // If mobile screen, collapse by default
+    // Default to open on desktop unless explicitly closed by the user
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setSidebarOpen(false);
+    } else {
+      const saved = localStorage.getItem('sidebar_expanded_v2');
+      if (saved !== null) {
+        setSidebarOpen(saved === 'true');
+      } else {
+        setSidebarOpen(true);
+      }
     }
 
     const token = localStorage.getItem('token');
@@ -42,6 +49,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(interval);
   }, [router]);
 
+  const handleToggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar_expanded_v2', String(next));
+      return next;
+    });
+  };
+
+  const handleCloseMobile = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // Keyboard shortcut: Ctrl + B or Cmd + B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        handleToggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-base-100">
@@ -55,14 +88,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar Navigation with smooth desktop collapse */}
       <Sidebar
         isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen((prev) => !prev)}
-        onCloseMobile={() => setSidebarOpen(false)}
+        onToggle={handleToggleSidebar}
+        onCloseMobile={handleCloseMobile}
       />
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0 transition-all duration-300">
         <Header
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onToggleSidebar={handleToggleSidebar}
           isSidebarOpen={sidebarOpen}
         />
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">

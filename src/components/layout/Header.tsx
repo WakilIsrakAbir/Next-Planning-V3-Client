@@ -48,24 +48,34 @@ export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-base-300 bg-base-100/90 px-4 backdrop-blur transition-colors lg:px-8">
       <div className="flex items-center gap-3">
+        {/* Hamburger Toggle button - Always visible on the left of Header */}
         <button
           onClick={onToggleSidebar}
-          className="btn btn-ghost btn-square btn-sm text-base-content hover:text-primary hover:bg-base-200 transition-transform active:scale-95"
-          title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+          className="btn btn-ghost btn-square btn-sm text-base-content hover:text-primary hover:bg-base-200 transition-transform active:scale-95 shrink-0"
+          title={isSidebarOpen ? "Collapse Sidebar (Ctrl+B)" : "Expand Sidebar (Ctrl+B)"}
           aria-label="Toggle Sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary font-black text-primary-content shadow-md shadow-primary/20">
-            EP
-          </div>
-          <div>
-            <h1 className="text-sm font-extrabold tracking-tight lg:text-base">Next Planning V3</h1>
-            <p className="text-[10px] text-base-content/60">Epylion Manufacturing Operations</p>
-          </div>
-        </Link>
+        {/* When sidebar is collapsed on desktop OR on mobile: show brand title */}
+        <div className={`items-center gap-2.5 ${isSidebarOpen ? 'flex lg:hidden' : 'flex'}`}>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary font-black text-primary-content text-xs shadow-md shadow-primary/20 shrink-0">
+              EP
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-sm font-extrabold tracking-tight leading-none">Next Planning V3</h1>
+              <p className="text-[10px] text-base-content/60 leading-tight">Epylion Manufacturing</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Planning & Operations Control Suite indicator */}
+        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-base-content/60">
+          <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+          <span className="font-bold text-base-content/80 truncate">Planning & Operations Control Suite</span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
