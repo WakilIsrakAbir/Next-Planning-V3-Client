@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onToggleSidebar={handleToggleSidebar}
           isSidebarOpen={sidebarOpen}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
+        <main id="mainContent" className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
           {children}
         </main>
       </div>
