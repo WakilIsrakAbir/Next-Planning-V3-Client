@@ -133,6 +133,12 @@ export default function TrackingPage({ params }: PageProps) {
       const current = prev[orderNo] || { actualStart: '', actualEnd: '', failReason: '', relatedDept: '' };
       const updated = { ...current, [field]: value };
 
+      // Validation: Actual End cannot be selected without Actual Start
+      if (field === 'actualEnd' && !updated.actualStart && value) {
+        alert('Actual End date cannot be selected without Actual Start date!');
+        updated.actualEnd = '';
+      }
+
       // Validation: Actual End cannot be before Actual Start
       if (field === 'actualEnd' && updated.actualStart && value) {
         if (new Date(value).setHours(0, 0, 0, 0) < new Date(updated.actualStart).setHours(0, 0, 0, 0)) {

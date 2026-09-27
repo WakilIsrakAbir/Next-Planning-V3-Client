@@ -128,12 +128,46 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
           // Knitting yarn date
           yarnDate: saved.yarnDate || ex.yarnDate || '',
           // Delivery & YD Floor Planning
+          yarnOkDate: saved.yarnOkDate || ex.yarnOkDate || '',
+          matchingOptionDate: saved.matchingOptionDate || ex.matchingOptionDate || '',
           floorStartDate: saved.floorStartDate || ex.floorStartDate || '',
           floorEndDate: saved.floorEndDate || ex.floorEndDate || '',
           floorPlanType: saved.floorPlanType || ex.floorPlanType || '',
-          matchingOptionDate: saved.matchingOptionDate || ex.matchingOptionDate || '',
         };
       });
+
+      // Parity with Exp: Delivery Floor default dates from Dyeing plan
+      if (dept === 'delivery') {
+        merged.forEach((item: any) => {
+          const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
+          const dItem = currentPlan?.dyeing?.find((d: any) => {
+            const c = String(d.Color || (d.itemData && d.itemData.Color) || '').trim().toLowerCase();
+            return c === myColor;
+          });
+          const hasDyePlanType = Boolean(
+            dItem?.planType && dItem.planType !== 'Select' && dItem.planType !== '-' && dItem.planType !== ''
+          );
+          if (hasDyePlanType) {
+            if (!item.floorStartDate && dItem?.startDate) {
+              const d = new Date(dItem.startDate);
+              if (!isNaN(d.getTime())) {
+                d.setDate(d.getDate() + 7);
+                item.floorStartDate = d.toISOString().split('T')[0];
+              }
+            }
+            if (!item.floorEndDate && dItem?.endDate) {
+              const d = new Date(dItem.endDate);
+              if (!isNaN(d.getTime())) {
+                d.setDate(d.getDate() + 7);
+                item.floorEndDate = d.toISOString().split('T')[0];
+              }
+            }
+            if (!item.floorPlanType) {
+              item.floorPlanType = 'Tentative';
+            }
+          }
+        });
+      }
 
       setPlanItems(merged);
     } catch (err: any) {
@@ -144,17 +178,251 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
     }
   };
 
+  const getUpstreamPlans = (item: any) => {
+    const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
+    const myConst = String(item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
+
+    let knitItem: any = null;
+    let dyeItem: any = null;
+
+    if (planData?.knitting && Array.isArray(planData.knitting)) {
+      knitItem = planData.knitting.find((k: any) => {
+        const c = String(k.Color || (k.itemData && k.itemData.Color) || '').trim().toLowerCase();
+        const fc = String(k.FabricConstruction || (k.itemData && k.itemData.FabricConstruction) || '').trim().toLowerCase();
+        if (myConst && fc) {
+          return c === myColor && fc === myConst;
+        }
+        return c === myColor;
+      });
+      if (!knitItem) {
+        knitItem = planData.knitting.find((k: any) => {
+          const c = String(k.Color || (k.itemData && k.itemData.Color) || '').trim().toLowerCase();
+          return c === myColor;
+        });
+      }
+    }
+
+    if (planData?.dyeing && Array.isArray(planData.dyeing)) {
+      dyeItem = planData.dyeing.find((d: any) => {
+        const c = String(d.Color || (d.itemData && d.itemData.Color) || '').trim().toLowerCase();
+        return c === myColor;
+      });
+    }
+
+    const isKnitTypeSelected = Boolean(
+      knitItem?.planType && knitItem.planType !== 'Select' && knitItem.planType !== '-' && knitItem.planType !== ''
+    );
+    const isDyeTypeSelected = Boolean(
+      dyeItem?.planType && dyeItem.planType !== 'Select' && dyeItem.planType !== '-' && dyeItem.planType !== ''
+    );
+
+    return { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected };
+  };
+
   const handleItemChange = (index: number, field: string, value: any) => {
+    const currentItem = planItems[index];
+    const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(currentItem);
+
+    // 1. DYEING ENFORCEMENT: Knitting Plan type selection is mandatory before inputting Dyeing plan
+    if (dept === 'dyeing' && !isKnitTypeSelected) {
+      if (['startDate', 'endDate', 'planType'].includes(field) && value && value !== 'Select') {
+        setToast({
+          type: 'error',
+          message: 'Knitting Plan type selection is mandatory before inputting Dyeing plan!',
+        });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+    }
+
+    // 2. DELIVERY ENFORCEMENT: Dyeing Plan type selection is mandatory before inputting Delivery plan
+    if (dept === 'delivery' && !isDyeTypeSelected) {
+      if (
+        ['startDate', 'endDate', 'planType', 'floorStartDate', 'floorEndDate', 'floorPlanType'].includes(field) &&
+        value &&
+        value !== 'Select'
+      ) {
+        setToast({
+          type: 'error',
+          message: 'Dyeing Plan type selection is mandatory before inputting Delivery plan!',
+        });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+    }
+
+    // 3. KNITTING ENFORCEMENT: Plan Type 'Confirm' requires Yarn Date
+    if (dept === 'knitting' && field === 'planType' && value === 'Confirm') {
+      const hasYarn =
+        currentItem.yarnDate &&
+        currentItem.yarnDate.trim() !== '' &&
+        currentItem.yarnDate !== '-' &&
+        currentItem.yarnDate !== 'N/A';
+      if (!hasYarn) {
+        setToast({
+          type: 'error',
+          message: "Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!",
+        });
+        setTimeout(() => setToast(null), 3500);
+        return;
+      }
+    }
+
+    // 4. Plan Type 'Confirm' or 'Tentative' requires Start & End dates
+    if (field === 'planType' && (value === 'Confirm' || value === 'Tentative')) {
+      if (!currentItem.startDate || !currentItem.endDate) {
+        setToast({
+          type: 'error',
+          message: 'Plan Type selected without Start and End dates.',
+        });
+        setTimeout(() => setToast(null), 3500);
+      }
+    }
+
+    // 5. AUTO-FILL YARN DATE FOR ALL ROWS IF ROW 0 (Exp behavior)
+    if (dept === 'knitting' && field === 'yarnDate' && index === 0) {
+      setPlanItems((prev) => {
+        return prev.map((it) => {
+          const updated = { ...it, yarnDate: value };
+          if (value && updated.startDate && updated.startDate < value) {
+            updated.startDate = value;
+          }
+          if (value && updated.endDate && updated.endDate < (updated.startDate || value)) {
+            updated.endDate = updated.startDate || value;
+          }
+          if (!value && updated.planType === 'Confirm') {
+            updated.planType = '';
+          }
+          return updated;
+        });
+      });
+      if (!value) {
+        setToast({
+          type: 'error',
+          message: "Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!",
+        });
+        setTimeout(() => setToast(null), 3500);
+      }
+      return;
+    }
+
+    // 6. SINGLE ROW UPDATE
     setPlanItems((prev) => {
       const next = [...prev];
       const item = { ...next[index], [field]: value };
 
-      // Auto-enforce min end date if start date changes
-      if (field === 'startDate' && value && item.endDate && item.endDate < value) {
-        item.endDate = value;
+      // Knitting Yarn Date clearing resets Confirm
+      if (dept === 'knitting' && field === 'yarnDate') {
+        if (!value && item.planType === 'Confirm') {
+          item.planType = '';
+          setToast({
+            type: 'error',
+            message: "Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!",
+          });
+          setTimeout(() => setToast(null), 3500);
+        }
+        if (value && item.startDate && item.startDate < value) {
+          item.startDate = value;
+        }
+        if (value && item.endDate && item.endDate < (item.startDate || value)) {
+          item.endDate = item.startDate || value;
+        }
       }
+
+      // Start Date validations & syncs
+      if (field === 'startDate') {
+        if (dept === 'knitting' && item.yarnDate && value && value < item.yarnDate) {
+          setToast({
+            type: 'error',
+            message: 'Knitting Planning Start Date cannot be less than Yarn Date!',
+          });
+          setTimeout(() => setToast(null), 3500);
+          item.startDate = item.yarnDate;
+        }
+
+        if (dept === 'dyeing' && knitItem?.startDate && value && value < knitItem.startDate) {
+          setToast({
+            type: 'error',
+            message: 'Dyeing Start Date cannot be before Knitting Start Date!',
+          });
+          setTimeout(() => setToast(null), 3500);
+        }
+
+        if (dept === 'delivery' && dyeItem?.startDate && value && value < dyeItem.startDate) {
+          setToast({
+            type: 'error',
+            message: 'Delivery Start Date cannot be before Dyeing Start Date!',
+          });
+          setTimeout(() => setToast(null), 3500);
+        }
+
+        // Delivery & YD sync: Floor Start = Start - 4 days
+        if ((dept === 'delivery' || dept === 'yd') && value) {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) {
+            d.setDate(d.getDate() - 4);
+            item.floorStartDate = d.toISOString().split('T')[0];
+            if (item.floorEndDate && item.floorEndDate < item.floorStartDate) {
+              item.floorEndDate = item.floorStartDate;
+            }
+          }
+        }
+
+        if (value && item.endDate && item.endDate < value) {
+          item.endDate = value;
+        }
+      }
+
+      // End Date validations & syncs
+      if (field === 'endDate') {
+        if (item.startDate && value && value < item.startDate) {
+          setToast({
+            type: 'error',
+            message: 'End date cant be less than start date.',
+          });
+          setTimeout(() => setToast(null), 3500);
+          item.endDate = item.startDate;
+        }
+
+        if (dept === 'dyeing' && knitItem?.endDate && value && value < knitItem.endDate) {
+          setToast({
+            type: 'error',
+            message: 'Dyeing End Date cannot be before Knitting End Date!',
+          });
+          setTimeout(() => setToast(null), 3500);
+        }
+
+        if (dept === 'delivery' && dyeItem?.endDate && value && value < dyeItem.endDate) {
+          setToast({
+            type: 'error',
+            message: 'Delivery End Date cannot be before Dyeing End Date!',
+          });
+          setTimeout(() => setToast(null), 3500);
+        }
+
+        // Delivery & YD sync: Floor End = End - 4 days
+        if ((dept === 'delivery' || dept === 'yd') && value) {
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) {
+            d.setDate(d.getDate() - 4);
+            item.floorEndDate = d.toISOString().split('T')[0];
+          }
+        }
+      }
+
+      // Floor Start Date
       if (field === 'floorStartDate' && value && item.floorEndDate && item.floorEndDate < value) {
         item.floorEndDate = value;
+      }
+
+      // Floor End Date
+      if (field === 'floorEndDate' && item.floorStartDate && value && value < item.floorStartDate) {
+        setToast({
+          type: 'error',
+          message: 'Floor End date cant be less than floor start date.',
+        });
+        setTimeout(() => setToast(null), 3500);
+        item.floorEndDate = item.floorStartDate;
       }
 
       next[index] = item;
@@ -163,6 +431,116 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
   };
 
   const handleSavePlanning = async () => {
+    // 1. Basic validation
+    if (planItems.length === 0) {
+      setToast({ type: 'error', message: 'No fabric items to save! Please upload department data first.' });
+      return;
+    }
+
+    // 2. Validate all rows against Exp conditions
+    for (let i = 0; i < planItems.length; i++) {
+      const it = planItems[i];
+      const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(it);
+
+      // Start vs End Date
+      if (it.startDate && it.endDate && it.startDate > it.endDate) {
+        setToast({ type: 'error', message: `Row #${i + 1}: Save failed: End date cant be less than start date.` });
+        return;
+      }
+
+      // Floor Start vs Floor End
+      if (it.floorStartDate && it.floorEndDate && it.floorStartDate > it.floorEndDate) {
+        setToast({ type: 'error', message: `Row #${i + 1}: Save failed: Floor End date cant be less than start date.` });
+        return;
+      }
+
+      // Plan Type requires dates
+      if ((it.planType === 'Confirm' || it.planType === 'Tentative') && (!it.startDate || !it.endDate)) {
+        setToast({ type: 'error', message: `Row #${i + 1}: Save failed: Plan Type selected without Start and End dates.` });
+        return;
+      }
+
+      // Knitting conditions
+      if (dept === 'knitting') {
+        const hasYarn = it.yarnDate && it.yarnDate.trim() !== '' && it.yarnDate !== '-' && it.yarnDate !== 'N/A';
+        if (it.planType === 'Confirm' && !hasYarn) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!`,
+          });
+          return;
+        }
+        if (it.startDate && hasYarn && it.startDate < it.yarnDate) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Knitting Planning Start Date cannot be less than Yarn Date!`,
+          });
+          return;
+        }
+      }
+
+      // Dyeing conditions
+      if (dept === 'dyeing') {
+        const hasDyePlanInput = Boolean(
+          it.startDate || it.endDate || (it.planType && it.planType !== 'Select' && it.planType !== '')
+        );
+        if (hasDyePlanInput && !isKnitTypeSelected) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!`,
+          });
+          return;
+        }
+        if (it.startDate && knitItem?.startDate && it.startDate < knitItem.startDate) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Dyeing Start Date cannot be before Knitting Start Date!`,
+          });
+          return;
+        }
+        if (it.endDate && knitItem?.endDate && it.endDate < knitItem.endDate) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Dyeing End Date cannot be before Knitting End Date!`,
+          });
+          return;
+        }
+      }
+
+      // Delivery conditions
+      if (dept === 'delivery') {
+        const hasDeliPlanInput = Boolean(
+          it.startDate ||
+            it.endDate ||
+            (it.planType && it.planType !== 'Select' && it.planType !== '') ||
+            it.floorStartDate ||
+            it.floorEndDate ||
+            (it.floorPlanType && it.floorPlanType !== 'Select' && it.floorPlanType !== '')
+        );
+        if (hasDeliPlanInput && !isDyeTypeSelected) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!`,
+          });
+          return;
+        }
+        if (it.startDate && dyeItem?.startDate && it.startDate < dyeItem.startDate) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Delivery Start Date cannot be before Dyeing Start Date!`,
+          });
+          return;
+        }
+        if (it.endDate && dyeItem?.endDate && it.endDate < dyeItem.endDate) {
+          setToast({
+            type: 'error',
+            message: `Row #${i + 1}: Save failed: Delivery End Date cannot be before Dyeing End Date!`,
+          });
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
@@ -441,9 +819,13 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                 {dept !== 'yd' && <th className="py-2.5 px-3 text-center">GSM</th>}
 
                 {/* YD specific left cols */}
-                {dept === 'yd' && <th className="py-2.5 px-3">Booking Type</th>}
-                {dept === 'yd' && <th className="py-2.5 px-3 text-center">YDB</th>}
-                {dept === 'yd' && <th className="py-2.5 px-3 text-center">YD Booking Date</th>}
+                {dept === 'yd' && (
+                  <>
+                    <th className="py-2.5 px-3">Booking Type</th>
+                    <th className="py-2.5 px-3 text-center">YDB</th>
+                    <th className="py-2.5 px-3 text-center">YD Booking Date</th>
+                  </>
+                )}
 
                 {/* Dyeing / Finishing Unit & Process dropdowns */}
                 {(dept === 'dyeing' || dept === 'finishing') && (
@@ -453,28 +835,68 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                   </>
                 )}
 
+                {/* Dyeing: Knitting Upstream Planning columns */}
+                {dept === 'dyeing' && (
+                  <>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[105px]">Knit Start</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[105px]">Knit End</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[100px]">Knit Plan Type</th>
+                    <th className="py-2.5 px-3 min-w-[120px] bg-base-300/40">Knit Limitation</th>
+                    <th className="py-2.5 px-3 min-w-[120px] bg-base-300/40">Knit Remarks</th>
+                  </>
+                )}
+
                 {/* Knitting yarn date */}
                 {dept === 'knitting' && (
-                  <th className="py-2.5 px-3 text-center bg-warning/10 text-warning-content min-w-[120px]">
-                    Yarn Date
+                  <th
+                    className="py-2.5 px-3 text-center bg-yellow-100 dark:bg-yellow-950/40 text-yellow-900 dark:text-yellow-300 font-bold border-b-2 border-yellow-400 min-w-[140px]"
+                    title="⚡ Changing Row 1 Yarn Date auto-fills all items"
+                  >
+                    Yarn Date ⚡
                   </th>
                 )}
 
                 {/* Delivery Floor Schedule */}
                 {dept === 'delivery' && (
                   <>
-                    <th className="py-2.5 px-3 text-center bg-info/10 text-info min-w-[125px]">Floor Start</th>
-                    <th className="py-2.5 px-3 text-center bg-info/10 text-info min-w-[125px]">Floor End</th>
-                    <th className="py-2.5 px-3 text-center bg-info/10 text-info min-w-[110px]">Floor Plan</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[125px]">Floor Start</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[125px]">Floor End</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[110px]">Floor Plan</th>
                   </>
                 )}
 
                 {/* Standard Planning Schedule Inputs */}
-                <th className="py-2.5 px-3 text-center min-w-[125px] bg-primary/5">Plan Start</th>
-                <th className="py-2.5 px-3 text-center min-w-[125px] bg-primary/5">Plan End</th>
-                <th className="py-2.5 px-3 text-center min-w-[115px] bg-primary/5">Plan Type</th>
+                <th className="py-2.5 px-3 text-center min-w-[125px] bg-primary/10 text-primary font-bold">Plan Start</th>
+                <th className="py-2.5 px-3 text-center min-w-[125px] bg-primary/10 text-primary font-bold">Plan End</th>
+                <th className="py-2.5 px-3 text-center min-w-[115px] bg-primary/10 text-primary font-bold">Plan Type</th>
                 <th className="py-2.5 px-3 min-w-[140px]">Limitation</th>
                 <th className="py-2.5 px-3 min-w-[140px]">Remarks</th>
+
+                {/* Delivery: Upstream Dyeing & Knitting columns */}
+                {dept === 'delivery' && (
+                  <>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[105px]">Dye Start</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[105px]">Dye End</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/60 min-w-[100px]">Dye Plan Type</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/40 min-w-[105px]">Knit Start</th>
+                    <th className="py-2.5 px-3 text-center bg-base-300/40 min-w-[105px]">Knit End</th>
+                  </>
+                )}
+
+                {/* YD Extra Planning Columns */}
+                {dept === 'yd' && (
+                  <>
+                    <th className="py-2.5 px-3 text-center min-w-[125px]">Yarn Ok Date</th>
+                    <th className="py-2.5 px-3 text-center min-w-[125px]">Matching Option Date</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[125px]">Floor Start</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[125px]">Floor End</th>
+                    <th className="py-2.5 px-3 text-center bg-info/10 text-info font-bold min-w-[110px]">Floor Plan</th>
+                    <th className="py-2.5 px-3 text-center min-w-[105px] bg-base-200">YD T&A Start</th>
+                    <th className="py-2.5 px-3 text-center min-w-[105px] bg-base-200">YD T&A End</th>
+                    <th className="py-2.5 px-3 text-center min-w-[105px] bg-base-200">Knit Start</th>
+                    <th className="py-2.5 px-3 text-center min-w-[105px] bg-base-200">Knit End</th>
+                  </>
+                )}
 
                 {/* Department Production & Balance Columns (Parity with Exp) */}
                 {dept === 'knitting' && (
@@ -525,6 +947,10 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
             </thead>
             <tbody className="divide-y divide-base-200 text-xs">
               {planItems.map((item, idx) => {
+                const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(item);
+                const isDyeDisabled = dept === 'dyeing' && !isKnitTypeSelected;
+                const isDeliDisabled = dept === 'delivery' && !isDyeTypeSelected;
+
                 return (
                   <tr key={item.itemId || idx} className="hover:bg-base-200/50 transition-colors">
                     <td className="py-2 px-3 text-center font-mono text-[11px] text-base-content/50">
@@ -591,15 +1017,64 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                       </>
                     )}
 
+                    {/* Upstream Knitting Plan for Dyeing */}
+                    {dept === 'dyeing' && (
+                      <>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50 text-base-content/70">
+                          {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50 text-base-content/70">
+                          {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50">
+                          <span
+                            className={`badge badge-xs font-bold ${
+                              knitItem?.planType === 'Confirm'
+                                ? 'badge-success text-success-content'
+                                : knitItem?.planType === 'Tentative'
+                                ? 'badge-warning text-warning-content'
+                                : 'badge-ghost text-base-content/40'
+                            }`}
+                          >
+                            {knitItem?.planType || '—'}
+                          </span>
+                        </td>
+                        <td
+                          className="py-2 px-3 text-[11px] bg-base-200/30 text-base-content/60 max-w-[140px] truncate"
+                          title={knitItem?.limitation}
+                        >
+                          {knitItem?.limitation || '—'}
+                        </td>
+                        <td
+                          className="py-2 px-3 text-[11px] bg-base-200/30 text-base-content/60 max-w-[140px] truncate"
+                          title={knitItem?.remarks}
+                        >
+                          {knitItem?.remarks || '—'}
+                        </td>
+                      </>
+                    )}
+
                     {/* Knitting Yarn Date */}
                     {dept === 'knitting' && (
-                      <td className="py-2 px-3 bg-warning/5 text-center">
-                        <input
-                          type="date"
-                          value={item.yarnDate || ''}
-                          onChange={(e) => handleItemChange(idx, 'yarnDate', e.target.value)}
-                          className="input input-bordered input-xs w-32 font-mono text-[11px]"
-                        />
+                      <td className="py-2 px-3 bg-yellow-50/50 dark:bg-yellow-950/10 text-center">
+                        <div className="relative inline-block">
+                          <input
+                            type="date"
+                            value={item.yarnDate || ''}
+                            onChange={(e) => handleItemChange(idx, 'yarnDate', e.target.value)}
+                            title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all rows' : undefined}
+                            className={`input input-bordered input-xs w-32 font-mono text-[11px] font-semibold ${
+                              idx === 0
+                                ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-900 dark:text-yellow-200 ring-1 ring-yellow-400/50'
+                                : 'bg-base-100'
+                            }`}
+                          />
+                          {idx === 0 && (
+                            <span className="absolute -top-2 -right-1 text-[9px] bg-warning text-warning-content font-black px-1 rounded-full shadow-xs">
+                              Auto
+                            </span>
+                          )}
+                        </div>
                       </td>
                     )}
 
@@ -610,8 +1085,12 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                           <input
                             type="date"
                             value={item.floorStartDate || ''}
+                            disabled={isDeliDisabled}
+                            title={isDeliDisabled ? 'Dyeing Plan type selection is mandatory to input Delivery plan' : undefined}
                             onChange={(e) => handleItemChange(idx, 'floorStartDate', e.target.value)}
-                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                            className={`input input-bordered input-xs w-32 font-mono text-[11px] ${
+                              isDeliDisabled ? 'opacity-50 cursor-not-allowed bg-base-200' : 'bg-info/10'
+                            }`}
                           />
                         </td>
                         <td className="py-2 px-3 bg-info/5 text-center">
@@ -619,15 +1098,23 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                             type="date"
                             value={item.floorEndDate || ''}
                             min={item.floorStartDate || undefined}
+                            disabled={isDeliDisabled}
+                            title={isDeliDisabled ? 'Dyeing Plan type selection is mandatory to input Delivery plan' : undefined}
                             onChange={(e) => handleItemChange(idx, 'floorEndDate', e.target.value)}
-                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                            className={`input input-bordered input-xs w-32 font-mono text-[11px] ${
+                              isDeliDisabled ? 'opacity-50 cursor-not-allowed bg-base-200' : 'bg-info/10'
+                            }`}
                           />
                         </td>
                         <td className="py-2 px-3 bg-info/5 text-center">
                           <select
                             value={item.floorPlanType || ''}
+                            disabled={isDeliDisabled}
+                            title={isDeliDisabled ? 'Dyeing Plan type selection is mandatory to input Delivery plan' : undefined}
                             onChange={(e) => handleItemChange(idx, 'floorPlanType', e.target.value)}
-                            className="select select-bordered select-xs font-semibold"
+                            className={`select select-bordered select-xs font-semibold ${
+                              isDeliDisabled ? 'opacity-50 cursor-not-allowed bg-base-200' : ''
+                            }`}
                           >
                             <option value="">Select</option>
                             <option value="Confirm">Confirm</option>
@@ -642,8 +1129,19 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                       <input
                         type="date"
                         value={item.startDate || ''}
+                        min={dept === 'knitting' ? (item.yarnDate || undefined) : undefined}
+                        disabled={isDyeDisabled || isDeliDisabled}
+                        title={
+                          isDyeDisabled
+                            ? 'Knitting Plan type selection is mandatory to input Dyeing plan'
+                            : isDeliDisabled
+                            ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
+                            : undefined
+                        }
                         onChange={(e) => handleItemChange(idx, 'startDate', e.target.value)}
-                        className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                        className={`input input-bordered input-xs w-32 font-mono text-[11px] ${
+                          isDyeDisabled || isDeliDisabled ? 'opacity-50 cursor-not-allowed bg-base-200' : ''
+                        }`}
                       />
                     </td>
 
@@ -652,9 +1150,19 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                       <input
                         type="date"
                         value={item.endDate || ''}
-                        min={item.startDate || undefined}
+                        min={item.startDate || (dept === 'knitting' ? item.yarnDate || undefined : undefined)}
+                        disabled={isDyeDisabled || isDeliDisabled}
+                        title={
+                          isDyeDisabled
+                            ? 'Knitting Plan type selection is mandatory to input Dyeing plan'
+                            : isDeliDisabled
+                            ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
+                            : undefined
+                        }
                         onChange={(e) => handleItemChange(idx, 'endDate', e.target.value)}
-                        className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                        className={`input input-bordered input-xs w-32 font-mono text-[11px] ${
+                          isDyeDisabled || isDeliDisabled ? 'opacity-50 cursor-not-allowed bg-base-200' : ''
+                        }`}
                       />
                     </td>
 
@@ -662,9 +1170,19 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                     <td className="py-2 px-3 bg-primary/5 text-center">
                       <select
                         value={item.planType || ''}
+                        disabled={isDyeDisabled || isDeliDisabled}
+                        title={
+                          isDyeDisabled
+                            ? 'Knitting Plan type selection is mandatory to input Dyeing plan'
+                            : isDeliDisabled
+                            ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
+                            : undefined
+                        }
                         onChange={(e) => handleItemChange(idx, 'planType', e.target.value)}
                         className={`select select-bordered select-xs font-bold ${
-                          item.planType === 'Confirm'
+                          isDyeDisabled || isDeliDisabled
+                            ? 'opacity-50 cursor-not-allowed bg-base-200'
+                            : item.planType === 'Confirm'
                             ? 'text-success select-success'
                             : item.planType === 'Tentative'
                             ? 'text-warning select-warning'
@@ -698,6 +1216,99 @@ export default function OrderPlanningDetailPage({ params }: PageProps) {
                         className="input input-bordered input-xs w-full text-[11px]"
                       />
                     </td>
+
+                    {/* Upstream Dyeing & Knitting columns for Delivery */}
+                    {dept === 'delivery' && (
+                      <>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50 text-base-content/70">
+                          {formatDateDisplay(dyeItem?.startDate || dyeItem?.planStart)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50 text-base-content/70">
+                          {formatDateDisplay(dyeItem?.endDate || dyeItem?.planEnd)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/50">
+                          <span
+                            className={`badge badge-xs font-bold ${
+                              dyeItem?.planType === 'Confirm'
+                                ? 'badge-success text-success-content'
+                                : dyeItem?.planType === 'Tentative'
+                                ? 'badge-warning text-warning-content'
+                                : 'badge-ghost text-base-content/40'
+                            }`}
+                          >
+                            {dyeItem?.planType || '—'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/30 text-base-content/70">
+                          {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/30 text-base-content/70">
+                          {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd)}
+                        </td>
+                      </>
+                    )}
+
+                    {/* YD Extra Columns */}
+                    {dept === 'yd' && (
+                      <>
+                        <td className="py-2 px-3 text-center">
+                          <input
+                            type="date"
+                            value={item.yarnOkDate || ''}
+                            onChange={(e) => handleItemChange(idx, 'yarnOkDate', e.target.value)}
+                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <input
+                            type="date"
+                            value={item.matchingOptionDate || ''}
+                            onChange={(e) => handleItemChange(idx, 'matchingOptionDate', e.target.value)}
+                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                          />
+                        </td>
+                        <td className="py-2 px-3 bg-info/5 text-center">
+                          <input
+                            type="date"
+                            value={item.floorStartDate || ''}
+                            onChange={(e) => handleItemChange(idx, 'floorStartDate', e.target.value)}
+                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                          />
+                        </td>
+                        <td className="py-2 px-3 bg-info/5 text-center">
+                          <input
+                            type="date"
+                            value={item.floorEndDate || ''}
+                            min={item.floorStartDate || undefined}
+                            onChange={(e) => handleItemChange(idx, 'floorEndDate', e.target.value)}
+                            className="input input-bordered input-xs w-32 font-mono text-[11px]"
+                          />
+                        </td>
+                        <td className="py-2 px-3 bg-info/5 text-center">
+                          <select
+                            value={item.floorPlanType || ''}
+                            onChange={(e) => handleItemChange(idx, 'floorPlanType', e.target.value)}
+                            className="select select-bordered select-xs font-semibold"
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/40 text-base-content/70">
+                          {formatDateDisplay(item['YD T&A Start'] || item.YDTnAStart)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/40 text-base-content/70">
+                          {formatDateDisplay(item['YD T&A End'] || item.YDTnAEnd)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/30 text-base-content/70">
+                          {formatDateDisplay(knitItem?.startDate || knitItem?.planStart || order.knitStart)}
+                        </td>
+                        <td className="py-2 px-3 text-center font-mono text-[11px] bg-base-200/30 text-base-content/70">
+                          {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd || order.knitEnd)}
+                        </td>
+                      </>
+                    )}
 
                     {/* Department Specific Metric Rows */}
                     {dept === 'knitting' && (
