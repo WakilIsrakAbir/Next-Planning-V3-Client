@@ -37,9 +37,17 @@ export default function LoginPage() {
         throw new Error(data.message || 'Login failed. Invalid credentials.');
       }
 
-      // Save token and user details to localStorage
+      // Save token and user details to localStorage (Exp compatible)
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('username', data.user.username || username.trim());
+      localStorage.setItem('role', data.user.role);
+      if (data.user.permissions) {
+        localStorage.setItem('permissions', JSON.stringify(data.user.permissions));
+      }
+      if (data.user.status) {
+        localStorage.setItem('status', data.user.status);
+      }
       if (data.sessionExpiresAt) {
         localStorage.setItem('sessionExpiresAt', String(data.sessionExpiresAt));
       }

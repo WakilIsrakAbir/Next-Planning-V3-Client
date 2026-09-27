@@ -45,6 +45,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (res.status === 401 || res.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          localStorage.removeItem('username');
+          localStorage.removeItem('role');
+          localStorage.removeItem('permissions');
+          localStorage.removeItem('status');
+          localStorage.removeItem('sessionExpiresAt');
           setAuthorized(false);
           router.replace('/login');
         }
