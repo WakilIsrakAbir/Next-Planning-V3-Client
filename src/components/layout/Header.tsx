@@ -58,21 +58,8 @@ export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) 
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* When sidebar is collapsed on desktop OR on mobile: show brand title */}
-        <div className={`items-center gap-2.5 ${isSidebarOpen ? 'flex lg:hidden' : 'flex'}`}>
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary font-black text-primary-content text-xs shadow-md shadow-primary/20 shrink-0">
-              EP
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-sm font-extrabold tracking-tight leading-none">Next Planning V3</h1>
-              <p className="text-[10px] text-base-content/60 leading-tight">Epylion Manufacturing</p>
-            </div>
-          </Link>
-        </div>
-
         {/* Planning & Operations Control Suite indicator */}
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-base-content/60">
+        <div className="flex items-center gap-2 text-xs font-semibold text-base-content/60">
           <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
           <span className="font-bold text-base-content/80 truncate">Planning & Operations Control Suite</span>
         </div>
