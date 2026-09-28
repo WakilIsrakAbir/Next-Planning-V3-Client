@@ -19,7 +19,7 @@ export default function DashboardPage() {
               Epylion Production Planning Dashboard
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations. Move your mouse or click below to play with the interactive dynamic canvas.
+              Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations. Relax and enjoy the scenic hill climb drive.
             </p>
           </div>
         </div>
