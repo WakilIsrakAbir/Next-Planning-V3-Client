@@ -1,34 +1,29 @@
 'use client';
 
 import React from 'react';
-import { Layers, Sparkles } from 'lucide-react';
 import InteractivePlayground from '@/components/dashboard/InteractivePlayground';
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-4">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 p-5 text-white shadow-xl lg:p-7 border border-emerald-500/20">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin-reverse" />
-              <span>Interactive Operations Suite V3</span>
-            </div>
-            <h2 className="text-2xl font-black tracking-tight lg:text-3xl text-white">
-              Epylion Production Planning Dashboard
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              Real-time synchronization across YD, Knitting, Dyeing, Finishing, and Dispatch floor operations. Relax and enjoy the scenic hill climb drive.
-            </p>
-          </div>
-        </div>
-        <div className="absolute -right-8 -bottom-8 opacity-10 pointer-events-none">
-          <Layers className="w-80 h-80 text-white" />
+    <div className="flex flex-col gap-6 min-h-0 flex-1">
+      {/* Welcome Banner matching exp index.html */}
+      <div className="rounded-xl p-5 sm:p-6 md:p-8 text-white shadow-lg relative overflow-hidden shrink-0 min-h-[180px] flex flex-col justify-center bg-[#1f232b]">
+        <img
+          src="/assets/pexels-going-to-the-river-1386266882-26146519.jpg"
+          alt="Background"
+          className="absolute inset-0 w-full h-full object-cover object-[0%_60%] z-0 pointer-events-none dark:opacity-40 transition-opacity duration-300"
+        />
+        <div className="relative z-10">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 tracking-wide drop-shadow-md">
+            Welcome Back!
+          </h2>
+          <p className="text-gray-200 text-sm sm:text-base drop-shadow">
+            Select a Production Plan or Report from the sidebar to manage data.
+          </p>
         </div>
       </div>
 
-      {/* Main Interactive Animation Playground (Mouse-controlled dynamic timepass engine) */}
+      {/* Animated Relaxing Dashboard Widget matching exp index.html & dashboard-animation.js */}
       <InteractivePlayground />
     </div>
   );
