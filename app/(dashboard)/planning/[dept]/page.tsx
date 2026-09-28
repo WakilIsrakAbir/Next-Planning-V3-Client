@@ -15,7 +15,13 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
-import { cachedPlanningOrders, cachedDeptBuyers, prefetchOrderDetail } from '@/lib/planning-cache';
+import {
+  cachedPlanningOrders,
+  cachedDeptBuyers,
+  prefetchOrderDetail,
+  getSavedDeptState,
+  saveDeptState,
+} from '@/lib/planning-cache';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -26,14 +32,16 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
   const dept = resolvedParams.dept || 'knitting';
   const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Plan` };
 
-  const [activeTab, setActiveTab] = useState<PlanStatus | 'All'>('Pending');
-  const [globalSearch, setGlobalSearch] = useState('');
-  const [activeBuyer, setActiveBuyer] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const savedState = getSavedDeptState(dept);
 
-  const initialKey = `${dept}_Pending__1_10_`;
-  const initialCache = cachedPlanningOrders[initialKey];
+  const [activeTab, setActiveTab] = useState<PlanStatus | 'All'>(() => savedState.activeTab);
+  const [globalSearch, setGlobalSearch] = useState(() => savedState.globalSearch);
+  const [activeBuyer, setActiveBuyer] = useState(() => savedState.activeBuyer);
+  const [page, setPage] = useState(() => savedState.page);
+  const [limit, setLimit] = useState(() => savedState.limit);
+
+  const initialKey = `${dept}_${savedState.activeTab}_${savedState.activeBuyer}_${savedState.page}_${savedState.limit}_${savedState.globalSearch}`;
+  const initialCache = cachedPlanningOrders[initialKey] || cachedPlanningOrders[`${dept}_Pending__1_10_`];
 
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
   const [loading, setLoading] = useState(() => !initialCache);
@@ -42,24 +50,26 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
   const [totalOrders, setTotalOrders] = useState(() => initialCache?.total || 0);
 
   // Column search filters matching Exp filterByColumn
-  const [colSearchOrder, setColSearchOrder] = useState('');
-  const [colSearchDate, setColSearchDate] = useState('');
-  const [colSearchBuyer, setColSearchBuyer] = useState('');
-  const [colSearchStatus, setColSearchStatus] = useState('');
+  const [colSearchOrder, setColSearchOrder] = useState(() => savedState.colSearchOrder);
+  const [colSearchDate, setColSearchDate] = useState(() => savedState.colSearchDate);
+  const [colSearchBuyer, setColSearchBuyer] = useState(() => savedState.colSearchBuyer);
+  const [colSearchStatus, setColSearchStatus] = useState(() => savedState.colSearchStatus);
 
   // Synchronize state immediately whenever dept changes (Exp matching 0ms instant display)
   useEffect(() => {
-    setActiveBuyer('');
-    setActiveTab('Pending');
-    setPage(1);
-    setGlobalSearch('');
-    setColSearchOrder('');
-    setColSearchDate('');
-    setColSearchBuyer('');
-    setColSearchStatus('');
+    const s = getSavedDeptState(dept);
+    setActiveBuyer(s.activeBuyer);
+    setActiveTab(s.activeTab);
+    setPage(s.page);
+    setLimit(s.limit);
+    setGlobalSearch(s.globalSearch);
+    setColSearchOrder(s.colSearchOrder);
+    setColSearchDate(s.colSearchDate);
+    setColSearchBuyer(s.colSearchBuyer);
+    setColSearchStatus(s.colSearchStatus);
 
-    const defaultKey = `${dept}_Pending__1_10_`;
-    const cached = cachedPlanningOrders[defaultKey];
+    const key = `${dept}_${s.activeTab}_${s.activeBuyer}_${s.page}_${s.limit}_${s.globalSearch}`;
+    const cached = cachedPlanningOrders[key] || cachedPlanningOrders[`${dept}_Pending__1_10_`];
     if (cached) {
       setOrders(cached.orders);
       setTotalPages(cached.totalPages);
@@ -131,9 +141,33 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
     fetchOrders();
   }, [dept, activeTab, activeBuyer, page, limit]);
 
+  const handleTabChange = (tab: PlanStatus | 'All') => {
+    setActiveTab(tab);
+    setPage(1);
+    saveDeptState(dept, { activeTab: tab, page: 1 });
+  };
+
+  const handleBuyerChange = (buyer: string) => {
+    setActiveBuyer(buyer);
+    setPage(1);
+    saveDeptState(dept, { activeBuyer: buyer, page: 1 });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    saveDeptState(dept, { page: newPage });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    saveDeptState(dept, { limit: newLimit, page: 1 });
+  };
+
   const handleGlobalSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
+    saveDeptState(dept, { globalSearch, page: 1 });
     fetchOrders();
   };
 
@@ -146,6 +180,33 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
     setActiveBuyer('');
     setActiveTab('Pending');
     setPage(1);
+    saveDeptState(dept, {
+      globalSearch: '',
+      colSearchOrder: '',
+      colSearchDate: '',
+      colSearchBuyer: '',
+      colSearchStatus: '',
+      activeBuyer: '',
+      activeTab: 'Pending',
+      page: 1,
+    });
+  };
+
+  const handleColSearchOrderChange = (val: string) => {
+    setColSearchOrder(val);
+    saveDeptState(dept, { colSearchOrder: val });
+  };
+  const handleColSearchDateChange = (val: string) => {
+    setColSearchDate(val);
+    saveDeptState(dept, { colSearchDate: val });
+  };
+  const handleColSearchBuyerChange = (val: string) => {
+    setColSearchBuyer(val);
+    saveDeptState(dept, { colSearchBuyer: val });
+  };
+  const handleColSearchStatusChange = (val: string) => {
+    setColSearchStatus(val);
+    saveDeptState(dept, { colSearchStatus: val });
   };
 
   // Client-side column filters matching Exp filterByColumn
@@ -196,10 +257,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id as any);
-                    setPage(1);
-                  }}
+                  onClick={() => handleTabChange(tab.id as any)}
                   className={`px-3 sm:px-6 py-1.5 sm:py-2 font-bold rounded-sm cursor-pointer shadow-sm uppercase tracking-wide transition-colors text-[10px] sm:text-[12px] flex-1 sm:flex-none text-center ${
                     isActive
                       ? 'bg-[#313644] text-white'
@@ -249,10 +307,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
         {/* Horizontal Buyer Filter Pills Bar matching Exp buyerFilterContainer */}
         <div className="flex flex-nowrap gap-1.5 mt-2.5 overflow-x-auto custom-scrollbar pb-1 w-full border-t border-gray-100 dark:border-[#2a3346] pt-2">
           <button
-            onClick={() => {
-              setActiveBuyer('');
-              setPage(1);
-            }}
+            onClick={() => handleBuyerChange('')}
             className={`px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap shadow-sm ${
               activeBuyer === ''
                 ? 'bg-emerald-600 text-white shadow-emerald-600/20'
@@ -264,10 +319,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
           {availableBuyers.map((b) => (
             <button
               key={b}
-              onClick={() => {
-                setActiveBuyer(b === activeBuyer ? '' : b);
-                setPage(1);
-              }}
+              onClick={() => handleBuyerChange(b === activeBuyer ? '' : b)}
               className={`px-3 py-1 rounded text-xs transition whitespace-nowrap font-medium ${
                 activeBuyer === b
                   ? 'bg-emerald-600 text-white font-bold shadow-sm shadow-emerald-600/20'
@@ -317,7 +369,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchOrder}
-                        onChange={(e) => setColSearchOrder(e.target.value)}
+                        onChange={(e) => handleColSearchOrderChange(e.target.value)}
                         placeholder="Search No..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -326,7 +378,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchDate}
-                        onChange={(e) => setColSearchDate(e.target.value)}
+                        onChange={(e) => handleColSearchDateChange(e.target.value)}
                         placeholder="Search Date..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -335,7 +387,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchBuyer}
-                        onChange={(e) => setColSearchBuyer(e.target.value)}
+                        onChange={(e) => handleColSearchBuyerChange(e.target.value)}
                         placeholder="Search Buyer..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -368,7 +420,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchOrder}
-                        onChange={(e) => setColSearchOrder(e.target.value)}
+                        onChange={(e) => handleColSearchOrderChange(e.target.value)}
                         placeholder="Search No..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -377,7 +429,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchDate}
-                        onChange={(e) => setColSearchDate(e.target.value)}
+                        onChange={(e) => handleColSearchDateChange(e.target.value)}
                         placeholder="Search Date..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -386,7 +438,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchBuyer}
-                        onChange={(e) => setColSearchBuyer(e.target.value)}
+                        onChange={(e) => handleColSearchBuyerChange(e.target.value)}
                         placeholder="Search Buyer..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -395,7 +447,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                       <input
                         type="text"
                         value={colSearchStatus}
-                        onChange={(e) => setColSearchStatus(e.target.value)}
+                        onChange={(e) => handleColSearchStatusChange(e.target.value)}
                         placeholder="Search Status..."
                         className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none bg-gray-50 dark:bg-[#181f2c]"
                       />
@@ -469,11 +521,8 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
           totalPages={totalPages}
           totalItems={totalOrders}
           limit={limit}
-          onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          }}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
         />
       </div>
     </div>

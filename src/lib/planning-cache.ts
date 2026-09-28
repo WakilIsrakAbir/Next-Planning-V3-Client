@@ -1,4 +1,59 @@
 import { API_BASE } from './constants';
+import { PlanStatus } from '@/types/order';
+
+export interface IDeptPageState {
+  page: number;
+  limit: number;
+  activeTab: PlanStatus | 'All';
+  activeBuyer: string;
+  globalSearch: string;
+  colSearchOrder: string;
+  colSearchDate: string;
+  colSearchBuyer: string;
+  colSearchStatus: string;
+}
+
+export const deptListStates: Record<string, IDeptPageState> = {};
+
+export function getSavedDeptState(dept: string): IDeptPageState {
+  const d = (dept || '').toLowerCase();
+  if (deptListStates[d]) {
+    return deptListStates[d];
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = sessionStorage.getItem(`dept_state_${d}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        deptListStates[d] = parsed;
+        return parsed;
+      }
+    } catch {}
+  }
+  return {
+    page: 1,
+    limit: 10,
+    activeTab: 'Pending',
+    activeBuyer: '',
+    globalSearch: '',
+    colSearchOrder: '',
+    colSearchDate: '',
+    colSearchBuyer: '',
+    colSearchStatus: '',
+  };
+}
+
+export function saveDeptState(dept: string, state: Partial<IDeptPageState>): void {
+  const d = (dept || '').toLowerCase();
+  const current = getSavedDeptState(d);
+  const updated: IDeptPageState = { ...current, ...state };
+  deptListStates[d] = updated;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem(`dept_state_${d}`, JSON.stringify(updated));
+    } catch {}
+  }
+}
 
 export interface ICachedPlanningData {
   orders: any[];

@@ -323,6 +323,14 @@ export default function OrderPlanningDetailPage() {
     setIsAdmin(isUserAdmin);
   }, []);
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(`/planning/${dept}`);
+    }
+  };
+
   const showToast = (message: string, type: 'error' | 'success' = 'error') => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3800);
@@ -1112,12 +1120,14 @@ export default function OrderPlanningDetailPage() {
       {/* Top Header Bar matching Exp index.html lines 1381-1398 */}
       <div className="bg-gray-100 dark:bg-[#1f2637] border-b border-gray-200 dark:border-[#2a3346] flex flex-col sm:flex-row items-start sm:items-center px-4 py-2 shrink-0 justify-between w-full gap-2 rounded-sm shadow-sm">
         <div className="flex items-center w-full sm:w-auto">
-          <Link
-            href={`/planning/${dept}`}
-            className="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition p-1 mr-2"
+          <button
+            type="button"
+            onClick={handleBack}
+            className="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition p-1 mr-2 cursor-pointer"
+            title="Go Back"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm flex items-center">
             <span>Order Planning:</span>
             <span className="text-emerald-700 dark:text-emerald-400 ml-1 font-mono">{orderNo}</span>
@@ -1128,12 +1138,13 @@ export default function OrderPlanningDetailPage() {
         </div>
 
         <div className="flex gap-2 w-full sm:w-auto justify-end items-center">
-          <Link
-            href={`/planning/${dept}`}
-            className="px-3 md:px-4 py-1.5 border border-gray-300 dark:border-[#2a3346] text-xs font-bold rounded hover:bg-gray-200 dark:hover:bg-[#283347] text-gray-700 dark:text-gray-300 transition"
+          <button
+            type="button"
+            onClick={handleBack}
+            className="px-3 md:px-4 py-1.5 border border-gray-300 dark:border-[#2a3346] text-xs font-bold rounded hover:bg-gray-200 dark:hover:bg-[#283347] text-gray-700 dark:text-gray-300 transition cursor-pointer"
           >
             Back
-          </Link>
+          </button>
 
           <button
             onClick={handleSavePlanning}
@@ -2617,12 +2628,13 @@ export default function OrderPlanningDetailPage() {
             Total <strong className="text-gray-800 dark:text-gray-200">{planItems.length}</strong> fabric items ready for schedule synchronization.
           </span>
           <div className="flex items-center gap-2">
-            <Link
-              href={`/planning/${dept}`}
-              className="btn btn-ghost btn-xs font-semibold"
+            <button
+              type="button"
+              onClick={handleBack}
+              className="btn btn-ghost btn-xs font-semibold cursor-pointer"
             >
               Cancel
-            </Link>
+            </button>
             <button
               onClick={handleSavePlanning}
               disabled={saving}
