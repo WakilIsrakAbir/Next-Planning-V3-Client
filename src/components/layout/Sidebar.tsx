@@ -216,6 +216,36 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
     return false;
   };
 
+  const isItemActive = (href: string): boolean => {
+    const [path, queryStr] = href.split('?');
+    if (path === '/dashboard') return pathname === '/dashboard';
+
+    // Matches exact path or child subroutes (e.g. /planning/yd/272213 matches /planning/yd)
+    const matchesPath = pathname === path || pathname.startsWith(path + '/');
+    if (!matchesPath) return false;
+
+    if (queryStr && typeof window !== 'undefined') {
+      const targetTab = new URLSearchParams(queryStr).get('tab');
+      const currentTab = new URLSearchParams(window.location.search).get('tab');
+      if (targetTab && currentTab) {
+        return targetTab === currentTab;
+      }
+    }
+
+    return true;
+  };
+
+  // Automatically expand the section that contains the active route on pathname change
+  useEffect(() => {
+    for (const group of SIDEBAR_MENU_GROUPS) {
+      const hasActive = group.items.some((item) => isItemActive(item.href));
+      if (hasActive) {
+        setOpenSections((prev) => ({ ...prev, [group.key]: true }));
+        break;
+      }
+    }
+  }, [pathname]);
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -285,10 +315,10 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
           <Link
             href="/dashboard"
             onClick={handleNavClick}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all border-l-[3px] ${
               pathname === '/dashboard'
-                ? 'bg-primary text-primary-content shadow-sm'
-                : 'hover:bg-base-200 text-base-content'
+                ? 'bg-primary text-primary-content border-primary shadow-sm'
+                : 'border-transparent hover:bg-base-200 text-base-content'
             }`}
           >
             <LayoutDashboard className="h-4 w-4" />
@@ -306,6 +336,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
             if (allowedItems.length === 0) return null;
 
             const isExpanded = openSections[group.key] ?? false;
+            const hasActiveChild = allowedItems.some((item) => isItemActive(item.href));
 
             return (
               <div
@@ -318,11 +349,19 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                 <button
                   type="button"
                   onClick={() => toggleSection(group.key)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-extrabold text-base-content/80 hover:bg-base-200 rounded-lg transition-colors"
+                  className={`flex w-full items-center justify-between px-3 py-2 text-xs font-extrabold rounded-lg transition-colors ${
+                    hasActiveChild
+                      ? 'bg-base-200/80 text-primary dark:text-emerald-400'
+                      : 'text-base-content/80 hover:bg-base-200'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-primary">{group.icon}</span>
-                    <span className="truncate">{group.title}</span>
+                    <span className={hasActiveChild ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'}>
+                      {group.icon}
+                    </span>
+                    <span className={`truncate ${hasActiveChild ? 'font-black text-emerald-700 dark:text-emerald-300' : ''}`}>
+                      {group.title}
+                    </span>
                   </div>
                   {isExpanded ? (
                     <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
@@ -334,20 +373,23 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                 {isExpanded && (
                   <div className="pl-4 pr-1 py-1 space-y-0.5 border-l-2 border-base-300 ml-4 my-1">
                     {allowedItems.map((item) => {
-                      const active = pathname === item.href.split('?')[0];
+                      const active = isItemActive(item.href);
 
                       return (
                         <Link
                           key={item.key}
                           href={item.href}
                           onClick={handleNavClick}
-                          className={`block px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors truncate ${
+                          className={`flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] transition-all truncate border-l-[3px] ${
                             active
-                              ? 'bg-primary/10 text-primary font-bold'
-                              : 'text-base-content/70 hover:text-base-content hover:bg-base-200'
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black border-emerald-500 shadow-xs'
+                              : 'border-transparent text-base-content/70 hover:text-base-content hover:bg-base-200 font-medium'
                           }`}
                         >
-                          {item.label}
+                          <span className="truncate">{item.label}</span>
+                          {active && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-1.5 animate-pulse" />
+                          )}
                         </Link>
                       );
                     })}
