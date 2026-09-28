@@ -2,72 +2,89 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  Sparkles,
-  Waves,
-  Orbit,
-  Network,
-  Flame,
-  Zap,
+  Scissors,
+  Hand,
   RotateCcw,
+  Sparkles,
   Maximize2,
   Minimize2,
   Sliders,
   Palette,
-  Info,
+  CircleDot,
+  Waves,
+  Magnet,
+  Zap,
+  HelpCircle,
 } from 'lucide-react';
 
-type PlayMode = 'vortex' | 'fabric' | 'constellation' | 'supernova' | 'liquid';
-type ColorTheme = 'emerald' | 'cyber' | 'solar' | 'cosmic' | 'rainbow';
+type GameMode = 'cloth' | 'marbles' | 'liquid' | 'sand';
+type ToolType = 'drag' | 'cut' | 'blast';
+type PaletteTheme = 'emerald' | 'berry' | 'ocean' | 'citrus' | 'neon';
 
-interface Particle {
+interface ClothPoint {
   x: number;
   y: number;
-  originX: number;
-  originY: number;
+  oldX: number;
+  oldY: number;
+  pinned: boolean;
+  color: string;
+}
+
+interface ClothConstraint {
+  p1: ClothPoint;
+  p2: ClothPoint;
+  length: number;
+  broken: boolean;
+  color: string;
+}
+
+interface Marble {
+  x: number;
+  y: number;
   vx: number;
   vy: number;
   radius: number;
-  baseRadius: number;
   color: string;
-  hue: number;
-  alpha: number;
-  angle: number;
-  speed: number;
-  mass: number;
-  life: number;
-  maxLife: number;
+  borderColor: string;
+  isHeld: boolean;
+  squishX: number;
+  squishY: number;
 }
 
-interface Shockwave {
+interface SandParticle {
   x: number;
   y: number;
-  radius: number;
-  maxRadius: number;
-  force: number;
-  alpha: number;
+  vx: number;
+  vy: number;
   color: string;
+  size: number;
 }
 
-const THEMES: Record<ColorTheme, { name: string; colors: string[] }> = {
+const PALETTES: Record<PaletteTheme, { name: string; colors: string[]; primary: string }> = {
   emerald: {
-    name: 'Emerald Matrix',
-    colors: ['#10b981', '#34d399', '#059669', '#6ee7b7', '#047857', '#a7f3d0'],
+    name: 'Emerald Mint',
+    primary: '#059669',
+    colors: ['#059669', '#10b981', '#34d399', '#0d9488', '#0284c7'],
   },
-  cyber: {
-    name: 'Cyberpunk Neon',
-    colors: ['#06b6d4', '#3b82f6', '#ec4899', '#8b5cf6', '#f43f5e', '#a855f7'],
+  berry: {
+    name: 'Berry Punch',
+    primary: '#e11d48',
+    colors: ['#e11d48', '#f43f5e', '#ec4899', '#a855f7', '#6366f1'],
   },
-  solar: {
-    name: 'Solar Flare',
-    colors: ['#f59e0b', '#fbbf24', '#f97316', '#ef4444', '#fde047', '#ffedd5'],
+  ocean: {
+    name: 'Deep Blue',
+    primary: '#0284c7',
+    colors: ['#0284c7', '#38bdf8', '#2563eb', '#06b6d4', '#64748b'],
   },
-  cosmic: {
-    name: 'Deep Aurora',
-    colors: ['#818cf8', '#c084fc', '#e879f9', '#38bdf8', '#6366f1', '#4f46e5'],
+  citrus: {
+    name: 'Citrus Sunset',
+    primary: '#ea580c',
+    colors: ['#ea580c', '#f59e0b', '#f97316', '#eab308', '#dc2626'],
   },
-  rainbow: {
-    name: 'Spectrum Prism',
-    colors: ['#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ec4899'],
+  neon: {
+    name: 'Vibrant Pop',
+    primary: '#8b5cf6',
+    colors: ['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b'],
   },
 };
 
@@ -76,131 +93,238 @@ export default function InteractivePlayground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // States
-  const [mode, setMode] = useState<PlayMode>('vortex');
-  const [theme, setTheme] = useState<ColorTheme>('emerald');
-  const [particleCount, setParticleCount] = useState<number>(850);
-  const [gravity, setGravity] = useState<number>(0.8);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [mode, setMode] = useState<GameMode>('cloth');
+  const [activeTool, setActiveTool] = useState<ToolType>('drag');
+  const [palette, setPalette] = useState<PaletteTheme>('emerald');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [fps, setFps] = useState<number>(60);
-  const [mouseVelocity, setMouseVelocity] = useState<number>(0);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
 
-  // Refs for animation loop
+  // Animation frame & state refs
   const animFrameRef = useRef<number | null>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const shockwavesRef = useRef<Shockwave[]>([]);
+
+  // Cloth refs
+  const clothPointsRef = useRef<ClothPoint[]>([]);
+  const clothConstraintsRef = useRef<ClothConstraint[]>([]);
+
+  // Marbles ref
+  const marblesRef = useRef<Marble[]>([]);
+
+  // Sand ref
+  const sandRef = useRef<SandParticle[]>([]);
+
+  // Liquid ripple cells ref
+  const liquidRef = useRef<{
+    width: number;
+    height: number;
+    buffer1: Float32Array;
+    buffer2: Float32Array;
+  }>({
+    width: 0,
+    height: 0,
+    buffer1: new Float32Array(0),
+    buffer2: new Float32Array(0),
+  });
+
+  // Mouse & interaction state
   const mouseRef = useRef<{
     x: number;
     y: number;
     prevX: number;
     prevY: number;
     isDown: boolean;
-    speed: number;
-    radius: number;
+    button: number;
+    grabbedPoint: ClothPoint | null;
+    grabbedMarble: Marble | null;
   }>({
     x: -9999,
     y: -9999,
     prevX: -9999,
     prevY: -9999,
     isDown: false,
-    speed: 0,
-    radius: 140,
+    button: 0,
+    grabbedPoint: null,
+    grabbedMarble: null,
   });
 
-  // Track FPS
+  // FPS tracking
   const fpsTrackerRef = useRef<{ frames: number; lastTime: number }>({
     frames: 0,
     lastTime: performance.now(),
   });
 
-  // Colors getter
-  const getThemeColor = useCallback(
-    (index: number, total: number, time: number) => {
-      const colors = THEMES[theme].colors;
-      if (theme === 'rainbow') {
-        const hue = (time * 40 + (index / total) * 360) % 360;
-        return `hsl(${hue}, 90%, 60%)`;
-      }
-      return colors[index % colors.length];
-    },
-    [theme]
-  );
+  // Helper: line intersection test for scissors / cutting
+  const checkLineIntersection = (
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    p3x: number,
+    p3y: number,
+    p4x: number,
+    p4y: number
+  ) => {
+    const denom = (p4y - p3y) * (p2x - p1x) - (p4x - p3x) * (p2y - p1y);
+    if (denom === 0) return false;
+    const ua = ((p4x - p3x) * (p1y - p3y) - (p4y - p3y) * (p1x - p3x)) / denom;
+    const ub = ((p2x - p1x) * (p1y - p3y) - (p2y - p1y) * (p1x - p3x)) / denom;
+    return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+  };
 
-  // Initialize Particles based on Mode
-  const initParticles = useCallback(() => {
+  // -------------------------------------------------------------
+  // INITIALIZERS FOR EACH INTERACTIVE TOY
+  // -------------------------------------------------------------
+
+  // 1. Initialize Tearable Cloth (Textile Fabric with Verlet Integration)
+  const initCloth = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const w = canvas.width / (window.devicePixelRatio || 1);
-    const h = canvas.height / (window.devicePixelRatio || 1);
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
 
-    const particles: Particle[] = [];
-    const count = particleCount;
+    const points: ClothPoint[] = [];
+    const constraints: ClothConstraint[] = [];
 
-    if (mode === 'fabric') {
-      // Create elastic grid weave (Warp & Weft textile mesh)
-      const cols = Math.floor(Math.sqrt(count * 1.5));
-      const rows = Math.floor(count / cols);
-      const stepX = w / (cols + 1);
-      const stepY = h / (rows + 1);
+    const cols = Math.min(50, Math.floor(w / 18));
+    const rows = 28;
+    const spacingX = Math.min(20, (w * 0.78) / (cols - 1));
+    const spacingY = 16;
+    const startX = (w - (cols - 1) * spacingX) / 2;
+    const startY = 35;
 
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = (c + 1) * stepX;
-          const y = (r + 1) * stepY;
-          particles.push({
-            x,
-            y,
-            originX: x,
-            originY: y,
-            vx: 0,
-            vy: 0,
-            radius: 2.2,
-            baseRadius: 2.2,
-            color: getThemeColor(c + r, cols + rows, 0),
-            hue: (c * 15 + r * 15) % 360,
-            alpha: 0.85,
-            angle: 0,
-            speed: 0,
-            mass: 1,
-            life: 1,
-            maxLife: 1,
+    const colors = PALETTES[palette].colors;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * spacingX;
+        const y = startY + r * spacingY;
+        // Pin every 3rd or 4th point along top row
+        const pinned = r === 0 && (c % 4 === 0 || c === cols - 1);
+        const colColor = colors[(c + r) % colors.length];
+
+        const pt: ClothPoint = {
+          x,
+          y,
+          oldX: x,
+          oldY: y,
+          pinned,
+          color: colColor,
+        };
+        points.push(pt);
+
+        // Horizontal constraint
+        if (c > 0) {
+          const leftPt = points[points.length - 2];
+          constraints.push({
+            p1: leftPt,
+            p2: pt,
+            length: spacingX,
+            broken: false,
+            color: colColor,
+          });
+        }
+
+        // Vertical constraint
+        if (r > 0) {
+          const upPt = points[(r - 1) * cols + c];
+          constraints.push({
+            p1: upPt,
+            p2: pt,
+            length: spacingY,
+            broken: false,
+            color: colColor,
           });
         }
       }
-    } else {
-      // Normal / Vortex / Constellation / Liquid / Supernova distributions
-      for (let i = 0; i < count; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 2 + 0.5;
-        const radius = Math.random() * 2.5 + 1.2;
-
-        particles.push({
-          x,
-          y,
-          originX: x,
-          originY: y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius,
-          baseRadius: radius,
-          color: getThemeColor(i, count, 0),
-          hue: Math.random() * 360,
-          alpha: Math.random() * 0.7 + 0.3,
-          angle,
-          speed,
-          mass: Math.random() * 1.5 + 0.8,
-          life: Math.random() * 100,
-          maxLife: 100,
-        });
-      }
     }
 
-    particlesRef.current = particles;
-  }, [mode, particleCount, getThemeColor]);
+    clothPointsRef.current = points;
+    clothConstraintsRef.current = constraints;
+  }, [palette]);
 
-  // Handle Resize
+  // 2. Initialize Bouncy Jelly Marbles
+  const initMarbles = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+
+    const marbles: Marble[] = [];
+    const colors = PALETTES[palette].colors;
+    const count = 18;
+
+    for (let i = 0; i < count; i++) {
+      const radius = Math.random() * 24 + 20;
+      marbles.push({
+        x: Math.random() * (w - 100) + 50,
+        y: Math.random() * (h - 150) + 60,
+        vx: (Math.random() - 0.5) * 6,
+        vy: (Math.random() - 0.5) * 6,
+        radius,
+        color: colors[i % colors.length],
+        borderColor: '#ffffff',
+        isHeld: false,
+        squishX: 1,
+        squishY: 1,
+      });
+    }
+
+    marblesRef.current = marbles;
+  }, [palette]);
+
+  // 3. Initialize Liquid Water Ripple Simulation
+  const initLiquid = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.floor((canvas.width / dpr) / 4);
+    const h = Math.floor((canvas.height / dpr) / 4);
+
+    const size = w * h;
+    liquidRef.current = {
+      width: w,
+      height: h,
+      buffer1: new Float32Array(size),
+      buffer2: new Float32Array(size),
+    };
+  }, []);
+
+  // 4. Initialize Magnetic Colorful Sand
+  const initSand = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+
+    const sand: SandParticle[] = [];
+    const colors = PALETTES[palette].colors;
+    const count = 750;
+
+    for (let i = 0; i < count; i++) {
+      sand.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        color: colors[i % colors.length],
+        size: Math.random() * 3 + 2,
+      });
+    }
+
+    sandRef.current = sand;
+  }, [palette]);
+
+  // Initialize current mode
+  const initCurrentMode = useCallback(() => {
+    if (mode === 'cloth') initCloth();
+    else if (mode === 'marbles') initMarbles();
+    else if (mode === 'liquid') initLiquid();
+    else if (mode === 'sand') initSand();
+  }, [mode, initCloth, initMarbles, initLiquid, initSand]);
+
+  // Resize Handler
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -208,7 +332,7 @@ export default function InteractivePlayground() {
 
     const dpr = window.devicePixelRatio || 1;
     const width = container.clientWidth;
-    const height = isFullscreen ? window.innerHeight : Math.max(540, container.clientHeight);
+    const height = isFullscreen ? window.innerHeight : 650;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -220,66 +344,74 @@ export default function InteractivePlayground() {
       ctx.scale(dpr, dpr);
     }
 
-    initParticles();
-  }, [isFullscreen, initParticles]);
+    initCurrentMode();
+  }, [isFullscreen, initCurrentMode]);
 
-  // Trigger Shockwave Burst
-  const triggerShockwave = useCallback(
+  // Trigger Blast Force in active mode
+  const triggerBlast = useCallback(
     (x?: number, y?: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const w = canvas.width / (window.devicePixelRatio || 1);
-      const h = canvas.height / (window.devicePixelRatio || 1);
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+      const blastX = x !== undefined ? x : w / 2;
+      const blastY = y !== undefined ? y : h / 2;
 
-      const targetX = x !== undefined ? x : w / 2;
-      const targetY = y !== undefined ? y : h / 2;
-
-      shockwavesRef.current.push({
-        x: targetX,
-        y: targetY,
-        radius: 5,
-        maxRadius: 280,
-        force: 18 * gravity,
-        alpha: 1,
-        color: THEMES[theme].colors[Math.floor(Math.random() * THEMES[theme].colors.length)],
-      });
-
-      // Also spawn transient sparks on explosion
-      const sparkCount = 35;
-      for (let i = 0; i < sparkCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const spd = Math.random() * 12 + 4;
-        particlesRef.current.push({
-          x: targetX,
-          y: targetY,
-          originX: targetX,
-          originY: targetY,
-          vx: Math.cos(angle) * spd,
-          vy: Math.sin(angle) * spd,
-          radius: Math.random() * 3 + 2,
-          baseRadius: 2,
-          color: '#ffffff',
-          hue: Math.random() * 360,
-          alpha: 1,
-          angle,
-          speed: spd,
-          mass: 0.5,
-          life: 0,
-          maxLife: 40,
-        });
+      if (mode === 'cloth') {
+        // Displace and stretch nearby cloth points
+        for (let pt of clothPointsRef.current) {
+          const dx = pt.x - blastX;
+          const dy = pt.y - blastY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180 && !pt.pinned) {
+            const force = (1 - dist / 180) * 35;
+            pt.x += (dx / (dist || 1)) * force;
+            pt.y += (dy / (dist || 1)) * force;
+          }
+        }
+      } else if (mode === 'marbles') {
+        for (let m of marblesRef.current) {
+          const dx = m.x - blastX;
+          const dy = m.y - blastY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 220) {
+            const force = (1 - dist / 220) * 22;
+            m.vx += (dx / (dist || 1)) * force;
+            m.vy += (dy / (dist || 1)) * force;
+          }
+        }
+      } else if (mode === 'sand') {
+        for (let s of sandRef.current) {
+          const dx = s.x - blastX;
+          const dy = s.y - blastY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 200) {
+            const force = (1 - dist / 200) * 25;
+            s.vx += (dx / (dist || 1)) * force;
+            s.vy += (dy / (dist || 1)) * force;
+          }
+        }
+      } else if (mode === 'liquid') {
+        const liq = liquidRef.current;
+        const cellX = Math.floor((blastX / w) * liq.width);
+        const cellY = Math.floor((blastY / h) * liq.height);
+        if (cellX > 2 && cellX < liq.width - 2 && cellY > 2 && cellY < liq.height - 2) {
+          liq.buffer1[cellY * liq.width + cellX] = 450;
+        }
       }
     },
-    [gravity, theme]
+    [mode]
   );
 
-  // Main Render and Physics Simulation Loop
+  // -------------------------------------------------------------
+  // ANIMATION LOOP (60FPS CLEAN LIGHT THEME RENDERER)
+  // -------------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    let lastTimestamp = performance.now();
 
     const animate = (timestamp: number) => {
       const dpr = window.devicePixelRatio || 1;
@@ -288,332 +420,437 @@ export default function InteractivePlayground() {
 
       // Track FPS
       fpsTrackerRef.current.frames++;
-      if (timestamp - fpsTrackerRef.current.lastTime >= 600) {
+      if (timestamp - fpsTrackerRef.current.lastTime >= 500) {
         setFps(Math.round((fpsTrackerRef.current.frames * 1000) / (timestamp - fpsTrackerRef.current.lastTime)));
         fpsTrackerRef.current.frames = 0;
         fpsTrackerRef.current.lastTime = timestamp;
       }
 
-      // Smooth clear with alpha fade to generate luminous neon motion trails
+      // Crisp Light Studio Background with subtle fine gradient
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = 'rgba(10, 15, 26, 0.22)';
+      const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+      bgGrad.addColorStop(0, '#f8fafc');
+      bgGrad.addColorStop(0.5, '#ffffff');
+      bgGrad.addColorStop(1, '#f1f5f9');
+      ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Light glow blending mode for cosmic radiance
-      ctx.globalCompositeOperation = 'lighter';
-
-      const mouse = mouseRef.current;
-      const particles = particlesRef.current;
-      const shockwaves = shockwavesRef.current;
-      const timeSec = timestamp * 0.001;
-
-      // 1. Process Active Shockwaves
-      for (let sIdx = shockwaves.length - 1; sIdx >= 0; sIdx--) {
-        const sw = shockwaves[sIdx];
-        sw.radius += 10;
-        sw.alpha -= 0.035;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = sw.color;
-        ctx.lineWidth = 3 * sw.alpha;
-        ctx.globalAlpha = Math.max(0, sw.alpha);
-        ctx.stroke();
-        ctx.restore();
-
-        // Displace particles on shockwave front
-        for (let p of particles) {
-          const dx = p.x - sw.x;
-          const dy = p.y - sw.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (Math.abs(dist - sw.radius) < 30) {
-            const push = (sw.force * sw.alpha) / (dist || 1);
-            p.vx += dx * push * 0.15;
-            p.vy += dy * push * 0.15;
-          }
-        }
-
-        if (sw.alpha <= 0 || sw.radius >= sw.maxRadius) {
-          shockwaves.splice(sIdx, 1);
+      // Delicate studio dot grid for modern aesthetic
+      ctx.fillStyle = '#e2e8f0';
+      const gridStep = 32;
+      for (let gx = gridStep; gx < width; gx += gridStep) {
+        for (let gy = gridStep; gy < height; gy += gridStep) {
+          ctx.beginPath();
+          ctx.arc(gx, gy, 1, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
 
-      // 2. Physics & Draw per Mode
-      if (mode === 'fabric') {
-        // --- TEXTILE YARN WEAVE MODE ---
-        ctx.lineWidth = 1;
-        const cols = Math.floor(Math.sqrt(particles.length * 1.5));
+      const mouse = mouseRef.current;
+      const isCutting = activeTool === 'cut' || mouse.button === 2;
 
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
+      // ---------------------------------------------------------
+      // MODE 1: TEARABLE TEXTILE CLOTH (SILK PHYSICS)
+      // ---------------------------------------------------------
+      if (mode === 'cloth') {
+        const points = clothPointsRef.current;
+        const constraints = clothConstraintsRef.current;
 
-          // Elastic spring pulling back to origin
-          const k = 0.035;
-          const damping = 0.88;
-          const ax = (p.originX - p.x) * k;
-          const ay = (p.originY - p.y) * k;
+        // Verlet physics step
+        const gravity = 0.28;
+        const friction = 0.985;
 
-          p.vx = (p.vx + ax) * damping;
-          p.vy = (p.vy + ay) * damping;
-
-          // Mouse distortion: Pluck and push fabric threads
-          const dx = mouse.x - p.x;
-          const dy = mouse.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const maxDist = mouse.radius * 0.9;
-
-          if (dist < maxDist && dist > 0) {
-            const force = (1 - dist / maxDist) * 14 * gravity;
-            const angle = Math.atan2(dy, dx);
-            p.vx -= Math.cos(angle) * force;
-            p.vy -= Math.sin(angle) * force;
-            p.radius = p.baseRadius * 1.8;
-          } else {
-            p.radius = Math.max(p.baseRadius, p.radius * 0.96);
+        for (let pt of points) {
+          if (!pt.pinned) {
+            const vx = (pt.x - pt.oldX) * friction;
+            const vy = (pt.y - pt.oldY) * friction;
+            pt.oldX = pt.x;
+            pt.oldY = pt.y;
+            pt.x += vx;
+            pt.y += vy + gravity;
           }
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // Draw interconnecting warp & weft weave lines
-          const rightIdx = i + 1;
-          const downIdx = i + cols;
-
-          if (rightIdx < particles.length && (i + 1) % cols !== 0) {
-            const pRight = particles[rightIdx];
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(pRight.x, pRight.y);
-            ctx.strokeStyle = p.color;
-            ctx.globalAlpha = 0.35;
-            ctx.stroke();
-          }
-
-          if (downIdx < particles.length) {
-            const pDown = particles[downIdx];
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(pDown.x, pDown.y);
-            ctx.strokeStyle = p.color;
-            ctx.globalAlpha = 0.35;
-            ctx.stroke();
-          }
-
-          // Node bead
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = 0.85;
-          ctx.fill();
         }
-      } else if (mode === 'constellation') {
-        // --- COSMIC CONSTELLATION WEB MODE ---
-        const connectionDistance = 85;
 
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
+        // Mouse Grab & Cut
+        if (mouse.isDown) {
+          if (isCutting && mouse.prevX !== -9999) {
+            // Cut / Slice constraints that intersect mouse line
+            for (let c of constraints) {
+              if (!c.broken) {
+                if (
+                  checkLineIntersection(
+                    mouse.prevX,
+                    mouse.prevY,
+                    mouse.x,
+                    mouse.y,
+                    c.p1.x,
+                    c.p1.y,
+                    c.p2.x,
+                    c.p2.y
+                  )
+                ) {
+                  c.broken = true;
+                }
+              }
+            }
+          } else if (activeTool === 'drag') {
+            // Grab closest point
+            if (!mouse.grabbedPoint) {
+              let closest: ClothPoint | null = null;
+              let closestDist = 35;
+              for (let pt of points) {
+                const dx = pt.x - mouse.x;
+                const dy = pt.y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < closestDist) {
+                  closest = pt;
+                  closestDist = dist;
+                }
+              }
+              mouse.grabbedPoint = closest;
+            }
 
-          // Natural organic drift
-          p.x += p.vx;
-          p.y += p.vy;
+            if (mouse.grabbedPoint && !mouse.grabbedPoint.pinned) {
+              mouse.grabbedPoint.x = mouse.x;
+              mouse.grabbedPoint.y = mouse.y;
+            }
+          }
+        } else {
+          mouse.grabbedPoint = null;
+        }
 
-          if (p.x < 0 || p.x > width) p.vx *= -1;
-          if (p.y < 0 || p.y > height) p.vy *= -1;
+        // Constraint relaxation (Spring physics iterations)
+        const iterations = 4;
+        for (let it = 0; it < iterations; it++) {
+          for (let c of constraints) {
+            if (c.broken) continue;
+            const dx = c.p2.x - c.p1.x;
+            const dy = c.p2.y - c.p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const diff = (c.length - dist) / dist;
 
-          // Connect with mouse
-          const mdx = mouse.x - p.x;
-          const mdy = mouse.y - p.y;
-          const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+            // Auto-tear on extreme elongation tension
+            if (dist > c.length * 3.4) {
+              c.broken = true;
+              continue;
+            }
 
-          if (mdist < mouse.radius) {
-            const mAlpha = 1 - mdist / mouse.radius;
+            const p1Weight = c.p1.pinned ? 0 : 0.5;
+            const p2Weight = c.p2.pinned ? 0 : 0.5;
+
+            c.p1.x -= dx * diff * p1Weight;
+            c.p1.y -= dy * diff * p1Weight;
+            c.p2.x += dx * diff * p2Weight;
+            c.p2.y += dy * diff * p2Weight;
+          }
+        }
+
+        // Render Cloth Shadows first for depth
+        ctx.beginPath();
+        for (let c of constraints) {
+          if (c.broken) continue;
+          ctx.moveTo(c.p1.x + 2, c.p1.y + 4);
+          ctx.lineTo(c.p2.x + 2, c.p2.y + 4);
+        }
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.04)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Render Cloth Threads
+        ctx.beginPath();
+        for (let c of constraints) {
+          if (c.broken) continue;
+          ctx.moveTo(c.p1.x, c.p1.y);
+          ctx.lineTo(c.p2.x, c.p2.y);
+        }
+        ctx.strokeStyle = PALETTES[palette].primary;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Render Pins along the top hanging rod
+        for (let pt of points) {
+          if (pt.pinned) {
             ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(mouse.x, mouse.y);
-            ctx.strokeStyle = '#ffffff';
-            ctx.globalAlpha = mAlpha * 0.7;
-            ctx.lineWidth = 1.2;
+            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
+          }
+        }
+      }
 
-            // Gentle gravity to cursor
-            p.vx += (mdx / mdist) * 0.18 * gravity;
-            p.vy += (mdy / mdist) * 0.18 * gravity;
-            p.vx *= 0.94;
-            p.vy *= 0.94;
+      // ---------------------------------------------------------
+      // MODE 2: BOUNCY SQUISHY JELLY MARBLES
+      // ---------------------------------------------------------
+      else if (mode === 'marbles') {
+        const marbles = marblesRef.current;
+        const gravity = 0.22;
+        const bounce = 0.78;
+
+        for (let i = 0; i < marbles.length; i++) {
+          const m = marbles[i];
+
+          if (m === mouse.grabbedMarble) {
+            m.vx = (mouse.x - m.x) * 0.35;
+            m.vy = (mouse.y - m.y) * 0.35;
+            m.x = mouse.x;
+            m.y = mouse.y;
+          } else {
+            m.vy += gravity;
+            m.x += m.vx;
+            m.y += m.vy;
+            m.vx *= 0.99;
           }
 
-          // Connect with adjacent nodes
-          for (let j = i + 1; j < particles.length; j++) {
-            const p2 = particles[j];
-            const dx = p.x - p2.x;
-            const dy = p.y - p2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+          // Wall Collisions with squish
+          if (m.x - m.radius < 0) {
+            m.x = m.radius;
+            m.vx = -m.vx * bounce;
+            m.squishX = 0.7;
+          }
+          if (m.x + m.radius > width) {
+            m.x = width - m.radius;
+            m.vx = -m.vx * bounce;
+            m.squishX = 0.7;
+          }
+          if (m.y + m.radius > height) {
+            m.y = height - m.radius;
+            m.vy = -m.vy * bounce;
+            m.squishY = 0.65;
+            if (Math.abs(m.vy) < 0.5) m.vy = 0;
+          }
+          if (m.y - m.radius < 0) {
+            m.y = m.radius;
+            m.vy = -m.vy * bounce;
+          }
 
-            if (dist < connectionDistance) {
-              const alpha = (1 - dist / connectionDistance) * 0.5;
-              ctx.beginPath();
-              ctx.moveTo(p.x, p.y);
-              ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = p.color;
-              ctx.globalAlpha = alpha;
-              ctx.lineWidth = 0.8;
-              ctx.stroke();
+          // Squish recovery
+          m.squishX += (1 - m.squishX) * 0.12;
+          m.squishY += (1 - m.squishY) * 0.12;
+
+          // Marble to Marble collisions
+          for (let j = i + 1; j < marbles.length; j++) {
+            const m2 = marbles[j];
+            const dx = m2.x - m.x;
+            const dy = m2.y - m.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = m.radius + m2.radius;
+
+            if (dist < minDist && dist > 0) {
+              const overlap = (minDist - dist) * 0.5;
+              const nx = dx / dist;
+              const ny = dy / dist;
+
+              m.x -= nx * overlap;
+              m.y -= ny * overlap;
+              m2.x += nx * overlap;
+              m2.y += ny * overlap;
+
+              const kx = m.vx - m2.vx;
+              const ky = m.vy - m2.vy;
+              const p = 2 * (nx * kx + ny * ky) / 2;
+
+              m.vx -= p * nx * bounce;
+              m.vy -= p * ny * bounce;
+              m2.vx += p * nx * bounce;
+              m2.vy += p * ny * bounce;
             }
           }
 
-          // Draw node
+          // Soft Shadow
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = 0.9;
-          ctx.fill();
-        }
-      } else if (mode === 'vortex') {
-        // --- VORTEX GRAVITY / WHIRLPOOL MODE ---
-        const cx = mouse.x !== -9999 ? mouse.x : width / 2;
-        const cy = mouse.y !== -9999 ? mouse.y : height / 2;
-
-        for (let p of particles) {
-          const dx = cx - p.x;
-          const dy = cy - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-
-          // Gravitational pull + perpendicular orbital swirl force
-          const pullForce = (350 / (dist + 80)) * 0.08 * gravity;
-          const orbitAngle = Math.atan2(dy, dx) + Math.PI / 2;
-
-          p.vx += Math.cos(orbitAngle) * (pullForce * 1.6) + (dx / dist) * pullForce;
-          p.vy += Math.sin(orbitAngle) * (pullForce * 1.6) + (dy / dist) * pullForce;
-
-          // Viscous damping
-          p.vx *= 0.96;
-          p.vy *= 0.96;
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // Respawn if collapsed into center
-          if (dist < 15) {
-            const escapeAngle = Math.random() * Math.PI * 2;
-            const escapeDist = Math.random() * (width * 0.45) + 80;
-            p.x = cx + Math.cos(escapeAngle) * escapeDist;
-            p.y = cy + Math.sin(escapeAngle) * escapeDist;
-            p.vx = (Math.random() - 0.5) * 2;
-            p.vy = (Math.random() - 0.5) * 2;
-          }
-
-          // Render glowing particle
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = Math.min(1, 0.3 + 25 / dist);
-          ctx.fill();
-        }
-      } else if (mode === 'supernova') {
-        // --- SUPERNOVA & FIREWORK FOUNTAIN MODE ---
-        for (let i = particles.length - 1; i >= 0; i--) {
-          const p = particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.vy += 0.08; // Gravity downwards
-          p.vx *= 0.985;
-          p.vy *= 0.985;
-
-          p.life++;
-          const lifeAlpha = 1 - p.life / p.maxLife;
-
-          if (p.x < 0 || p.x > width) p.vx *= -0.7;
-          if (p.y > height) {
-            p.y = height;
-            p.vy *= -0.6;
-          }
-
-          // Interactive push from mouse movement
-          const dx = p.x - mouse.x;
-          const dy = p.y - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 90 && dist > 0) {
-            const push = ((90 - dist) / 90) * 8 * gravity;
-            p.vx += (dx / dist) * push;
-            p.vy += (dy / dist) * push;
-          }
-
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, Math.max(0.8, p.radius * lifeAlpha), 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = Math.max(0, lifeAlpha);
+          ctx.ellipse(m.x + 3, height - 8, Math.max(5, m.radius * 0.8), 5, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
           ctx.fill();
 
-          // Respawn exhausted particles at cursor or random fountain
-          if (p.life >= p.maxLife) {
-            p.x = mouse.x !== -9999 ? mouse.x : width / 2;
-            p.y = mouse.y !== -9999 ? mouse.y : height / 2;
-            const angle = Math.random() * Math.PI * 2;
-            const spd = Math.random() * 6 + 1.5;
-            p.vx = Math.cos(angle) * spd;
-            p.vy = Math.sin(angle) * spd;
-            p.life = 0;
-            p.color = getThemeColor(i, particles.length, timeSec);
-          }
-        }
-      } else if (mode === 'liquid') {
-        // --- LIQUID FLUID WAVE MODE ---
-        for (let p of particles) {
-          // Flow noise field
-          const noiseAngle = Math.sin(p.x * 0.005 + timeSec) * Math.cos(p.y * 0.005 + timeSec) * Math.PI * 2;
-          p.vx += Math.cos(noiseAngle) * 0.25;
-          p.vy += Math.sin(noiseAngle) * 0.25;
+          // Render Marble with Glassmorphic Gradient
+          ctx.save();
+          ctx.translate(m.x, m.y);
+          ctx.scale(m.squishX, m.squishY);
 
-          // Mouse wake repulsion
-          const dx = p.x - mouse.x;
-          const dy = p.y - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < mouse.radius && dist > 0) {
-            const force = (1 - dist / mouse.radius) * 6 * gravity;
-            p.vx += (dx / dist) * force;
-            p.vy += (dy / dist) * force;
-            p.radius = p.baseRadius * 1.7;
-          } else {
-            p.radius = Math.max(p.baseRadius, p.radius * 0.98);
-          }
-
-          p.vx *= 0.94;
-          p.vy *= 0.94;
-
-          p.x += p.vx;
-          p.y += p.vy;
-
-          // Wrap edges smoothly
-          if (p.x < 0) p.x = width;
-          if (p.x > width) p.x = 0;
-          if (p.y < 0) p.y = height;
-          if (p.y > height) p.y = 0;
+          const grad = ctx.createRadialGradient(-m.radius * 0.35, -m.radius * 0.35, 2, 0, 0, m.radius);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.35, m.color);
+          grad.addColorStop(1, PALETTES[palette].primary);
 
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = 0.75;
+          ctx.arc(0, 0, m.radius, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetY = 4;
+          ctx.fill();
+
+          // Top Gloss Reflection
+          ctx.beginPath();
+          ctx.ellipse(-m.radius * 0.3, -m.radius * 0.35, m.radius * 0.4, m.radius * 0.22, -Math.PI / 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Grab / Fling Handler for Marbles
+        if (mouse.isDown && !mouse.grabbedMarble) {
+          for (let m of marbles) {
+            const dx = m.x - mouse.x;
+            const dy = m.y - mouse.y;
+            if (Math.sqrt(dx * dx + dy * dy) < m.radius + 10) {
+              mouse.grabbedMarble = m;
+              break;
+            }
+          }
+        } else if (!mouse.isDown && mouse.grabbedMarble) {
+          const gm = mouse.grabbedMarble;
+          gm.vx = (mouse.x - mouse.prevX) * 0.75;
+          gm.vy = (mouse.y - mouse.prevY) * 0.75;
+          mouse.grabbedMarble = null;
+        }
+      }
+
+      // ---------------------------------------------------------
+      // MODE 3: LIQUID WATER RIPPLE ENGINE
+      // ---------------------------------------------------------
+      else if (mode === 'liquid') {
+        const liq = liquidRef.current;
+        const lw = liq.width;
+        const lh = liq.height;
+
+        if (lw > 0 && lh > 0) {
+          // Mouse ripple injection
+          if (mouse.x > 0 && mouse.x < width && mouse.y > 0 && mouse.y < height) {
+            const cx = Math.floor((mouse.x / width) * lw);
+            const cy = Math.floor((mouse.y / height) * lh);
+            if (cx > 1 && cx < lw - 2 && cy > 1 && cy < lh - 2) {
+              liq.buffer1[cy * lw + cx] = mouse.isDown ? 300 : 80;
+            }
+          }
+
+          // Wave equation step
+          const damping = 0.975;
+          for (let y = 1; y < lh - 1; y++) {
+            const row = y * lw;
+            for (let x = 1; x < lw - 1; x++) {
+              const idx = row + x;
+              liq.buffer2[idx] =
+                (liq.buffer1[idx - 1] +
+                  liq.buffer1[idx + 1] +
+                  liq.buffer1[idx - lw] +
+                  liq.buffer1[idx + lw]) *
+                  0.5 -
+                liq.buffer2[idx];
+              liq.buffer2[idx] *= damping;
+            }
+          }
+
+          // Swap buffers
+          const temp = liq.buffer1;
+          liq.buffer1 = liq.buffer2;
+          liq.buffer2 = temp;
+
+          // Draw water ripples with light prismatic refraction
+          const cellScaleX = width / lw;
+          const cellScaleY = height / lh;
+
+          for (let y = 1; y < lh - 1; y += 2) {
+            for (let x = 1; x < lw - 1; x += 2) {
+              const val = liq.buffer1[y * lw + x];
+              if (Math.abs(val) > 1.5) {
+                const alpha = Math.min(0.65, Math.abs(val) / 120);
+                const rx = x * cellScaleX;
+                const ry = y * cellScaleY;
+                ctx.beginPath();
+                ctx.arc(rx, ry, Math.min(18, Math.abs(val) * 0.15 + 2), 0, Math.PI * 2);
+                ctx.fillStyle = val > 0 ? PALETTES[palette].primary : '#0284c7';
+                ctx.globalAlpha = alpha;
+                ctx.fill();
+              }
+            }
+          }
+        }
+      }
+
+      // ---------------------------------------------------------
+      // MODE 4: MAGNETIC COLORFUL SAND
+      // ---------------------------------------------------------
+      else if (mode === 'sand') {
+        const sand = sandRef.current;
+        const magnetActive = mouse.x !== -9999;
+        const magnetForce = mouse.isDown ? -12 : 6; // Repel or Attract
+
+        for (let s of sand) {
+          if (magnetActive) {
+            const dx = mouse.x - s.x;
+            const dy = mouse.y - s.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 260 && dist > 2) {
+              const force = (1 - dist / 260) * magnetForce;
+              s.vx += (dx / dist) * force * 0.18;
+              s.vy += (dy / dist) * force * 0.18;
+            }
+          }
+
+          s.x += s.vx;
+          s.y += s.vy;
+          s.vx *= 0.94;
+          s.vy *= 0.94;
+
+          // Wrap edges
+          if (s.x < 0) s.x = width;
+          if (s.x > width) s.x = 0;
+          if (s.y < 0) s.y = height;
+          if (s.y > height) s.y = 0;
+
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+          ctx.fillStyle = s.color;
+          ctx.globalAlpha = 0.85;
           ctx.fill();
         }
       }
 
-      // Draw Cursor Reticle / Force Field Glow
+      // ---------------------------------------------------------
+      // TOOL VISUALS & CURSOR RETICLE
+      // ---------------------------------------------------------
       if (mouse.x !== -9999 && mouse.y !== -9999) {
-        const ringRadius = mouse.isDown ? 30 : 20 + Math.sin(timeSec * 6) * 4;
-        ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, ringRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = THEMES[theme].colors[0];
-        ctx.lineWidth = mouse.isDown ? 3 : 1.5;
-        ctx.globalAlpha = 0.8;
-        ctx.stroke();
+        ctx.save();
+        if (isCutting) {
+          // Scissor cutting line
+          if (mouse.prevX !== -9999 && mouse.isDown) {
+            ctx.beginPath();
+            ctx.moveTo(mouse.prevX, mouse.prevY);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
 
-        ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.9;
-        ctx.fill();
+          // Razor reticle
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, 14, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = '#ef4444';
+          ctx.fill();
+        } else {
+          // Hand / Grab Reticle
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, mouse.isDown ? 18 : 22, 0, Math.PI * 2);
+          ctx.strokeStyle = PALETTES[palette].primary;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = PALETTES[palette].primary;
+          ctx.fill();
+        }
+        ctx.restore();
       }
 
       animFrameRef.current = requestAnimationFrame(animate);
@@ -627,9 +864,28 @@ export default function InteractivePlayground() {
       window.removeEventListener('resize', handleResize);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [mode, theme, gravity, handleResize, getThemeColor]);
+  }, [mode, activeTool, palette, handleResize, checkLineIntersection]);
 
-  // Mouse / Touch Event Handlers
+  // Pointer Handlers
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    mouseRef.current.isDown = true;
+    mouseRef.current.button = e.button;
+    mouseRef.current.x = x;
+    mouseRef.current.y = y;
+    mouseRef.current.prevX = x;
+    mouseRef.current.prevY = y;
+
+    if (activeTool === 'blast') {
+      triggerBlast(x, y);
+    }
+  };
+
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -637,36 +893,16 @@ export default function InteractivePlayground() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const mouse = mouseRef.current;
-    if (mouse.prevX !== -9999) {
-      const dx = x - mouse.prevX;
-      const dy = y - mouse.prevY;
-      const speed = Math.sqrt(dx * dx + dy * dy);
-      mouse.speed = speed;
-      setMouseVelocity(Math.round(speed * 10));
-    }
-
-    mouse.prevX = mouse.x;
-    mouse.prevY = mouse.y;
-    mouse.x = x;
-    mouse.y = y;
-
-    // Continuous spark spray on drag
-    if (mouse.isDown && mode === 'supernova') {
-      triggerShockwave(x, y);
-    }
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    mouseRef.current.isDown = true;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    triggerShockwave(e.clientX - rect.left, e.clientY - rect.top);
+    mouseRef.current.prevX = mouseRef.current.x;
+    mouseRef.current.prevY = mouseRef.current.y;
+    mouseRef.current.x = x;
+    mouseRef.current.y = y;
   };
 
   const handlePointerUp = () => {
     mouseRef.current.isDown = false;
+    mouseRef.current.grabbedPoint = null;
+    mouseRef.current.grabbedMarble = null;
   };
 
   const handlePointerLeave = () => {
@@ -675,13 +911,8 @@ export default function InteractivePlayground() {
     mouseRef.current.prevX = -9999;
     mouseRef.current.prevY = -9999;
     mouseRef.current.isDown = false;
-    setMouseVelocity(0);
-  };
-
-  // Toggle Fullscreen
-  const toggleFullscreen = () => {
-    setIsFullscreen((prev) => !prev);
-    setTimeout(handleResize, 80);
+    mouseRef.current.grabbedPoint = null;
+    mouseRef.current.grabbedMarble = null;
   };
 
   return (
@@ -689,91 +920,117 @@ export default function InteractivePlayground() {
       ref={containerRef}
       className={`relative w-full overflow-hidden transition-all duration-300 select-none ${
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-[#0a0f1a] flex flex-col justify-between'
-          : 'rounded-2xl border border-gray-200 dark:border-[#2a3346] shadow-2xl bg-[#0a0f1a]'
+          ? 'fixed inset-0 z-50 bg-white flex flex-col justify-between'
+          : 'rounded-2xl border border-gray-200/90 dark:border-[#2a3346] shadow-xl bg-white'
       }`}
       style={{ minHeight: isFullscreen ? '100vh' : '620px', height: isFullscreen ? '100vh' : '650px' }}
     >
-      {/* Interactive Top Control Bar with Glassmorphism */}
-      <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2.5 p-2 px-3 rounded-xl bg-slate-900/75 dark:bg-[#121826]/85 backdrop-blur-md border border-white/10 shadow-lg text-white text-xs">
-        {/* Left: Mode Switcher Pills */}
+      {/* Light Glassmorphism Control Header */}
+      <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2.5 p-2 px-3 rounded-xl bg-white/90 dark:bg-[#1e2433]/90 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-md text-gray-800 dark:text-gray-100 text-xs">
+        {/* Left: Mode Selection Tabs */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-bold text-gray-400 mr-1 hidden sm:inline flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin-reverse" /> Mode:
+          <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mr-1 hidden sm:inline flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-spin-reverse" /> Toy:
           </span>
 
           {[
-            { id: 'vortex', label: 'Vortex Gravity', icon: Orbit },
-            { id: 'fabric', label: 'Textile Weave', icon: Waves },
-            { id: 'constellation', label: 'Constellation', icon: Network },
-            { id: 'supernova', label: 'Supernova Burst', icon: Flame },
-            { id: 'liquid', label: 'Liquid Waves', icon: Zap },
+            { id: 'cloth', label: 'Tearable Fabric', icon: Scissors, desc: 'Cut and swing real textile cloth' },
+            { id: 'marbles', label: 'Jelly Marbles', icon: CircleDot, desc: 'Squishy bouncy soft-body balls' },
+            { id: 'liquid', label: 'Liquid Ripples', icon: Waves, desc: 'Fluid wave splash simulation' },
+            { id: 'sand', label: 'Magnetic Sand', icon: Magnet, desc: 'Fluid sand grains that pull & repel' },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = mode === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => setMode(item.id as PlayMode)}
+                onClick={() => setMode(item.id as GameMode)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30 scale-105'
-                    : 'bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/5'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 scale-105'
+                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/5'
                 }`}
+                title={item.desc}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-emerald-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-emerald-600'}`} />
                 <span>{item.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Right: Actions, Palette, Sliders, Fullscreen */}
+        {/* Center / Right: Interactive Tools & Actions */}
         <div className="flex items-center gap-2">
-          {/* Theme Selector */}
-          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
-            <Palette className="w-3.5 h-3.5 text-emerald-400 ml-1" />
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as ColorTheme)}
-              aria-label="Color Theme"
-              className="bg-transparent text-white font-medium text-[11px] outline-none cursor-pointer pr-1"
+          {/* Active Tool Switcher (Especially for Tearable Cloth) */}
+          <div className="flex items-center bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-0.5">
+            <button
+              onClick={() => setActiveTool('drag')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                activeTool === 'drag'
+                  ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+              }`}
+              title="Grab & Pull"
             >
-              {Object.entries(THEMES).map(([key, val]) => (
-                <option key={key} value={key} className="bg-slate-900 text-white">
+              <Hand className="w-3.5 h-3.5" />
+              <span>Grab</span>
+            </button>
+            <button
+              onClick={() => setActiveTool('cut')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                activeTool === 'cut'
+                  ? 'bg-red-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+              }`}
+              title="Slice & Cut Fabric / Pop Marbles (Right Click also works)"
+            >
+              <Scissors className="w-3.5 h-3.5" />
+              <span>Slice</span>
+            </button>
+            <button
+              onClick={() => triggerBlast()}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition cursor-pointer"
+              title="Trigger Blast Force"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Blast</span>
+            </button>
+          </div>
+
+          {/* Palette Selector */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-1">
+            <Palette className="w-3.5 h-3.5 text-emerald-600 ml-1" />
+            <select
+              value={palette}
+              onChange={(e) => setPalette(e.target.value as PaletteTheme)}
+              aria-label="Color Palette"
+              className="bg-transparent text-gray-800 dark:text-white font-medium text-[11px] outline-none cursor-pointer pr-1"
+            >
+              {Object.entries(PALETTES).map(([key, val]) => (
+                <option key={key} value={key} className="bg-white text-gray-900 dark:bg-slate-900 dark:text-white">
                   {val.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Trigger Blast */}
+          {/* Reset / Reweave */}
           <button
-            onClick={() => triggerShockwave()}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-bold transition cursor-pointer"
-            title="Detonate Energy Blast"
+            onClick={initCurrentMode}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/10 font-bold transition cursor-pointer"
+            title="Reset / Reweave canvas"
           >
-            <Zap className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden md:inline">Blast</span>
-          </button>
-
-          {/* Toggle Physics Controls Drawer */}
-          <button
-            onClick={() => setShowSettings((prev) => !prev)}
-            className={`p-1.5 rounded-lg border transition cursor-pointer ${
-              showSettings
-                ? 'bg-emerald-600 text-white border-emerald-400'
-                : 'bg-white/5 hover:bg-white/15 text-gray-300 border-white/10'
-            }`}
-            title="Adjust Gravity & Density"
-          >
-            <Sliders className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Reset</span>
           </button>
 
           {/* Fullscreen */}
           <button
-            onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-gray-300 border border-white/10 transition cursor-pointer"
+            onClick={() => {
+              setIsFullscreen((prev) => !prev);
+              setTimeout(handleResize, 80);
+            }}
+            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/10 transition cursor-pointer"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -781,99 +1038,41 @@ export default function InteractivePlayground() {
         </div>
       </div>
 
-      {/* Physics Settings Drawer (Expandable) */}
-      {showSettings && (
-        <div className="absolute top-16 right-3 z-20 w-64 p-3 rounded-xl bg-slate-900/90 dark:bg-[#121826]/95 backdrop-blur-md border border-white/15 shadow-2xl text-white text-xs space-y-3 animate-fade-in">
-          <div className="flex items-center justify-between font-bold border-b border-white/10 pb-1.5">
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <Sliders className="w-3.5 h-3.5" /> Physics Engine
-            </span>
-            <button
-              onClick={() => {
-                setGravity(0.8);
-                setParticleCount(850);
-                initParticles();
-              }}
-              className="text-[10px] text-gray-400 hover:text-white flex items-center gap-1"
-            >
-              <RotateCcw className="w-3 h-3" /> Reset
-            </button>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-gray-300 font-medium">
-              <span>Gravity Force:</span>
-              <span className="text-emerald-400 font-mono">{gravity.toFixed(1)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.2"
-              max="2.5"
-              step="0.1"
-              value={gravity}
-              onChange={(e) => setGravity(parseFloat(e.target.value))}
-              aria-label="Gravity Force"
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg bg-white/20"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-gray-300 font-medium">
-              <span>Particle Density:</span>
-              <span className="text-emerald-400 font-mono">{particleCount}</span>
-            </div>
-            <input
-              type="range"
-              min="200"
-              max="1600"
-              step="50"
-              value={particleCount}
-              onChange={(e) => setParticleCount(parseInt(e.target.value))}
-              aria-label="Particle Density"
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 rounded-lg bg-white/20"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Main High-Performance HTML5 Canvas */}
+      {/* Main Light HTML5 Canvas */}
       <canvas
         ref={canvasRef}
-        onPointerMove={handlePointerMove}
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
-        className="w-full h-full block cursor-crosshair touch-none"
+        onContextMenu={(e) => e.preventDefault()} // Allow right-click slicing without browser menu
+        className={`w-full h-full block touch-none ${activeTool === 'cut' ? 'cursor-crosshair' : 'cursor-grab'}`}
       />
 
-      {/* Bottom Live HUD Bar */}
+      {/* Bottom Information & Live Stats Pill */}
       <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        {/* Interaction Hint */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/75 dark:bg-[#121826]/80 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium shadow-md">
-          <Info className="w-3.5 h-3.5 text-emerald-400" />
+        {/* Interactive Instruction Hint */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/90 dark:bg-[#1e2433]/90 backdrop-blur-md border border-gray-200/80 dark:border-white/10 text-gray-700 dark:text-gray-200 text-[11px] font-medium shadow-sm">
+          <HelpCircle className="w-3.5 h-3.5 text-emerald-600" />
           <span>
-            {mode === 'fabric' && '🧵 Move cursor through yarn threads to pluck and stretch the textile weave!'}
-            {mode === 'vortex' && '🌀 Move mouse to swirl gravitational whirlpool. Click to trigger shockwaves!'}
-            {mode === 'constellation' && '🌌 Nodes snap filament connections to your cursor in real-time.'}
-            {mode === 'supernova' && '💥 Click and drag anywhere to fire cosmic particle supernovas!'}
-            {mode === 'liquid' && '🌊 Glide mouse to create neon fluid ripples across the screen.'}
+            {mode === 'cloth' &&
+              '🧵 Left drag to swing fabric. Switch to "Slice" or Right-Click drag to cut threads into pieces!'}
+            {mode === 'marbles' && '🔮 Drag & fling squishy jelly marbles! Collide them or click Blast to disperse.'}
+            {mode === 'liquid' && '🌊 Move cursor or click to generate water ripples and prismatic refraction waves.'}
+            {mode === 'sand' && '🧲 Move cursor to pull magnetic sand grains. Click to trigger repulsion blast!'}
           </span>
         </div>
 
-        {/* Live Metrics */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/75 dark:bg-[#121826]/80 backdrop-blur-md border border-white/10 text-white text-[11px] font-mono shadow-md">
-          <span className="flex items-center gap-1 text-emerald-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        {/* Live FPS */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/90 dark:bg-[#1e2433]/90 backdrop-blur-md border border-gray-200/80 dark:border-white/10 text-gray-800 dark:text-gray-100 text-[11px] font-mono shadow-sm">
+          <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             {fps} FPS
           </span>
-          <span className="text-gray-500">|</span>
-          <span className="text-gray-300">{particleCount} Particles</span>
-          {mouseVelocity > 0 && (
-            <>
-              <span className="text-gray-500">|</span>
-              <span className="text-cyan-400">{mouseVelocity} px/s</span>
-            </>
-          )}
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-600 dark:text-gray-300 uppercase font-semibold text-[10px]">
+            {mode} Mode
+          </span>
         </div>
       </div>
     </div>
