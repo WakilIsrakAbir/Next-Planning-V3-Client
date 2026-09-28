@@ -466,12 +466,16 @@ export default function TrackingPage({ params }: PageProps) {
                       <td className="font-medium whitespace-nowrap">{ord.buyer}</td>
                       {dynCol1 && (
                         <td className="text-center font-bold bg-amber-500/5 text-amber-800">
-                          {ord.extProd !== undefined && ord.extProd !== '' ? Number(ord.extProd).toFixed(2) : '—'}
+                          {ord.extProd !== undefined && ord.extProd !== null && ord.extProd !== '' && !isNaN(Number(ord.extProd))
+                            ? Number(ord.extProd).toFixed(2)
+                            : '—'}
                         </td>
                       )}
                       {dynCol2 && (
                         <td className="text-center font-bold bg-amber-500/5 text-amber-800">
-                          {ord.extBal !== undefined && ord.extBal !== '' ? Number(ord.extBal).toFixed(2) : '—'}
+                          {ord.extBal !== undefined && ord.extBal !== null && ord.extBal !== '' && !isNaN(Number(ord.extBal))
+                            ? Number(ord.extBal).toFixed(2)
+                            : '—'}
                         </td>
                       )}
                       <td className="text-center font-bold text-primary bg-primary/5 whitespace-nowrap">
