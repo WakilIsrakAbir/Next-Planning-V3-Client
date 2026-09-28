@@ -27,6 +27,35 @@ const DEPARTMENTS: Record<string, { name: string; label: string }> = {
   yd: { name: 'YD Plan', label: 'YD' },
 };
 
+// ==========================================================
+// EXP DATA EXTRACTION & FORMATTING HELPERS
+// ==========================================================
+function _norm(str: any): string {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function _getRowMap(row: any): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!row || typeof row !== 'object') return map;
+  for (const key of Object.keys(row)) {
+    map[_norm(key)] = key;
+  }
+  return map;
+}
+
+function getColData(row: any, keys: string[]): any {
+  if (!row || typeof row !== 'object') return '';
+  const map = _getRowMap(row);
+  for (const k of keys) {
+    const actual = map[_norm(k)];
+    if (actual !== undefined) {
+      const val = row[actual];
+      return val === undefined || val === null ? '' : val;
+    }
+  }
+  return '';
+}
+
 function formatDateDisplay(d: any): string {
   if (!d || d === '-' || d === 'N/A') return '—';
   try {
@@ -38,6 +67,57 @@ function formatDateDisplay(d: any): string {
     return `${day}-${month}-${year}`;
   } catch {
     return String(d);
+  }
+}
+
+function formatExcelDate(val: any): string {
+  if (!val || val === 'N/A' || val === '-' || val === '') return '—';
+  if (typeof val === 'number') {
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    return formatDateDisplay(d);
+  }
+  if (typeof val === 'string') {
+    const num = Number(val);
+    if (!isNaN(num) && num > 30000 && num < 60000) {
+      const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+      return formatDateDisplay(d);
+    }
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) return formatDateDisplay(val);
+    return val;
+  }
+  return String(val);
+}
+
+function generateItemId(itemData: any, tabId: string): string {
+  if (!itemData) return Date.now().toString();
+  const currentDept = tabId.replace('_report', '').toLowerCase();
+  const bNo = String(itemData.OrderNo !== undefined && itemData.OrderNo !== null ? itemData.OrderNo : 'N/A').trim();
+  const color = String(itemData.Color !== undefined && itemData.Color !== null ? itemData.Color : 'N/A').trim();
+
+  if (currentDept === 'knitting' || currentDept === 'delivery') {
+    const fabConst = String(
+      itemData.FabricConstruction !== undefined && itemData.FabricConstruction !== null
+        ? itemData.FabricConstruction
+        : 'N/A'
+    ).trim();
+    const gsm = String(itemData.GSM !== undefined && itemData.GSM !== null ? itemData.GSM : 'N/A').trim();
+    return `${bNo}_${color}_${fabConst}_${gsm}`.toLowerCase().replace(/\s+/g, '');
+  } else if (currentDept === 'yd') {
+    const type = String(
+      itemData['Booking Type'] !== undefined && itemData['Booking Type'] !== null
+        ? itemData['Booking Type']
+        : 'N/A'
+    ).trim();
+    const ydb = String(itemData.YDB !== undefined && itemData.YDB !== null ? itemData.YDB : 'N/A').trim();
+    return `${bNo}_${type}_${ydb}`.toLowerCase().replace(/\s+/g, '');
+  } else {
+    const procName = String(
+      itemData.ProcessName !== undefined && itemData.ProcessName !== null
+        ? itemData.ProcessName
+        : 'N/A'
+    ).trim();
+    return `${bNo}_${color}_${procName}`.toLowerCase().replace(/\s+/g, '');
   }
 }
 
@@ -141,46 +221,120 @@ export default function OrderPlanningDetailPage() {
         setOrderStatus('On Process');
       }
 
-      // Merge raw items with saved plan data
+      // Merge raw items with saved plan data using Exp detailed-view.js logic
       const excelItems = currentOrder[`${dept}Items`] || [];
       const savedItems = (currentPlan && currentPlan[dept]) || [];
-      const planMap = new Map();
+      const planMap = new Map<string, any>();
       savedItems.forEach((it: any) => {
         if (it.itemId) planMap.set(it.itemId, it);
       });
 
-      const merged = excelItems.map((ex: any, idx: number) => {
-        const itemId = ex.itemId || `row-${idx}`;
-        const saved = planMap.get(itemId) || {};
+      const merged = excelItems.map((exItem: any, idx: number) => {
+        let itemData: Record<string, any> = {};
+
+        if (dept === 'knitting' || dept === 'delivery') {
+          itemData = {
+            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+            Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
+            FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
+            GSM: getColData(exItem, ['GSM', 'G.S.M']),
+            RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
+            Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
+            Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Allowance%']),
+            YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req']),
+            AllocatedQty: getColData(exItem, ['Allocated Qty', 'AllocatedQty']),
+            YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala']),
+            GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
+            KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
+            KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
+            NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
+            NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+            DeliBal: getColData(exItem, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
+            RFD: getColData(exItem, ['RFD']),
+            Slowmoving: getColData(exItem, ['Slowmoving']),
+            FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+          };
+        } else if (dept === 'yd') {
+          itemData = {
+            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+            'Booking Type': getColData(exItem, ['Booking Type', 'Type', 'YD Type', 'BookingType']),
+            YDB: getColData(exItem, ['YDB', 'YD B', 'YDB#']),
+            'YD Booking Date': getColData(exItem, ['YD Booking Date', 'Date', 'Booking Date', 'YDBookingDate']),
+            'YD T&A Start': getColData(exItem, ['YD T&A Start', 'T&A Start', 'YD T&A Start Date', 'YD TNA Start', 'TNA Start', 'Start Date']),
+            'YD T&A End': getColData(exItem, ['YD T&A End', 'T&A End', 'YD T&A End Date', 'YD TNA End', 'TNA End', 'End Date']),
+            'YD REQ.': getColData(exItem, ['YD REQ.', 'YD REQ', 'YD Req', 'Requirement', 'YDReq']),
+            DYED: getColData(exItem, ['DYED', 'Dyed', 'Dye']),
+            'YD BALANCE': getColData(exItem, ['YD BALANCE', 'YD Balance', 'YDBalance']),
+            'YD Delivered': getColData(exItem, ['YD Delivered', 'Delivered', 'Delivery', 'YDDelivered']),
+            'YD DELIVERY BALANCE': getColData(exItem, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Balance 2', 'YDDeliveryBalance']),
+            'Barrier Qty.': getColData(exItem, ['Barrier Qty.', 'Barrier Qty', 'Barrier', 'BarrierQty']),
+            'Workable Qty.': getColData(exItem, ['Workable Qty.', 'Workable Qty', 'Workable', 'WorkableQty']),
+          };
+        } else {
+          // Dyeing / Finishing
+          itemData = {
+            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+            Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
+            FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
+            GSM: getColData(exItem, ['GSM', 'G.S.M']),
+            RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
+            Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
+            Unit: getColData(exItem, ['Unit']),
+            ProcessName: getColData(exItem, ['Process Name', 'ProcessName', 'Process']),
+            GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
+            KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
+            KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
+            BPQty: getColData(exItem, ['BP Qty', 'BPQty', 'BP Qty.']),
+            DyeingProd: getColData(exItem, ['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod']),
+            DyeingBala: getColData(exItem, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala']),
+            NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
+            NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+            RFD: getColData(exItem, ['RFD']),
+            Slowmoving: getColData(exItem, ['Slowmoving']),
+            FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+          };
+        }
+
+        const genId = generateItemId(itemData, dept);
+        const itemId = exItem.itemId || genId || `item_${idx}`;
+        const saved = planMap.get(itemId) || planMap.get(genId) || savedItems[idx] || {};
+
+        if (saved && saved.itemData) {
+          if (saved.itemData.Unit) itemData.Unit = saved.itemData.Unit;
+          if (saved.itemData.ProcessName) itemData.ProcessName = saved.itemData.ProcessName;
+          if (saved.itemData['Process Name']) itemData['Process Name'] = saved.itemData['Process Name'];
+          if (saved.itemData['Barrier Qty.']) itemData['Barrier Qty.'] = saved.itemData['Barrier Qty.'];
+          if (saved.itemData['Workable Qty.']) itemData['Workable Qty.'] = saved.itemData['Workable Qty.'];
+        }
 
         return {
-          ...ex,
+          ...exItem,
           itemId,
-          // Editable planning fields
-          planType: saved.planType || ex.planType || '',
-          startDate: saved.startDate || saved.planStart || ex.startDate || '',
-          endDate: saved.endDate || saved.planEnd || ex.endDate || '',
-          unit: saved.unit || ex.Unit || '',
-          processName: saved.processName || ex.ProcessName || ex['Process Name'] || '',
-          limitation: saved.limitation || ex.limitation || '',
-          remarks: saved.remarks || ex.remarks || '',
-          // Knitting yarn date
-          yarnDate: saved.yarnDate || ex.yarnDate || '',
-          // Delivery & YD Floor Planning
-          yarnOkDate: saved.yarnOkDate || ex.yarnOkDate || '',
-          matchingOptionDate: saved.matchingOptionDate || ex.matchingOptionDate || '',
-          floorStartDate: saved.floorStartDate || ex.floorStartDate || '',
-          floorEndDate: saved.floorEndDate || ex.floorEndDate || '',
-          floorPlanType: saved.floorPlanType || ex.floorPlanType || '',
+          itemData,
+          planType: saved.planType || exItem.planType || '',
+          startDate: saved.startDate || saved.planStart || exItem.startDate || '',
+          endDate: saved.endDate || saved.planEnd || exItem.endDate || '',
+          limitation: saved.limitation || exItem.limitation || '',
+          remarks: saved.remarks || exItem.remarks || '',
+          unit: saved.unit || itemData.Unit || exItem.Unit || '',
+          processName: saved.processName || itemData.ProcessName || exItem.ProcessName || exItem['Process Name'] || '',
+          yarnDate: saved.yarnDate || exItem.yarnDate || '',
+          yarnOkDate: saved.yarnOkDate || exItem.yarnOkDate || '',
+          matchingOptionDate: saved.matchingOptionDate || exItem.matchingOptionDate || '',
+          floorStartDate: saved.floorStartDate || exItem.floorStartDate || '',
+          floorEndDate: saved.floorEndDate || exItem.floorEndDate || '',
+          floorPlanType: saved.floorPlanType || exItem.floorPlanType || '',
+          barrierQty: saved.barrierQty !== undefined ? saved.barrierQty : (saved.itemData ? saved.itemData['Barrier Qty.'] : itemData['Barrier Qty.']),
+          workableQty: saved.workableQty !== undefined ? saved.workableQty : (saved.itemData ? saved.itemData['Workable Qty.'] : itemData['Workable Qty.']),
         };
       });
 
       // Parity with Exp detailed-view.js lines 361-380: Delivery Floor default dates from Dyeing plan
       if (dept === 'delivery') {
         merged.forEach((item: any) => {
-          const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
+          const myColor = String(item.itemData.Color || '').trim().toLowerCase();
           const dItem = currentPlan?.dyeing?.find((d: any) => {
-            const c = String(d.Color || (d.itemData && d.itemData.Color) || '').trim().toLowerCase();
+            const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
             return c === myColor;
           });
           const hasDyePlanType = Boolean(
@@ -208,6 +362,22 @@ export default function OrderPlanningDetailPage() {
         });
       }
 
+      // Parity with Exp detailed-view.js lines 472-484: YD Floor default dates from YD plan (startDate - 4 days)
+      if (dept === 'yd') {
+        merged.forEach((item: any) => {
+          if (!item.floorStartDate && item.startDate) {
+            const d = new Date(item.startDate);
+            d.setDate(d.getDate() - 4);
+            item.floorStartDate = d.toISOString().split('T')[0];
+          }
+          if (!item.floorEndDate && item.endDate) {
+            const d = new Date(item.endDate);
+            d.setDate(d.getDate() - 4);
+            item.floorEndDate = d.toISOString().split('T')[0];
+          }
+        });
+      }
+
       setPlanItems(merged);
     } catch (err: any) {
       console.error(err);
@@ -219,16 +389,16 @@ export default function OrderPlanningDetailPage() {
 
   // Helper to extract upstream Knitting and Dyeing plans for cross-department checks
   const getUpstreamPlans = (item: any) => {
-    const myColor = String(item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
-    const myConst = String(item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
+    const myColor = String(item.itemData?.Color || item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
+    const myConst = String(item.itemData?.FabricConstruction || item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
 
     let knitItem: any = null;
     let dyeItem: any = null;
 
     if (planData?.knitting && Array.isArray(planData.knitting)) {
       knitItem = planData.knitting.find((k: any) => {
-        const c = String(k.Color || (k.itemData && k.itemData.Color) || '').trim().toLowerCase();
-        const fc = String(k.FabricConstruction || (k.itemData && k.itemData.FabricConstruction) || '').trim().toLowerCase();
+        const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
+        const fc = String((k.itemData && k.itemData.FabricConstruction) || k.FabricConstruction || '').trim().toLowerCase();
         if (myConst && fc) {
           return c === myColor && fc === myConst;
         }
@@ -236,7 +406,7 @@ export default function OrderPlanningDetailPage() {
       });
       if (!knitItem) {
         knitItem = planData.knitting.find((k: any) => {
-          const c = String(k.Color || (k.itemData && k.itemData.Color) || '').trim().toLowerCase();
+          const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
           return c === myColor;
         });
       }
@@ -244,7 +414,7 @@ export default function OrderPlanningDetailPage() {
 
     if (planData?.dyeing && Array.isArray(planData.dyeing)) {
       dyeItem = planData.dyeing.find((d: any) => {
-        const c = String(d.Color || (d.itemData && d.itemData.Color) || '').trim().toLowerCase();
+        const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
         return c === myColor;
       });
     }
@@ -258,6 +428,22 @@ export default function OrderPlanningDetailPage() {
 
     return { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected };
   };
+
+  // For YD: Upstream Knit Plan from first knitting item or general order info (detailed-view.js lines 446-458)
+  const ydBKnitPlan = useMemo(() => {
+    if (dept !== 'yd') return { start: '', end: '' };
+    if (planData?.knitting && Array.isArray(planData.knitting) && planData.knitting.length > 0) {
+      const kItem = planData.knitting[0];
+      return {
+        start: kItem.startDate || kItem.planStart || '',
+        end: kItem.endDate || kItem.planEnd || '',
+      };
+    }
+    return {
+      start: order?.knitStart && order.knitStart !== 'N/A' && order.knitStart !== '-' ? order.knitStart : '',
+      end: order?.knitEnd && order.knitEnd !== 'N/A' && order.knitEnd !== '-' ? order.knitEnd : '',
+    };
+  }, [dept, planData, order]);
 
   // ==========================================================
   // EXACT EXP CONDITIONS (from detailed-view.js & table-headers.js)
@@ -389,10 +575,8 @@ export default function OrderPlanningDetailPage() {
     setPlanItems((prev) => {
       const next = [...prev];
       if (index === 0) {
-        // Cascades to all rows
         return next.map((it) => {
           const updated = { ...it, yarnDate: val };
-          // If yarn date removed and planType was Confirm, reset it
           if (!val && updated.planType === 'Confirm') {
             updated.planType = '';
           }
@@ -426,7 +610,7 @@ export default function OrderPlanningDetailPage() {
     }
   };
 
-  // 2. Start Date Change - Exp detailed-view.js lines 730-755
+  // 2. Start Date Change - Exp detailed-view.js lines 730-755 & YD syncFloorDates
   const handleStartDateChange = (index: number, newStart: string) => {
     const currentItem = planItems[index];
 
@@ -442,36 +626,39 @@ export default function OrderPlanningDetailPage() {
     setPlanItems((prev) => {
       const next = [...prev];
       if (index === 0) {
-        // Row 1 changes: auto-fill all items if valid
-        return next.map((it, idx) => {
-          if (idx === 0) {
-            const updated = { ...it, startDate: newStart };
-            if (updated.endDate && updated.endDate < newStart) {
-              updated.endDate = newStart;
-            }
-            if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
-              updated.planType = '';
-            }
-            return updated;
+        return next.map((it) => {
+          const updated = { ...it, startDate: newStart };
+          if (updated.endDate && updated.endDate < newStart) {
+            updated.endDate = newStart;
           }
-
-          if (isValidStartDate(it, newStart)) {
-            const updated = { ...it, startDate: newStart };
-            if (updated.endDate && updated.endDate < newStart) {
-              updated.endDate = newStart;
+          // YD Floor Sync (table-headers.js lines 263-288: floorStart = startDate - 4 days)
+          if (dept === 'yd') {
+            if (newStart) {
+              const d = new Date(newStart);
+              d.setDate(d.getDate() - 4);
+              updated.floorStartDate = d.toISOString().split('T')[0];
+            } else {
+              updated.floorStartDate = '';
             }
-            if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
-              updated.planType = '';
-            }
-            return updated;
-          } else {
-            return { ...it, startDate: '' };
           }
+          if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
+            updated.planType = '';
+          }
+          return updated;
         });
       } else {
         const updated = { ...next[index], startDate: newStart };
         if (updated.endDate && updated.endDate < newStart) {
           updated.endDate = newStart;
+        }
+        if (dept === 'yd') {
+          if (newStart) {
+            const d = new Date(newStart);
+            d.setDate(d.getDate() - 4);
+            updated.floorStartDate = d.toISOString().split('T')[0];
+          } else {
+            updated.floorStartDate = '';
+          }
         }
         if (!isValidPlanType(updated, newStart, updated.endDate, updated.planType)) {
           updated.planType = '';
@@ -482,7 +669,7 @@ export default function OrderPlanningDetailPage() {
     });
   };
 
-  // 3. End Date Change - Exp detailed-view.js lines 757-782
+  // 3. End Date Change - Exp detailed-view.js lines 757-782 & YD syncFloorDates
   const handleEndDateChange = (index: number, newEnd: string) => {
     const currentItem = planItems[index];
 
@@ -498,27 +685,33 @@ export default function OrderPlanningDetailPage() {
     setPlanItems((prev) => {
       const next = [...prev];
       if (index === 0) {
-        return next.map((it, idx) => {
-          if (idx === 0) {
-            const updated = { ...it, endDate: newEnd };
-            if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
-              updated.planType = '';
+        return next.map((it) => {
+          const updated = { ...it, endDate: newEnd };
+          if (dept === 'yd') {
+            if (newEnd) {
+              const d = new Date(newEnd);
+              d.setDate(d.getDate() - 4);
+              updated.floorEndDate = d.toISOString().split('T')[0];
+            } else {
+              updated.floorEndDate = '';
             }
-            return updated;
           }
-
-          if (isValidEndDate(it, newEnd)) {
-            const updated = { ...it, endDate: newEnd };
-            if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
-              updated.planType = '';
-            }
-            return updated;
-          } else {
-            return { ...it, endDate: '' };
+          if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
+            updated.planType = '';
           }
+          return updated;
         });
       } else {
         const updated = { ...next[index], endDate: newEnd };
+        if (dept === 'yd') {
+          if (newEnd) {
+            const d = new Date(newEnd);
+            d.setDate(d.getDate() - 4);
+            updated.floorEndDate = d.toISOString().split('T')[0];
+          } else {
+            updated.floorEndDate = '';
+          }
+        }
         if (!isValidPlanType(updated, updated.startDate, newEnd, updated.planType)) {
           updated.planType = '';
         }
@@ -548,11 +741,9 @@ export default function OrderPlanningDetailPage() {
           if (idx === 0) {
             return { ...it, planType: newPlan };
           }
-
           if (!newPlan) {
             return { ...it, planType: '' };
           }
-
           if (isValidPlanType(it, it.startDate, it.endDate, newPlan)) {
             return { ...it, planType: newPlan };
           } else {
@@ -566,7 +757,7 @@ export default function OrderPlanningDetailPage() {
     });
   };
 
-  // 5. Unit / Process Cascading (Dyeing) - Exp detailed-view.js lines 603-631
+  // 5. Unit / Process Cascading (Dyeing / Finishing) - Exp detailed-view.js lines 603-631
   const handleUnitProcessChange = (index: number, field: 'unit' | 'processName', value: string) => {
     setPlanItems((prev) => {
       const next = [...prev];
@@ -579,7 +770,7 @@ export default function OrderPlanningDetailPage() {
     });
   };
 
-  // 6. Floor Planning Cascading (Delivery) - Exp detailed-view.js lines 820-857
+  // 6. Floor Planning Cascading (Delivery & YD) - Exp detailed-view.js lines 820-857
   const handleFloorChange = (index: number, field: 'floorStartDate' | 'floorEndDate' | 'floorPlanType', value: string) => {
     setPlanItems((prev) => {
       const next = [...prev];
@@ -592,12 +783,52 @@ export default function OrderPlanningDetailPage() {
     });
   };
 
+  // 7. YD Yarn Ok Date & Matching Option Date Cascading
+  const handleYarnOkDateChange = (index: number, val: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it) => ({ ...it, yarnOkDate: val }));
+      } else {
+        next[index] = { ...next[index], yarnOkDate: val };
+        return next;
+      }
+    });
+  };
+
+  const handleMatchingOptionDateChange = (index: number, val: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      if (index === 0) {
+        return next.map((it) => ({ ...it, matchingOptionDate: val }));
+      } else {
+        next[index] = { ...next[index], matchingOptionDate: val };
+        return next;
+      }
+    });
+  };
+
+  // 8. Custom Qty change for YD (Barrier Qty, Workable Qty)
+  const handleCustomQtyChange = (index: number, field: 'barrierQty' | 'workableQty', val: string) => {
+    setPlanItems((prev) => {
+      const next = [...prev];
+      const itemDataKey = field === 'barrierQty' ? 'Barrier Qty.' : 'Workable Qty.';
+      const updatedItemData = { ...(next[index].itemData || {}), [itemDataKey]: val };
+      next[index] = { ...next[index], [field]: val, itemData: updatedItemData };
+      return next;
+    });
+  };
+
   // Generic limitation / remarks update
   const handleTextChange = (index: number, field: 'limitation' | 'remarks', value: string) => {
     setPlanItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
+      if (index === 0) {
+        return next.map((it) => ({ ...it, [field]: value }));
+      } else {
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      }
     });
   };
 
@@ -774,6 +1005,42 @@ export default function OrderPlanningDetailPage() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
+
+      // Format payload accurately for server persistence
+      const formattedItems = planItems.map((item) => {
+        const itemData = { ...(item.itemData || {}) };
+        if (dept === 'yd') {
+          if (item.barrierQty !== undefined) itemData['Barrier Qty.'] = item.barrierQty;
+          if (item.workableQty !== undefined) itemData['Workable Qty.'] = item.workableQty;
+        }
+        if (dept === 'dyeing' || dept === 'finishing') {
+          if (item.unit) itemData.Unit = item.unit;
+          if (item.processName) {
+            itemData.ProcessName = item.processName;
+            itemData['Process Name'] = item.processName;
+          }
+        }
+        return {
+          itemId: item.itemId,
+          itemData,
+          planType: item.planType || '',
+          startDate: item.startDate || '',
+          endDate: item.endDate || '',
+          limitation: item.limitation || '',
+          remarks: item.remarks || '',
+          floorStartDate: item.floorStartDate || '',
+          floorEndDate: item.floorEndDate || '',
+          floorPlanType: item.floorPlanType || '',
+          yarnDate: item.yarnDate || '',
+          yarnOkDate: item.yarnOkDate || '',
+          matchingOptionDate: item.matchingOptionDate || '',
+          unit: item.unit || '',
+          processName: item.processName || '',
+          barrierQty: item.barrierQty !== undefined ? item.barrierQty : itemData['Barrier Qty.'],
+          workableQty: item.workableQty !== undefined ? item.workableQty : itemData['Workable Qty.'],
+        };
+      });
+
       const res = await fetch(`${API_BASE}/api/orders/save-dates`, {
         method: 'POST',
         headers: {
@@ -783,7 +1050,7 @@ export default function OrderPlanningDetailPage() {
         body: JSON.stringify({
           orderNo,
           department: dept,
-          fabricItems: planItems,
+          fabricItems: formattedItems,
           orderStatus: finalStatus,
         }),
       });
@@ -794,7 +1061,6 @@ export default function OrderPlanningDetailPage() {
       }
 
       showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
-      // Refresh to update saved states
       fetchOrderAndDropdowns();
     } catch (err: any) {
       showToast(err.message || 'Error saving planning schedule.');
@@ -832,7 +1098,7 @@ export default function OrderPlanningDetailPage() {
 
   // Calculate order quantity fallback
   const totalItemQty = planItems.reduce((acc, it) => {
-    const q = Number(it.RequiredQtyKgs || it.requiredQtyKgs || it['Req Qty'] || it.Qty || 0);
+    const q = Number(it.itemData?.RequiredQtyKgs || it.RequiredQtyKgs || it.requiredQtyKgs || it['Req Qty'] || it.Qty || 0);
     return acc + (isNaN(q) ? 0 : q);
   }, 0);
   const displayQty = order.requiredQtyKgs || (totalItemQty > 0 ? totalItemQty : '—');
@@ -858,14 +1124,14 @@ export default function OrderPlanningDetailPage() {
         <div className="flex items-center w-full sm:w-auto">
           <Link
             href={`/planning/${dept}`}
-            className="mr-3 text-gray-700 dark:text-gray-300 hover:text-emerald-600 transition"
-            title="Back to Planning List"
+            className="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition p-1 mr-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">
-            Order Planning: <span className="text-emerald-700 dark:text-emerald-400 font-mono">{orderNo}</span>
-            <span className="ml-2 px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 text-[10px] uppercase font-bold">
+          <h3 className="font-bold text-gray-800 dark:text-gray-200 text-sm flex items-center">
+            <span>Order Planning:</span>
+            <span className="text-emerald-700 dark:text-emerald-400 ml-1 font-mono">{orderNo}</span>
+            <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
               {deptMeta.name}
             </span>
           </h3>
@@ -933,7 +1199,7 @@ export default function OrderPlanningDetailPage() {
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.bookingDate)}
+                value={formatExcelDate(order.bookingDate)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
@@ -957,24 +1223,20 @@ export default function OrderPlanningDetailPage() {
               <input
                 type="text"
                 readOnly
-                value={order.floor || ''}
+                value={order.floor || order.unit || ''}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                Final Confirmation
+                Final Conf.
               </span>
               <input
                 type="text"
                 readOnly
                 value={order.finalConfirmation || ''}
-                className={`flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-bold outline-none ${
-                  String(order.finalConfirmation).trim().toLowerCase() === 'no'
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'
-                }`}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-semibold"
               />
             </div>
 
@@ -985,7 +1247,7 @@ export default function OrderPlanningDetailPage() {
               <input
                 type="text"
                 readOnly
-                value={order.bpStatus || ''}
+                value={formatExcelDate(order.bpStatus)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
@@ -998,21 +1260,23 @@ export default function OrderPlanningDetailPage() {
                 type="text"
                 readOnly
                 value={order.pmc || ''}
-                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-medium"
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
-            {/* Order Status matching Exp index.html lines 1426-1432 */}
-            <div className="flex items-center mt-1 border border-emerald-200 dark:border-emerald-800/50 rounded p-1 bg-emerald-50/60 dark:bg-emerald-950/20">
-              <span className="w-[115px] text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 shrink-0">
+            <div className="flex items-center">
+              <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
                 Order Status
               </span>
               <select
                 value={orderStatus}
                 onChange={(e) => setOrderStatus(e.target.value)}
-                className="flex-1 min-w-0 px-2 py-1 border border-emerald-300 dark:border-emerald-700/50 rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-emerald-800 dark:text-emerald-300 cursor-pointer outline-none focus:border-emerald-500"
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500"
               >
                 <option value="On Process">On Process</option>
+                <option value="Pending">Pending</option>
+                <option value="Tentative">Tentative</option>
+                <option value="Confirm">Confirm</option>
                 <option value="Completed">Completed</option>
               </select>
             </div>
@@ -1022,7 +1286,7 @@ export default function OrderPlanningDetailPage() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                Buyer Name(s)
+                Buyer
               </span>
               <input
                 type="text"
@@ -1070,13 +1334,13 @@ export default function OrderPlanningDetailPage() {
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                Order Qty. (Kg)
+                Order Qty (Kg)
               </span>
               <input
                 type="text"
                 readOnly
-                value={displayQty !== '—' ? Number(displayQty).toLocaleString() : '—'}
-                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-mono font-bold"
+                value={displayQty}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] font-mono font-bold text-gray-800 dark:text-gray-200 outline-none"
               />
             </div>
 
@@ -1094,116 +1358,115 @@ export default function OrderPlanningDetailPage() {
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                1st Shipment Date
+                1st Ship Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.ship1)}
+                value={formatExcelDate(order.ship1)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                Last Shipment Date
+                Last Ship Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.shipLast)}
+                value={formatExcelDate(order.shipLast)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Yarn date
+                Yarn Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.yarnDate)}
-                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none font-medium"
+                value={formatExcelDate(order.yarnDate)}
+                className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
           </div>
 
-          {/* Column 3 */}
+          {/* Column 3: Dates & Fabric Notes */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Deli. Start
+                Deli. Start Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.deliStart)}
+                value={formatExcelDate(order.deliStart)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Deli. End
+                Deli. End Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.deliEnd)}
+                value={formatExcelDate(order.deliEnd)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Knitting Start
+                Knit Start Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.knitStart)}
+                value={formatExcelDate(order.knitStart)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Knitting End
+                Knit End Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.knitEnd)}
+                value={formatExcelDate(order.knitEnd)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Dyeing Start
+                Dye Start Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.dyeStart)}
+                value={formatExcelDate(order.dyeStart)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
             <div className="flex items-center">
               <span className="w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate">
-                T&A Dyeing End
+                Dye End Date
               </span>
               <input
                 type="text"
                 readOnly
-                value={formatDateDisplay(order.dyeEnd)}
+                value={formatExcelDate(order.dyeEnd)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-gray-50 dark:bg-[#181f2c] text-[11px] text-gray-700 dark:text-gray-200 outline-none"
               />
             </div>
 
-            {/* Fabric Notes matching Exp index.html lines 1471-1475 */}
             <div className="p-1 bg-gray-100 dark:bg-[#1f2637] text-center font-bold text-xs mt-1 border border-gray-200 dark:border-[#2a3346] text-gray-700 dark:text-gray-300">
               Fabric Notes
             </div>
@@ -1217,7 +1480,7 @@ export default function OrderPlanningDetailPage() {
       </div>
 
       {/* ==========================================================
-          DEPARTMENT FABRIC ITEMS TABLE (2-TIER EXP DESIGN)
+          DEPARTMENT FABRIC ITEMS TABLE (EXACT EXP 2-TIER DESIGN)
          ========================================================== */}
       <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden flex flex-col">
         <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center justify-between border-b border-gray-200 dark:border-[#2a3346]">
@@ -1233,142 +1496,38 @@ export default function OrderPlanningDetailPage() {
           </span>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar w-full">
+        <div className="overflow-x-auto custom-scrollbar w-full bg-white dark:bg-[#151921]">
           <table className="w-full text-left whitespace-nowrap border-collapse min-w-[1600px]">
-            {/* 2-Tier Header Structure matching Exp table-headers.js */}
             <thead className="bg-white dark:bg-[#151921] shadow-sm select-none">
               {/* Main Top Header Row */}
               <tr className="text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]">
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center w-8">
-                  #
-                </th>
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                  Color
-                </th>
-
-                {dept !== 'yd' && (
+                {/* 1. KNITTING HEADERS */}
+                {dept === 'knitting' && (
                   <>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Color
+                    </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                       FabricConstruction
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
                       GSM
                     </th>
-                  </>
-                )}
-
-                {/* YD Extra left cols */}
-                {dept === 'yd' && (
-                  <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Booking Type
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      YDB#
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      YD Booking Date
-                    </th>
-                  </>
-                )}
-
-                {/* Dyeing / Finishing: Unit & Process Name */}
-                {(dept === 'dyeing' || dept === 'finishing') && (
-                  <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                      Unit
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
-                      Process Name
-                    </th>
-                  </>
-                )}
-
-                {/* Dyeing: Upstream Knitting Plan Columns (detailed-view.js line 307) */}
-                {dept === 'dyeing' && (
-                  <>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      Knitting Planning
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      Knit Plan Type
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                      Knit Limitation
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                      Knit Remarks
-                    </th>
-                  </>
-                )}
-
-                {/* Knitting: Yarn Date Column */}
-                {dept === 'knitting' && (
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200 min-w-[95px]">
-                    Yarn Date
-                  </th>
-                )}
-
-                {/* Delivery: Floor Planning Columns (detailed-view.js lines 383-391) */}
-                {dept === 'delivery' && (
-                  <>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-100 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200">
-                      Floor Planning
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Floor Plan Type
-                    </th>
-                  </>
-                )}
-
-                {/* Current Department Planning Block */}
-                <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                  {dept === 'knitting'
-                    ? 'Knitting Planning'
-                    : dept === 'dyeing'
-                    ? 'Dyeing Planning'
-                    : dept === 'delivery'
-                    ? 'Delivery Planning'
-                    : dept === 'yd'
-                    ? 'YD Planning'
-                    : 'Finishing Planning'}
-                </th>
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                  Plan Type
-                </th>
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
-                  {dept === 'knitting'
-                    ? 'Knitting Limitation'
-                    : dept === 'dyeing'
-                    ? 'Dyeing Limitation'
-                    : dept === 'delivery'
-                    ? 'Delivery Limitation'
-                    : dept === 'yd'
-                    ? 'YD Remarks'
-                    : 'Finishing Limitation'}
-                </th>
-                <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
-                  Remarks
-                </th>
-
-                {/* Delivery: Upstream Dyeing & Knitting Planning columns */}
-                {dept === 'delivery' && (
-                  <>
-                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                      Dyeing Planning
-                    </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                      Dyeing Plan Type
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[90px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200 font-bold">
+                      Yarn Date
                     </th>
                     <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                       Knitting Planning
                     </th>
-                  </>
-                )}
-
-                {/* Right Production & Balance Columns (Exp Parity) */}
-                {dept === 'knitting' && (
-                  <>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Knitting Limitation
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Remarks
+                    </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                       Grey Req.
                     </th>
@@ -1393,8 +1552,42 @@ export default function OrderPlanningDetailPage() {
                   </>
                 )}
 
-                {(dept === 'dyeing' || dept === 'finishing') && (
+                {/* 2. DYEING HEADERS */}
+                {dept === 'dyeing' && (
                   <>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Color
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                      Unit
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
+                      Process Name
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Knitting Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Knitting Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                      Knitting Limitation
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                      Remarks (Knitting)
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Dyeing Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Dyeing Limitation
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Remarks
+                    </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                       BP Qty
                     </th>
@@ -1413,8 +1606,108 @@ export default function OrderPlanningDetailPage() {
                   </>
                 )}
 
+                {/* 3. YD (YARN DYEING) HEADERS (Exact Exp Parity) */}
+                {dept === 'yd' && (
+                  <>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Booking Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      YDB
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
+                      YD Booking Date
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      YD Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
+                      YD Remarks
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
+                      Remarks
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Yarn Ok<br />Date
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
+                      Matching<br />Option Date
+                    </th>
+                    <th colSpan={3} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      YD Planning (Floor)
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-100 dark:bg-[#20293a]">
+                      T&A YD Plan
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-100 dark:bg-[#20293a]">
+                      Knit Plan
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Barrier Qty.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Workable Qty.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      YD REQ.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      DYED
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      YD BALANCE
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      YD Delivered
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[85px] text-red-600 font-bold">
+                      YD DELIVERY BALANCE
+                    </th>
+                  </>
+                )}
+
+                {/* 4. DELIVERY HEADERS */}
                 {dept === 'delivery' && (
                   <>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Color
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                      FabricConstruction
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                      GSM
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Delivery Planning (Floor)
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Plan Type (Floor)
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Delivery Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Delivery Limitation
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Remarks
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Dyeing Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Dyeing Plan Type
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Knitting Planning
+                    </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                       RequiredQtyKgs
                     </th>
@@ -1439,28 +1732,71 @@ export default function OrderPlanningDetailPage() {
                   </>
                 )}
 
-                {dept === 'yd' && (
+                {/* 5. FINISHING & DEFAULT HEADERS */}
+                {dept !== 'knitting' && dept !== 'dyeing' && dept !== 'yd' && dept !== 'delivery' && (
                   <>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      Barrier Qty.
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      OrderNo
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      Workable Qty.
+                      Color
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      YD REQ.
+                      RequiredQtyKgs
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      DYED
+                      Buyer
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Unit
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                      Process Name
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      YD BALANCE
+                      Grey Req.
                     </th>
                     <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
-                      YD Delivered
+                      Knit Prod.
                     </th>
-                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px] text-red-600 font-bold">
-                      YD DELIVERY BALANCE
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Knit. Bala.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      BP Qty
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Dyeing Prod.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Dyeing Bala.
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      NetReceivedQtyKgs
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      NetDeliveryQtyKgs
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      RFD
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      Slowmoving
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                      FF Stock
+                    </th>
+                    <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                      Finishing Planning
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                      Plan Type
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Finishing Limitation
+                    </th>
+                    <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                      Remarks
                     </th>
                   </>
                 )}
@@ -1468,6 +1804,17 @@ export default function OrderPlanningDetailPage() {
 
               {/* Sub-Header Row with Start Date / End Date labels */}
               <tr className="text-[9px] bg-gray-50 dark:bg-[#181f2c] border-b border-gray-300 dark:border-[#2a3346]">
+                {dept === 'knitting' && (
+                  <>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
+                  </>
+                )}
+
                 {dept === 'dyeing' && (
                   <>
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
@@ -1476,26 +1823,46 @@ export default function OrderPlanningDetailPage() {
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
                       End Date
                     </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
                   </>
                 )}
 
-                {dept === 'delivery' && (
+                {dept === 'yd' && (
                   <>
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                      Floor Start
+                      Start Date
                     </th>
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                      Floor End
+                      End Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      YD Start
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      YD End
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Plan Type
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      YD T&A<br />Start
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      YD T&A<br />End
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Knit Start
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Knit End
                     </th>
                   </>
                 )}
-
-                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                  Start Date
-                </th>
-                <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                  End Date
-                </th>
 
                 {dept === 'delivery' && (
                   <>
@@ -1505,6 +1872,29 @@ export default function OrderPlanningDetailPage() {
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
                       End Date
                     </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      Start Date
+                    </th>
+                    <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                      End Date
+                    </th>
+                  </>
+                )}
+
+                {dept !== 'knitting' && dept !== 'dyeing' && dept !== 'yd' && dept !== 'delivery' && (
+                  <>
                     <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
                       Start Date
                     </th>
@@ -1522,28 +1912,17 @@ export default function OrderPlanningDetailPage() {
                 const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(item);
 
                 // Gating checks matching Exp detailed-view.js:
-                // Dyeing: requires Unit & Process to be selected (lines 579-586)
                 const isUnitProcessReady =
                   dept !== 'dyeing' ||
                   (Boolean(item.unit) && item.unit !== 'Select' && Boolean(item.processName) && item.processName !== 'Select');
 
-                // Dyeing: disabled if Knitting Plan Type is not selected (line 302)
                 const isDyeKnitLocked = dept === 'dyeing' && !isKnitTypeSelected;
-
-                // Delivery: disabled if Dyeing Plan Type is not selected (line 357)
                 const isDeliDyeLocked = dept === 'delivery' && !isDyeTypeSelected;
-
-                // Non-Admin lock: ONLY lock if item was already Confirmed and user is NOT admin
                 const isSavedConfirmed = item.planType === 'Confirm';
                 const isNonAdminLocked = isSavedConfirmed && !isAdmin;
 
-                // Dyeing input disabled
                 const isDyeInputsDisabled = !isUnitProcessReady || isDyeKnitLocked || isNonAdminLocked;
-
-                // Delivery input disabled
                 const isDeliInputsDisabled = isDeliDyeLocked || isNonAdminLocked;
-
-                // General input disabled state
                 const isInputsDisabled =
                   dept === 'dyeing'
                     ? isDyeInputsDisabled
@@ -1569,52 +1948,121 @@ export default function OrderPlanningDetailPage() {
                 return (
                   <tr
                     key={item.itemId || idx}
-                    className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
+                    className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
                   >
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-bold text-gray-500">
-                      {idx + 1}
-                    </td>
-
-                    {/* Color */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-bold text-gray-800 dark:text-gray-100">
-                      {item.Color || item['Color'] || item['Colour'] || '—'}
-                    </td>
-
-                    {/* Construction & GSM */}
-                    {dept !== 'yd' && (
+                    {/* ==========================================================
+                        1. KNITTING ROWS
+                       ========================================================== */}
+                    {dept === 'knitting' && (
                       <>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-bold text-gray-800 dark:text-gray-100">
+                          {item.itemData?.Color || item.Color || '—'}
+                        </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[100px]">
-                          {item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '—'}
+                          {item.itemData?.FabricConstruction || item.FabricConstruction || '—'}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px] font-mono">
-                          {item.GSM || item['GSM'] || '—'}
+                          {item.itemData?.GSM || item.GSM || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-yellow-50 dark:bg-yellow-900/10">
+                          <input
+                            type="date"
+                            value={item.yarnDate || ''}
+                            onChange={(e) => handleYarnDateChange(idx, e.target.value)}
+                            title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
+                            className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.startDate || ''}
+                            min={item.yarnDate || undefined}
+                            disabled={isInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                            className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.endDate || ''}
+                            min={item.startDate || item.yarnDate || undefined}
+                            disabled={isInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                            className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <select
+                            value={item.planType || ''}
+                            disabled={isInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                            className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass}`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.limitation || ''}
+                            onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                            placeholder="Limitation"
+                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.remarks || ''}
+                            onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                            placeholder="Notes"
+                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.GreyReq ?? item.GreyReq ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.KnitProd ?? item.KnitProd ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
+                          {item.itemData?.KnitBala ?? item.KnitBala ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.YarnReq ?? item.YarnReq ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.AllocatedQty ?? item.AllocatedQty ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.YarnBala ?? item.YarnBala ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.Allowance ?? item.Allowance ?? '—'}
                         </td>
                       </>
                     )}
 
-                    {/* YD Left columns */}
-                    {dept === 'yd' && (
+                    {/* ==========================================================
+                        2. DYEING ROWS
+                       ========================================================== */}
+                    {dept === 'dyeing' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px] font-semibold">
-                          {item['Booking Type'] || item.BookingType || '—'}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-bold text-gray-800 dark:text-gray-100">
+                          {item.itemData?.Color || item.Color || '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px] font-mono">
-                          {item.YDB || item['YDB'] || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                          {formatDateDisplay(item['YD Booking Date'])}
-                        </td>
-                      </>
-                    )}
-
-                    {/* Dyeing / Finishing Unit & Process dropdowns */}
-                    {(dept === 'dyeing' || dept === 'finishing') && (
-                      <>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                           <select
                             value={item.unit || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
-                            className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-emerald-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                            className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
                             {unitOptions.map((u) => (
@@ -1628,7 +2076,7 @@ export default function OrderPlanningDetailPage() {
                           <select
                             value={item.processName || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
-                            className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-emerald-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                            className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
                             {processOptions.map((p) => (
@@ -1638,12 +2086,6 @@ export default function OrderPlanningDetailPage() {
                             ))}
                           </select>
                         </td>
-                      </>
-                    )}
-
-                    {/* Upstream Knitting Plan for Dyeing (detailed-view.js lines 307-312) */}
-                    {dept === 'dyeing' && (
-                      <>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
                           {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
                         </td>
@@ -1651,60 +2093,265 @@ export default function OrderPlanningDetailPage() {
                           {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd)}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px] font-semibold">
-                          <span
-                            className={`badge badge-xs font-bold ${
-                              knitItem?.planType === 'Confirm'
-                                ? 'badge-success text-success-content'
-                                : knitItem?.planType === 'Tentative'
-                                ? 'badge-warning text-warning-content'
-                                : 'badge-ghost text-gray-400'
-                            }`}
-                          >
-                            {knitItem?.planType || '-'}
-                          </span>
+                          {knitItem?.planType || '-'}
                         </td>
-                        <td
-                          className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px] truncate max-w-[130px]"
-                          title={knitItem?.limitation}
-                        >
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px]">
                           {knitItem?.limitation || ''}
                         </td>
-                        <td
-                          className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px] truncate max-w-[130px]"
-                          title={knitItem?.remarks}
-                        >
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px]">
                           {knitItem?.remarks || ''}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.startDate || ''}
+                            disabled={isDyeInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                            className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.endDate || ''}
+                            min={item.startDate || undefined}
+                            disabled={isDyeInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                            className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <select
+                            value={item.planType || ''}
+                            disabled={isDyeInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                            className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass}`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.limitation || ''}
+                            disabled={!isUnitProcessReady}
+                            onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                            placeholder="Limitation"
+                            className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
+                              !isUnitProcessReady ? 'bg-gray-100 dark:bg-gray-800 opacity-60' : 'bg-white dark:bg-[#151921]'
+                            }`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.remarks || ''}
+                            disabled={!isUnitProcessReady}
+                            onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                            placeholder="Notes"
+                            className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
+                              !isUnitProcessReady ? 'bg-gray-100 dark:bg-gray-800 opacity-60' : 'bg-white dark:bg-[#151921]'
+                            }`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.BPQty ?? item.BPQty ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.DyeingProd ?? item.DyeingProd ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
+                          {item.itemData?.DyeingBala ?? item.DyeingBala ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.KnitProd ?? item.KnitProd ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.KnitBala ?? item.KnitBala ?? '—'}
                         </td>
                       </>
                     )}
 
-                    {/* Knitting Yarn Date (detailed-view.js line 241) */}
-                    {dept === 'knitting' && (
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-yellow-50 dark:bg-yellow-900/10">
-                        <input
-                          type="date"
-                          value={item.yarnDate || ''}
-                          onChange={(e) => handleYarnDateChange(idx, e.target.value)}
-                          title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
-                          className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
-                        />
-                      </td>
+                    {/* ==========================================================
+                        3. YD (YARN DYEING) ROWS (Exact Exp Parity)
+                       ========================================================== */}
+                    {dept === 'yd' && (
+                      <>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px] font-semibold">
+                          {item.itemData?.['Booking Type'] || item['Booking Type'] || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px] font-mono">
+                          {item.itemData?.YDB || item.YDB || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
+                          {formatExcelDate(item.itemData?.['YD Booking Date'] || item['YD Booking Date'])}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.startDate || ''}
+                            onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                            className="row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.endDate || ''}
+                            min={item.startDate || undefined}
+                            onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                            className="row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <select
+                            value={item.planType || ''}
+                            onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                            className="row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
+                          <input
+                            type="text"
+                            placeholder="Limitation"
+                            value={item.limitation || ''}
+                            onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
+                          <input
+                            type="text"
+                            placeholder="Remarks"
+                            value={item.remarks || ''}
+                            onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                          <input
+                            type="date"
+                            value={item.yarnOkDate || ''}
+                            onChange={(e) => handleYarnOkDateChange(idx, e.target.value)}
+                            className="row-yarn-ok-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
+                          <input
+                            type="date"
+                            value={item.matchingOptionDate || ''}
+                            onChange={(e) => handleMatchingOptionDateChange(idx, e.target.value)}
+                            className="row-matching-option-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                          <input
+                            type="date"
+                            value={item.floorStartDate || ''}
+                            onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
+                            className="row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                          <input
+                            type="date"
+                            value={item.floorEndDate || ''}
+                            min={item.floorStartDate || undefined}
+                            onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
+                            className="row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                          <select
+                            value={item.floorPlanType || ''}
+                            onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
+                            className="row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                          {formatExcelDate(item.itemData?.['YD T&A Start'])}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                          {formatExcelDate(item.itemData?.['YD T&A End'])}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                          {formatExcelDate(ydBKnitPlan.start)}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                          {formatExcelDate(ydBKnitPlan.end)}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                          <input
+                            type="number"
+                            value={item.barrierQty !== undefined && item.barrierQty !== null ? item.barrierQty : ''}
+                            onChange={(e) => handleCustomQtyChange(idx, 'barrierQty', e.target.value)}
+                            className="row-barrier-qty w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                          <input
+                            type="number"
+                            value={item.workableQty !== undefined && item.workableQty !== null ? item.workableQty : ''}
+                            onChange={(e) => handleCustomQtyChange(idx, 'workableQty', e.target.value)}
+                            className="row-workable-qty w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.['YD REQ.'] ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.DYED ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.['YD BALANCE'] ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.['YD Delivered'] ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-red-600 font-bold">
+                          {item.itemData?.['YD DELIVERY BALANCE'] ?? '—'}
+                        </td>
+                      </>
                     )}
 
-                    {/* Delivery Floor Schedule (detailed-view.js lines 383-391) */}
+                    {/* ==========================================================
+                        4. DELIVERY ROWS
+                       ========================================================== */}
                     {dept === 'delivery' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-50/40 dark:bg-transparent">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-bold text-gray-800 dark:text-gray-100">
+                          {item.itemData?.Color || item.Color || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[100px]">
+                          {item.itemData?.FabricConstruction || item.FabricConstruction || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px] font-mono">
+                          {item.itemData?.GSM || item.GSM || '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
                           <input
                             type="date"
                             value={item.floorStartDate || ''}
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
-                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-emerald-50/70 dark:bg-emerald-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50/70 dark:bg-blue-950/20 ${inputDisabledClass}`}
                           />
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-emerald-50/40 dark:bg-transparent">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
                           <input
                             type="date"
                             value={item.floorEndDate || ''}
@@ -1712,7 +2359,7 @@ export default function OrderPlanningDetailPage() {
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
-                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none bg-emerald-50/70 dark:bg-emerald-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50/70 dark:bg-blue-950/20 ${inputDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
@@ -1721,94 +2368,65 @@ export default function OrderPlanningDetailPage() {
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
-                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none cursor-pointer ${inputDisabledClass}`}
+                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${inputDisabledClass}`}
                           >
                             <option value="">Select</option>
                             <option value="Confirm">Confirm</option>
                             <option value="Tentative">Tentative</option>
                           </select>
                         </td>
-                      </>
-                    )}
-
-                    {/* Standard Planning Start Date */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                      <input
-                        type="date"
-                        value={item.startDate || ''}
-                        min={dept === 'knitting' ? item.yarnDate || undefined : undefined}
-                        disabled={isInputsDisabled}
-                        title={disabledTitle}
-                        onChange={(e) => handleStartDateChange(idx, e.target.value)}
-                        className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none ${inputDisabledClass}`}
-                      />
-                    </td>
-
-                    {/* Standard Planning End Date */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                      <input
-                        type="date"
-                        value={item.endDate || ''}
-                        min={item.startDate || (dept === 'knitting' ? item.yarnDate || undefined : undefined)}
-                        disabled={isInputsDisabled}
-                        title={disabledTitle}
-                        onChange={(e) => handleEndDateChange(idx, e.target.value)}
-                        className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-emerald-500 outline-none ${inputDisabledClass}`}
-                      />
-                    </td>
-
-                    {/* Standard Plan Type */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                      <select
-                        value={item.planType || ''}
-                        disabled={isInputsDisabled}
-                        title={disabledTitle}
-                        onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
-                        className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none cursor-pointer font-bold ${inputDisabledClass} ${
-                          item.planType === 'Confirm'
-                            ? 'text-green-700 bg-green-50 dark:bg-green-950/30 border-green-300'
-                            : item.planType === 'Tentative'
-                            ? 'text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300'
-                            : ''
-                        }`}
-                      >
-                        <option value="">Select</option>
-                        <option value="Confirm">Confirm</option>
-                        <option value="Tentative">Tentative</option>
-                      </select>
-                    </td>
-
-                    {/* Limitation */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                      <input
-                        type="text"
-                        value={item.limitation || ''}
-                        disabled={!isUnitProcessReady}
-                        onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
-                        placeholder="Limitation"
-                        className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none ${
-                          !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
-                        }`}
-                      />
-                    </td>
-
-                    {/* Remarks */}
-                    <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                      <input
-                        type="text"
-                        value={item.remarks || ''}
-                        disabled={!isUnitProcessReady}
-                        onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
-                        placeholder="Notes"
-                        className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-emerald-500 outline-none ${
-                          !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white dark:bg-[#151921]'
-                        }`}
-                      />
-                    </td>
-
-                    {/* Delivery: Upstream Dyeing & Knitting readouts */}
-                    {dept === 'delivery' && (
-                      <>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.startDate || ''}
+                            disabled={isDeliInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                            className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.endDate || ''}
+                            min={item.startDate || undefined}
+                            disabled={isDeliInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                            className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <select
+                            value={item.planType || ''}
+                            disabled={isDeliInputsDisabled}
+                            title={disabledTitle}
+                            onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                            className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass}`}
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.limitation || ''}
+                            onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                            placeholder="Limitation"
+                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.remarks || ''}
+                            onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                            placeholder="Notes"
+                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
                           {formatDateDisplay(dyeItem?.startDate || dyeItem?.planStart)}
                         </td>
@@ -1816,17 +2434,7 @@ export default function OrderPlanningDetailPage() {
                           {formatDateDisplay(dyeItem?.endDate || dyeItem?.planEnd)}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px] font-semibold">
-                          <span
-                            className={`badge badge-xs font-bold ${
-                              dyeItem?.planType === 'Confirm'
-                                ? 'badge-success text-success-content'
-                                : dyeItem?.planType === 'Tentative'
-                                ? 'badge-warning text-warning-content'
-                                : 'badge-ghost text-gray-400'
-                            }`}
-                          >
-                            {dyeItem?.planType || '-'}
-                          </span>
+                          {dyeItem?.planType || '-'}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
                           {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
@@ -1834,117 +2442,153 @@ export default function OrderPlanningDetailPage() {
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
                           {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd)}
                         </td>
-                      </>
-                    )}
-
-                    {/* Knitting Production & Balance columns */}
-                    {dept === 'knitting' && (
-                      <>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.GreyReq || item.greyReq || '—'}
+                          {item.itemData?.RequiredQtyKgs ?? item.RequiredQtyKgs ?? '—'}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.KnitProd || item.knitProd || 0}
+                          {item.itemData?.NetReceivedQtyKgs ?? item.NetReceivedQtyKgs ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.NetDeliveryQtyKgs ?? item.NetDeliveryQtyKgs ?? 0}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
-                          {item.KnitBala || item.knitBala || '—'}
+                          {item.itemData?.DeliBal ?? item.DeliBal ?? '—'}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.YarnReq || item.yarnReq || '—'}
+                          {item.itemData?.RFD ?? item.RFD ?? 0}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.AllocatedQty || item.allocatedQty || '—'}
+                          {item.itemData?.Slowmoving ?? item.Slowmoving ?? 0}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.YarnBala || item.yarnBala || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.Allowance || item.allowance || '—'}
+                          {item.itemData?.FFStock ?? item.FFStock ?? 0}
                         </td>
                       </>
                     )}
 
-                    {/* Dyeing / Finishing Production columns */}
-                    {(dept === 'dyeing' || dept === 'finishing') && (
+                    {/* ==========================================================
+                        5. FINISHING & DEFAULT ROWS
+                       ========================================================== */}
+                    {dept !== 'knitting' && dept !== 'dyeing' && dept !== 'yd' && dept !== 'delivery' && (
                       <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.BPQty || item.bpQty || '—'}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px] font-mono">
+                          {item.itemData?.OrderNo ?? item.OrderNo ?? orderNo}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[80px] font-bold text-gray-800 dark:text-gray-100">
+                          {item.itemData?.Color || item.Color || '—'}
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.DyeingProd || item.dyeingProd || 0}
+                          {item.itemData?.RequiredQtyKgs ?? item.RequiredQtyKgs ?? '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
-                          {item.DyeingBala || item.dyeingBala || '—'}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
+                          {item.itemData?.Buyer ?? item.Buyer ?? order.buyer ?? '—'}
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.KnitProd || item.knitProd || 0}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                          <select
+                            value={item.unit || ''}
+                            onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
+                            className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                          >
+                            <option value="">Select</option>
+                            {unitOptions.map((u) => (
+                              <option key={u} value={u}>
+                                {u}
+                              </option>
+                            ))}
+                          </select>
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.KnitBala || item.knitBala || '—'}
-                        </td>
-                      </>
-                    )}
-
-                    {/* Delivery Production & Stock columns */}
-                    {dept === 'delivery' && (
-                      <>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.RequiredQtyKgs || item.requiredQtyKgs || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.NetReceivedQtyKgs || item.netReceivedQtyKgs || 0}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.NetDeliveryQtyKgs || item.netDeliveryQtyKgs || 0}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-orange-600 font-bold">
-                          {item.DeliBal || item.deliBal || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.RFD || item.rfd || 0}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.Slowmoving || item.slowmoving || 0}
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
+                          <select
+                            value={item.processName || ''}
+                            onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
+                            className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                          >
+                            <option value="">Select</option>
+                            {processOptions.map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.FFStock || item.ffStock || 0}
+                          {item.itemData?.GreyReq ?? item.GreyReq ?? '—'}
                         </td>
-                      </>
-                    )}
-
-                    {/* YD Extra Right columns */}
-                    {dept === 'yd' && (
-                      <>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.KnitProd ?? item.KnitProd ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.KnitBala ?? item.KnitBala ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.BPQty ?? item.BPQty ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.DyeingProd ?? item.DyeingProd ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.DyeingBala ?? item.DyeingBala ?? '—'}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.NetReceivedQtyKgs ?? item.NetReceivedQtyKgs ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.NetDeliveryQtyKgs ?? item.NetDeliveryQtyKgs ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.RFD ?? item.RFD ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.Slowmoving ?? item.Slowmoving ?? 0}
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
+                          {item.itemData?.FFStock ?? item.FFStock ?? 0}
+                        </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
-                            type="number"
-                            value={item['Barrier Qty.'] || item.barrierQty || ''}
+                            type="date"
+                            value={item.startDate || ''}
+                            onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                            className="row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <input
+                            type="date"
+                            value={item.endDate || ''}
+                            min={item.startDate || undefined}
+                            onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                            className="row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                          />
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                          <select
+                            value={item.planType || ''}
+                            onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                            className="row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+                          >
+                            <option value="">Select</option>
+                            <option value="Confirm">Confirm</option>
+                            <option value="Tentative">Tentative</option>
+                          </select>
+                        </td>
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                          <input
+                            type="text"
+                            value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
-                            className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
+                            placeholder="Limitation"
+                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
                           />
                         </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <input
-                            type="number"
-                            value={item['Workable Qty.'] || item.workableQty || ''}
+                            type="text"
+                            value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
-                            className="w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] outline-none text-center bg-white dark:bg-[#151921]"
+                            placeholder="Notes"
+                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
                           />
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item['YD REQ.'] || item.ydReq || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item.DYED || item.dyed || 0}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item['YD BALANCE'] || item.ydBalance || '—'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
-                          {item['YD Delivered'] || item.ydDelivered || 0}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono text-red-600 font-bold">
-                          {item['YD DELIVERY BALANCE'] || item.ydDeliveryBalance || '—'}
                         </td>
                       </>
                     )}
