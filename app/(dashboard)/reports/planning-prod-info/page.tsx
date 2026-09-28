@@ -17,6 +17,29 @@ import { formatDateDisplay, calcLeadDay, calcOTTStatus } from '@/lib/date-utils'
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
 
+function getColVal(item: any, candidates: string[], defaultValue: any = ''): any {
+  if (!item) return defaultValue;
+  for (const c of candidates) {
+    if (item[c] !== undefined && item[c] !== null && item[c] !== '') return item[c];
+  }
+  const keys = Object.keys(item);
+  for (const c of candidates) {
+    const normC = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const found = keys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normC);
+    if (found && item[found] !== undefined && item[found] !== null && item[found] !== '') {
+      return item[found];
+    }
+  }
+  return defaultValue;
+}
+
+function formatNum(val: any): string {
+  if (val === undefined || val === null || val === '' || val === '-' || val === '—') return '—';
+  const clean = String(val).replace(/,/g, '').replace(/%/g, '').trim();
+  const num = parseFloat(clean);
+  return isNaN(num) ? String(val) : num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
 export default function PlanningProdInfoPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -378,20 +401,33 @@ export default function PlanningProdInfoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(selectedOrder.knittingItems || selectedOrder.dyeingItems || []).map((it: any, idx: number) => (
-                        <tr key={idx} className="hover">
-                          <td className="font-bold">{it.Color || it.color || '—'}</td>
-                          <td>{it.FabricConstruction || it.fabricConstruction || '—'}</td>
-                          <td>{it.GSM || it.gsm || '—'}</td>
-                          <td className="font-mono">{it.GreyReq || it['Grey Req.'] || '—'}</td>
-                          <td className="font-mono">{it.KnitProd || it['Knit Prod.'] || '—'}</td>
-                          <td className="font-mono text-warning font-bold">{it.KnitBala || it['Knit. Bala.'] || '—'}</td>
-                          <td className="font-mono">{it.DyeingProd || it['Dyeing Prod.'] || '—'}</td>
-                          <td className="font-mono text-warning font-bold">{it.DyeingBala || it['Dyeing Bala.'] || '—'}</td>
-                          <td className="font-mono">{it.NetDeliveryQtyKgs || it.NetDeliveryQty || '—'}</td>
-                          <td className="font-mono text-error font-bold">{it.DeliBal || it['Deli. Bal.'] || '—'}</td>
-                        </tr>
-                      ))}
+                      {(selectedOrder.knittingItems || selectedOrder.dyeingItems || selectedOrder.deliveryItems || []).map((it: any, idx: number) => {
+                        const color = getColVal(it, ['Color', 'Colour', 'Fab Color']) || '—';
+                        const construction = getColVal(it, ['FabricConstruction', 'Construction', 'Fabric']) || '—';
+                        const gsm = getColVal(it, ['GSM', 'G.S.M', 'Finish GSM']) || '—';
+                        const greyReq = getColVal(it, ['Grey Req.', 'Grey Req', 'GreyReq']);
+                        const knitProd = getColVal(it, ['Knit Prod.', 'Knit Prod', 'KnitProd']);
+                        const knitBala = getColVal(it, ['Knit. Bala.', 'Knit Bala', 'KnitBala', 'Knit Balance', 'Knit. Bal.']);
+                        const dyeingProd = getColVal(it, ['Dyeing Prod.', 'Dyeing Prod', 'DyeingProd', 'Dyeing ok']);
+                        const dyeingBala = getColVal(it, ['Dyeing Bala.', 'Dyeing Bala', 'DyeingBala', 'Dyeing Bal.', 'Dyeing Bal']);
+                        const deliQty = getColVal(it, ['NetDeliveryQtyKgs', 'Net Delivery Qty Kgs', 'NetDeliveryQty', 'Delivery Qty']);
+                        const deliBala = getColVal(it, ['Deli. Bala.', 'Deli. Bal.', 'DeliBal', 'Delivery Balance']);
+
+                        return (
+                          <tr key={idx} className="hover">
+                            <td className="font-bold">{color}</td>
+                            <td>{construction}</td>
+                            <td>{gsm}</td>
+                            <td className="font-mono">{formatNum(greyReq)}</td>
+                            <td className="font-mono">{formatNum(knitProd)}</td>
+                            <td className="font-mono text-warning font-bold">{formatNum(knitBala)}</td>
+                            <td className="font-mono">{formatNum(dyeingProd)}</td>
+                            <td className="font-mono text-warning font-bold">{formatNum(dyeingBala)}</td>
+                            <td className="font-mono">{formatNum(deliQty)}</td>
+                            <td className="font-mono text-error font-bold">{formatNum(deliBala)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
