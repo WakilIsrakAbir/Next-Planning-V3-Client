@@ -353,45 +353,43 @@ export default function TrackingPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Date Range Filter Bar */}
-      <div className="card bg-base-100 p-3 border border-base-300 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base-content/70">Plan Start:</span>
-            <input
-              type="date"
-              value={startMin}
-              onChange={(e) => setStartMin(e.target.value)}
-              className="input input-bordered input-xs"
-            />
-            <span>to</span>
-            <input
-              type="date"
-              value={startMax}
-              onChange={(e) => setStartMax(e.target.value)}
-              className="input input-bordered input-xs"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-base-content/70">Plan End:</span>
-            <input
-              type="date"
-              value={endMin}
-              onChange={(e) => setEndMin(e.target.value)}
-              className="input input-bordered input-xs"
-            />
-            <span>to</span>
-            <input
-              type="date"
-              value={endMax}
-              onChange={(e) => setEndMax(e.target.value)}
-              className="input input-bordered input-xs"
-            />
-          </div>
+      {/* Date Range Filter Bar (Single unified row) */}
+      <div className="card bg-base-100 p-2.5 border border-base-300 shadow-xs flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-base-content/70">Plan Start:</span>
+          <input
+            type="date"
+            value={startMin}
+            onChange={(e) => setStartMin(e.target.value)}
+            className="input input-bordered input-xs"
+          />
+          <span className="text-base-content/50">to</span>
+          <input
+            type="date"
+            value={startMax}
+            onChange={(e) => setStartMax(e.target.value)}
+            className="input input-bordered input-xs"
+          />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
+          <span className="font-bold text-base-content/70">Plan End:</span>
+          <input
+            type="date"
+            value={endMin}
+            onChange={(e) => setEndMin(e.target.value)}
+            className="input input-bordered input-xs"
+          />
+          <span className="text-base-content/50">to</span>
+          <input
+            type="date"
+            value={endMax}
+            onChange={(e) => setEndMax(e.target.value)}
+            className="input input-bordered input-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 ml-0 sm:ml-2">
           <button
             onClick={() => {
               setPage(1);
