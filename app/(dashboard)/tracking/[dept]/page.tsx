@@ -78,9 +78,19 @@ export default function TrackingPage({ params }: PageProps) {
   const [saveLoading, setSaveLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const fetchTracking = async () => {
+  const fetchTracking = async (overrideFilters?: {
+    startMin?: string;
+    startMax?: string;
+    endMin?: string;
+    endMax?: string;
+  }) => {
     setLoading(true);
     try {
+      const sMin = overrideFilters?.startMin !== undefined ? overrideFilters.startMin : startMin;
+      const sMax = overrideFilters?.startMax !== undefined ? overrideFilters.startMax : startMax;
+      const eMin = overrideFilters?.endMin !== undefined ? overrideFilters.endMin : endMin;
+      const eMax = overrideFilters?.endMax !== undefined ? overrideFilters.endMax : endMax;
+
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
@@ -88,10 +98,10 @@ export default function TrackingPage({ params }: PageProps) {
         buyer: selectedBuyer,
         search,
         status: activeTab,
-        startMin,
-        startMax,
-        endMin,
-        endMax,
+        startMin: sMin,
+        startMax: sMax,
+        endMin: eMin,
+        endMax: eMax,
       });
 
       const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?${query.toString()}`, {
@@ -123,6 +133,20 @@ export default function TrackingPage({ params }: PageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApplyFilter = () => {
+    setPage(1);
+    fetchTracking();
+  };
+
+  const handleClearFilter = () => {
+    setStartMin('');
+    setStartMax('');
+    setEndMin('');
+    setEndMax('');
+    setPage(1);
+    fetchTracking({ startMin: '', startMax: '', endMin: '', endMax: '' });
   };
 
   useEffect(() => {
@@ -353,66 +377,54 @@ export default function TrackingPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Date Range Filter Bar (Single unified row) */}
-      <div className="card bg-base-100 p-2.5 border border-base-300 shadow-xs flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs">
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-base-content/70">Plan Start:</span>
-          <input
-            type="date"
-            value={startMin}
-            onChange={(e) => setStartMin(e.target.value)}
-            className="input input-bordered input-xs"
-          />
-          <span className="text-base-content/50">to</span>
-          <input
-            type="date"
-            value={startMax}
-            onChange={(e) => setStartMax(e.target.value)}
-            className="input input-bordered input-xs"
-          />
-        </div>
+      {/* Date Range Filter (Exact 1-row layout matching Exp) */}
+      <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap custom-scrollbar shrink-0 py-1">
+        <span className="text-[11px] font-bold text-gray-600 bg-gray-100 dark:bg-base-200 dark:text-base-content/70 px-2 py-1 rounded">Start</span>
+        <input
+          type="date"
+          value={startMin}
+          onChange={(e) => setStartMin(e.target.value)}
+          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
+          title="Min Start Date"
+        />
+        <span className="text-gray-400 font-bold shrink-0">—</span>
+        <input
+          type="date"
+          value={startMax}
+          onChange={(e) => setStartMax(e.target.value)}
+          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
+          title="Max Start Date"
+        />
 
-        <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
-          <span className="font-bold text-base-content/70">Plan End:</span>
-          <input
-            type="date"
-            value={endMin}
-            onChange={(e) => setEndMin(e.target.value)}
-            className="input input-bordered input-xs"
-          />
-          <span className="text-base-content/50">to</span>
-          <input
-            type="date"
-            value={endMax}
-            onChange={(e) => setEndMax(e.target.value)}
-            className="input input-bordered input-xs"
-          />
-        </div>
+        <span className="text-[11px] font-bold text-gray-600 bg-gray-100 dark:bg-base-200 dark:text-base-content/70 px-2 py-1 rounded ml-2 shrink-0">End</span>
+        <input
+          type="date"
+          value={endMin}
+          onChange={(e) => setEndMin(e.target.value)}
+          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
+          title="Min End Date"
+        />
+        <span className="text-gray-400 font-bold shrink-0">—</span>
+        <input
+          type="date"
+          value={endMax}
+          onChange={(e) => setEndMax(e.target.value)}
+          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
+          title="Max End Date"
+        />
 
-        <div className="flex items-center gap-2 ml-0 sm:ml-2">
-          <button
-            onClick={() => {
-              setPage(1);
-              fetchTracking();
-            }}
-            className="btn btn-xs btn-primary font-bold"
-          >
-            Apply Dates
-          </button>
-          <button
-            onClick={() => {
-              setStartMin('');
-              setStartMax('');
-              setEndMin('');
-              setEndMax('');
-              setPage(1);
-              fetchTracking();
-            }}
-            className="btn btn-xs btn-ghost text-base-content/60"
-          >
-            Clear Dates
-          </button>
-        </div>
+        <button
+          onClick={handleApplyFilter}
+          className="px-3 py-1 bg-green-600 text-white font-bold rounded text-[11px] hover:bg-green-700 transition-colors ml-2 shrink-0 shadow-xs"
+        >
+          Apply Filter
+        </button>
+        <button
+          onClick={handleClearFilter}
+          className="px-3 py-1 bg-gray-200 dark:bg-base-200 text-gray-600 dark:text-base-content/70 font-bold rounded text-[11px] hover:bg-gray-300 dark:hover:bg-base-300 transition-colors shrink-0"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Interactive Tracking Table */}
