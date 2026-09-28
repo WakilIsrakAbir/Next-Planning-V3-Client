@@ -27,19 +27,34 @@ const DEPT_NAMES: Record<string, string> = {
   deliveryfloor: 'Delivery (Floor)',
 };
 
+// Module-level cache for tracking counts per dept
+const cachedTrackingCounts = new Map<string, { pending: number; complete: number }>();
+
 export default function TrackingReportPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
   const deptName = DEPT_NAMES[dept] || dept.toUpperCase();
 
-  const [loading, setLoading] = useState(true);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [completeCount, setCompleteCount] = useState(0);
+  const initialCounts = cachedTrackingCounts.get(dept);
+  const [loading, setLoading] = useState(() => !initialCounts);
+  const [pendingCount, setPendingCount] = useState(() => initialCounts?.pending || 0);
+  const [completeCount, setCompleteCount] = useState(() => initialCounts?.complete || 0);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  // Fetch counts
-  const fetchCounts = async () => {
-    setLoading(true);
+  const fetchCounts = async (bypassCache = false) => {
+    if (!bypassCache) {
+      const cached = cachedTrackingCounts.get(dept);
+      if (cached) {
+        setPendingCount(cached.pending);
+        setCompleteCount(cached.complete);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?all=true`, {
@@ -61,6 +76,7 @@ export default function TrackingReportPage({ params }: PageProps) {
           else pCount++;
         });
 
+        cachedTrackingCounts.set(dept, { pending: pCount, complete: cCount });
         setPendingCount(pCount);
         setCompleteCount(cCount);
       }
@@ -121,7 +137,7 @@ export default function TrackingReportPage({ params }: PageProps) {
         </div>
 
         <button
-          onClick={fetchCounts}
+          onClick={() => fetchCounts(true)}
           disabled={loading}
           className="btn btn-outline btn-sm gap-2"
         >

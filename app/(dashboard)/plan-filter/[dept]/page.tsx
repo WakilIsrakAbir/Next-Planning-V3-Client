@@ -16,6 +16,7 @@ import {
 import * as XLSX from 'xlsx';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import { getColData } from '@/lib/data-utils';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -153,19 +154,7 @@ function parseShortDateToISO(dateStr?: string): string {
   return '';
 }
 
-function getColData(item: any, possibleKeys: string[]) {
-  if (!item) return '';
-  const data = item.itemData || item;
-  for (const k of possibleKeys) {
-    if (data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== '') {
-      return String(data[k]).trim();
-    }
-    if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
-      return String(item[k]).trim();
-    }
-  }
-  return '';
-}
+const cachedPlanFilterData: Record<string, { allRows: any[]; allBuyers: string[] }> = {};
 
 export default function PlanFilterPage({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -201,7 +190,14 @@ export default function PlanFilterPage({ params }: PageProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch plan filter data
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
+    if (!forceRefresh && cachedPlanFilterData[dept]) {
+      setAllRows(cachedPlanFilterData[dept].allRows);
+      setAllBuyers(cachedPlanFilterData[dept].allBuyers);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const rows: any[] = [];
     const buyersSet = new Set<string>();
@@ -321,8 +317,10 @@ export default function PlanFilterPage({ params }: PageProps) {
         } catch {}
       }
 
+      const sortedBuyers = Array.from(buyersSet).sort();
+      cachedPlanFilterData[dept] = { allRows: rows, allBuyers: sortedBuyers };
       setAllRows(rows);
-      setAllBuyers(Array.from(buyersSet).sort());
+      setAllBuyers(sortedBuyers);
     } catch (err) {
       console.error('Error fetching plan filter data:', err);
     } finally {
@@ -414,7 +412,7 @@ export default function PlanFilterPage({ params }: PageProps) {
         </div>
 
         <button
-          onClick={fetchData}
+          onClick={() => fetchData(true)}
           disabled={loading}
           className="btn btn-outline btn-sm gap-2"
         >

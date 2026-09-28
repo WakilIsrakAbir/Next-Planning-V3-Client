@@ -44,37 +44,41 @@ function calcTrackingBadge(actualDateStr?: string, planDateStr?: string) {
   return '—';
 }
 
+const cachedTrackingOrders: Record<
+  string,
+  {
+    orders: any[];
+    total: number;
+    totalPages: number;
+    buyers: string[];
+    initialEdits: Record<string, any>;
+  }
+> = {};
+
 export default function TrackingPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
   const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Tracking` };
 
   const [activeTab, setActiveTab] = useState<'Pending' | 'Complete'>('Pending');
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedBuyer, setSelectedBuyer] = useState('');
-  const [availableBuyers, setAvailableBuyers] = useState<string[]>([]);
-
-  // Date filters
   const [startMin, setStartMin] = useState('');
   const [startMax, setStartMax] = useState('');
   const [endMin, setEndMin] = useState('');
   const [endMax, setEndMax] = useState('');
-
-  // Pagination
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
 
-  // Row state for inline editing
-  const [editedRows, setEditedRows] = useState<Record<string, {
-    actualStart: string;
-    actualEnd: string;
-    failReason: string;
-    relatedDept: string;
-  }>>({});
+  const initialKey = `${dept}_Pending__1_10_`;
+  const initialCache = cachedTrackingOrders[initialKey];
+
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [loading, setLoading] = useState(() => !initialCache);
+  const [availableBuyers, setAvailableBuyers] = useState<string[]>(() => initialCache?.buyers || []);
+  const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
+  const [total, setTotal] = useState(() => initialCache?.total || 0);
+  const [editedRows, setEditedRows] = useState<Record<string, any>>(() => initialCache?.initialEdits || {});
   const [saveLoading, setSaveLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -84,13 +88,25 @@ export default function TrackingPage({ params }: PageProps) {
     endMin?: string;
     endMax?: string;
   }) => {
-    setLoading(true);
-    try {
-      const sMin = overrideFilters?.startMin !== undefined ? overrideFilters.startMin : startMin;
-      const sMax = overrideFilters?.startMax !== undefined ? overrideFilters.startMax : startMax;
-      const eMin = overrideFilters?.endMin !== undefined ? overrideFilters.endMin : endMin;
-      const eMax = overrideFilters?.endMax !== undefined ? overrideFilters.endMax : endMax;
+    const sMin = overrideFilters?.startMin !== undefined ? overrideFilters.startMin : startMin;
+    const sMax = overrideFilters?.startMax !== undefined ? overrideFilters.startMax : startMax;
+    const eMin = overrideFilters?.endMin !== undefined ? overrideFilters.endMin : endMin;
+    const eMax = overrideFilters?.endMax !== undefined ? overrideFilters.endMax : endMax;
 
+    const key = `${dept}_${activeTab}_${selectedBuyer}_${page}_${limit}_${search}_${sMin}_${sMax}_${eMin}_${eMax}`;
+    if (cachedTrackingOrders[key]) {
+      const c = cachedTrackingOrders[key];
+      setOrders(c.orders);
+      setTotal(c.total);
+      setTotalPages(c.totalPages);
+      if (c.buyers) setAvailableBuyers(c.buyers);
+      setEditedRows(c.initialEdits);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    try {
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
@@ -111,10 +127,9 @@ export default function TrackingPage({ params }: PageProps) {
       if (res.ok) {
         const data = await res.json();
         const ords = data.orders || [];
-        setOrders(ords);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
-        if (data.buyers) setAvailableBuyers(data.buyers);
+        const tTotal = data.total || 0;
+        const tPages = data.totalPages || 1;
+        const buyersList = data.buyers || [];
 
         // Initialize editedRows with existing data
         const initialEdits: Record<string, any> = {};
@@ -126,6 +141,19 @@ export default function TrackingPage({ params }: PageProps) {
             relatedDept: o.relatedDept || '',
           };
         });
+
+        cachedTrackingOrders[key] = {
+          orders: ords,
+          total: tTotal,
+          totalPages: tPages,
+          buyers: buyersList,
+          initialEdits,
+        };
+
+        setOrders(ords);
+        setTotal(tTotal);
+        setTotalPages(tPages);
+        if (data.buyers) setAvailableBuyers(buyersList);
         setEditedRows(initialEdits);
       }
     } catch (err) {

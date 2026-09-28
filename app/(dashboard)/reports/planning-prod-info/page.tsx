@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { apiClient } from '@/lib/api-client';
+import { getColData } from '@/lib/data-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
 
@@ -68,52 +69,36 @@ function getPPIOTTResult(planStr?: string | null, actStr?: string | null): { tex
 
 function ppiGetNum(item: any, fieldNames: string[]): number {
   if (!item) return 0;
-  for (const f of fieldNames) {
-    if (item[f] !== undefined && item[f] !== null && item[f] !== '') {
-      const clean = String(item[f]).replace(/,/g, '').replace(/%/g, '').trim();
-      const num = parseFloat(clean);
-      if (!isNaN(num)) return num;
-    }
-  }
-  const keys = Object.keys(item);
-  for (const f of fieldNames) {
-    const norm = f.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const found = keys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
-    if (found && item[found] !== undefined && item[found] !== null && item[found] !== '') {
-      const clean = String(item[found]).replace(/,/g, '').replace(/%/g, '').trim();
-      const num = parseFloat(clean);
-      if (!isNaN(num)) return num;
-    }
-  }
-  return 0;
+  const val = getColData(item, fieldNames, null);
+  if (val === null || val === undefined || val === '') return 0;
+  const clean = String(val).replace(/,/g, '').replace(/%/g, '').trim();
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
 }
 
 function ppiGetString(item: any, fieldNames: string[]): string {
   if (!item) return '';
-  for (const f of fieldNames) {
-    if (item[f] !== undefined && item[f] !== null && String(item[f]).trim() !== '') {
-      return String(item[f]).trim();
-    }
-  }
-  const keys = Object.keys(item);
-  for (const f of fieldNames) {
-    const norm = f.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const found = keys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
-    if (found && item[found] !== undefined && item[found] !== null && String(item[found]).trim() !== '') {
-      return String(item[found]).trim();
-    }
-  }
-  return '';
+  const val = getColData(item, fieldNames, '');
+  return val !== null && val !== undefined ? String(val).trim() : '';
 }
 
+// Module-level SWR Cache for instant tab switching (0ms perceived latency)
+const cachedPPI = {
+  data: new Map<string, { orders: any[]; total: number; totalPages: number }>(),
+  details: new Map<string, { order: any; planData: any }>(),
+};
+
 export default function PlanningProdInfoPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCacheKey = '1_10_';
+  const initialCache = cachedPPI.data.get(initialCacheKey);
+
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [loading, setLoading] = useState(() => !initialCache);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
+  const [total, setTotal] = useState(() => initialCache?.total || 0);
 
   // Detailed view state
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -121,34 +106,65 @@ export default function PlanningProdInfoPage() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const cacheKey = `${page}_${limit}_${search.trim().toLowerCase()}`;
+    const cached = cachedPPI.data.get(cacheKey);
+    if (cached) {
+      setOrders(cached.orders);
+      setTotal(cached.total);
+      setTotalPages(cached.totalPages);
+      setLoading(false);
+    } else {
       setLoading(true);
+    }
+
+    let isMounted = true;
+    const fetchOrders = async () => {
       try {
         const res = await apiClient<{
           orders: any[];
           total: number;
           totalPages: number;
         }>(`/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
-        setOrders(res.orders || []);
-        setTotal(res.total || 0);
-        setTotalPages(res.totalPages || 1);
+        if (!isMounted) return;
+        const result = {
+          orders: res.orders || [],
+          total: res.total || 0,
+          totalPages: res.totalPages || 1,
+        };
+        cachedPPI.data.set(cacheKey, result);
+        setOrders(result.orders);
+        setTotal(result.total);
+        setTotalPages(result.totalPages);
       } catch (err) {
         console.error('Failed to load orders for PPI:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchOrders();
+    return () => {
+      isMounted = false;
+    };
   }, [page, limit, search]);
 
   const loadOrderDetail = async (orderNo: string) => {
-    setDetailLoading(true);
+    const cached = cachedPPI.details.get(orderNo);
+    if (cached) {
+      setSelectedOrder(cached.order);
+      setPlanData(cached.planData);
+      setDetailLoading(false);
+    } else {
+      setDetailLoading(true);
+    }
+
     try {
       const res = await apiClient<{ order: any; planData: any }>(
         `/api/orders/${encodeURIComponent(orderNo)}?dept=knitting`
       );
-      setSelectedOrder(res.order || null);
-      setPlanData(res.planData || null);
+      const detail = { order: res.order || null, planData: res.planData || null };
+      cachedPPI.details.set(orderNo, detail);
+      setSelectedOrder(detail.order);
+      setPlanData(detail.planData);
     } catch (err) {
       console.error('Failed to load order detail:', err);
     } finally {

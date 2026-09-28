@@ -15,17 +15,20 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
+// Module-level cache for instant tab loading
+let cachedUploadedFiles: any[] | null = null;
+
 export default function FileUploadPage() {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null);
   const [category, setCategory] = useState('General');
   const [uploading, setUploading] = useState(false);
-  const [files, setFiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [files, setFiles] = useState<any[]>(() => cachedUploadedFiles || []);
+  const [loading, setLoading] = useState(() => !cachedUploadedFiles);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchFiles = async () => {
-    setLoading(true);
+    if (!cachedUploadedFiles) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/files/all`, {
@@ -33,6 +36,7 @@ export default function FileUploadPage() {
       });
       if (res.ok) {
         const data = await res.json();
+        cachedUploadedFiles = data;
         setFiles(data);
       }
     } catch (err) {

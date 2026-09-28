@@ -23,14 +23,20 @@ function parseNum(val: any): number {
   return isNaN(num) ? 0 : num;
 }
 
+const cachedOrderStatus: Record<string, { orders: any[]; total: number; totalPages: number }> = {};
+
 export default function OrderStatusPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+
+  const initialKey = `1_10_`;
+  const initialCache = cachedOrderStatus[initialKey];
+
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [loading, setLoading] = useState(() => !initialCache);
+  const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
+  const [total, setTotal] = useState(() => initialCache?.total || 0);
 
   // Detailed Modal State
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -38,7 +44,16 @@ export default function OrderStatusPage() {
   const [modalLoading, setModalLoading] = useState(false);
 
   const fetchOrderStatus = async () => {
-    setLoading(true);
+    const key = `${page}_${limit}_${search}`;
+    if (cachedOrderStatus[key]) {
+      setOrders(cachedOrderStatus[key].orders);
+      setTotal(cachedOrderStatus[key].total);
+      setTotalPages(cachedOrderStatus[key].totalPages);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem('token');
       const query = new URLSearchParams({
@@ -53,9 +68,13 @@ export default function OrderStatusPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.orders || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
+        const ords = data.orders || [];
+        const tTotal = data.total || 0;
+        const tPages = data.totalPages || 1;
+        cachedOrderStatus[key] = { orders: ords, total: tTotal, totalPages: tPages };
+        setOrders(ords);
+        setTotal(tTotal);
+        setTotalPages(tPages);
       }
     } catch (err) {
       console.error('Failed to load order status:', err);

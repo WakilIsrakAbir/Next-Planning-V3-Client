@@ -20,17 +20,28 @@ interface PageProps {
   params: Promise<{ dept: string }>;
 }
 
+const cachedPlanningOrders: Record<string, { orders: any[]; totalPages: number; total: number }> = {};
+const cachedDeptBuyers: Record<string, string[]> = {};
+
 export default function DepartmentPlanningPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
   const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Plan` };
 
   const [activeTab, setActiveTab] = useState<PlanStatus | 'All'>('Pending');
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [globalSearch, setGlobalSearch] = useState('');
   const [activeBuyer, setActiveBuyer] = useState('');
-  const [availableBuyers, setAvailableBuyers] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const initialKey = `${dept}_Pending__1_10_`;
+  const initialCache = cachedPlanningOrders[initialKey];
+
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [loading, setLoading] = useState(() => !initialCache);
+  const [availableBuyers, setAvailableBuyers] = useState<string[]>(() => cachedDeptBuyers[dept] || []);
+  const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
+  const [totalOrders, setTotalOrders] = useState(() => initialCache?.total || 0);
 
   // Column search filters matching Exp filterByColumn
   const [colSearchOrder, setColSearchOrder] = useState('');
@@ -38,14 +49,11 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
   const [colSearchBuyer, setColSearchBuyer] = useState('');
   const [colSearchStatus, setColSearchStatus] = useState('');
 
-  // Pagination matching Exp
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalOrders, setTotalOrders] = useState(0);
-
   // Fetch buyers for this department
   useEffect(() => {
+    if (cachedDeptBuyers[dept]) {
+      setAvailableBuyers(cachedDeptBuyers[dept]);
+    }
     const fetchBuyers = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -54,6 +62,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
         });
         if (res.ok) {
           const data = await res.json();
+          cachedDeptBuyers[dept] = data || [];
           setAvailableBuyers(data || []);
         }
       } catch {}
@@ -61,9 +70,18 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
     fetchBuyers();
   }, [dept]);
 
-  // Fetch paginated department orders matching Exp
+  // Fetch paginated department orders with SWR (Stale-While-Revalidate)
   const fetchOrders = async () => {
-    setLoading(true);
+    const key = `${dept}_${activeTab}_${activeBuyer}_${page}_${limit}_${globalSearch}`;
+    if (cachedPlanningOrders[key]) {
+      setOrders(cachedPlanningOrders[key].orders);
+      setTotalPages(cachedPlanningOrders[key].totalPages);
+      setTotalOrders(cachedPlanningOrders[key].total);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem('token');
       const statusParam = activeTab === 'All' ? 'Completed' : activeTab;
@@ -82,9 +100,14 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
 
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.orders || []);
-        setTotalPages(data.totalPages || 1);
-        setTotalOrders(data.total || 0);
+        const ords = data.orders || [];
+        const tPages = data.totalPages || 1;
+        const total = data.total || 0;
+
+        cachedPlanningOrders[key] = { orders: ords, totalPages: tPages, total };
+        setOrders(ords);
+        setTotalPages(tPages);
+        setTotalOrders(total);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);

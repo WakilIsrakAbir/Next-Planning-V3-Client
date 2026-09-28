@@ -6,10 +6,13 @@ import { API_BASE } from '@/lib/constants';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
+// Module-level cache for instant tab loading
+let cachedDropdowns: { units: any[]; processes: any[] } | null = null;
+
 export default function SetupPage() {
-  const [units, setUnits] = useState<any[]>([]);
-  const [processes, setProcesses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [units, setUnits] = useState<any[]>(() => cachedDropdowns?.units || []);
+  const [processes, setProcesses] = useState<any[]>(() => cachedDropdowns?.processes || []);
+  const [loading, setLoading] = useState(() => !cachedDropdowns);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Add Modal State
@@ -20,7 +23,7 @@ export default function SetupPage() {
   const [addError, setAddError] = useState<string | null>(null);
 
   const fetchDropdowns = async () => {
-    setLoading(true);
+    if (!cachedDropdowns) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/dropdowns`, {
@@ -28,8 +31,12 @@ export default function SetupPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setUnits(data.units || []);
-        setProcesses(data.processes || []);
+        cachedDropdowns = {
+          units: data.units || [],
+          processes: data.processes || [],
+        };
+        setUnits(cachedDropdowns.units);
+        setProcesses(cachedDropdowns.processes);
       }
     } catch (err) {
       console.error('Failed to load dropdowns:', err);

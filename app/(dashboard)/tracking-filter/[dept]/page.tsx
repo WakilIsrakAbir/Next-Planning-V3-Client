@@ -54,6 +54,8 @@ function calcTrackingResult(actualDateStr?: string, planDateStr?: string): 'Pass
   return '—';
 }
 
+const cachedTrackingFilterData: Record<string, { allRows: any[]; allBuyers: string[] }> = {};
+
 export default function TrackingFilterPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
@@ -99,7 +101,14 @@ export default function TrackingFilterPage({ params }: PageProps) {
     endFailPct: '0%',
   });
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
+    if (!forceRefresh && cachedTrackingFilterData[dept]) {
+      setAllRows(cachedTrackingFilterData[dept].allRows);
+      setAllBuyers(cachedTrackingFilterData[dept].allBuyers);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const rows: any[] = [];
     const buyersSet = new Set<string>();
@@ -190,8 +199,10 @@ export default function TrackingFilterPage({ params }: PageProps) {
         });
       }
 
+      const sortedBuyers = Array.from(buyersSet).sort();
+      cachedTrackingFilterData[dept] = { allRows: rows, allBuyers: sortedBuyers };
       setAllRows(rows);
-      setAllBuyers(Array.from(buyersSet).sort());
+      setAllBuyers(sortedBuyers);
     } catch (err) {
       console.error('Failed to fetch tracking filter data:', err);
     } finally {
@@ -332,7 +343,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
         </div>
 
         <button
-          onClick={fetchData}
+          onClick={() => fetchData(true)}
           disabled={loading}
           className="btn btn-outline btn-sm gap-2"
         >

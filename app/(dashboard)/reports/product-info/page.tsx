@@ -18,38 +18,7 @@ import { apiClient } from '@/lib/api-client';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
 
-// ==========================================
-// Helper Functions for Robust Data Mapping
-// ==========================================
-function getColData(item: any, candidates: string[], defaultValue: any = ''): any {
-  if (!item) return defaultValue;
-
-  // 1. Exact property match
-  for (const c of candidates) {
-    if (item[c] !== undefined && item[c] !== null && item[c] !== '') return item[c];
-  }
-
-  // 2. Trimmed property match
-  const keys = Object.keys(item);
-  for (const c of candidates) {
-    const trimmedC = c.trim();
-    const found = keys.find((k) => k.trim() === trimmedC);
-    if (found && item[found] !== undefined && item[found] !== null && item[found] !== '') {
-      return item[found];
-    }
-  }
-
-  // 3. Case-insensitive and punctuation-free fuzzy match
-  for (const c of candidates) {
-    const normC = c.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const found = keys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === normC);
-    if (found && item[found] !== undefined && item[found] !== null && item[found] !== '') {
-      return item[found];
-    }
-  }
-
-  return defaultValue;
-}
+import { getColData } from '@/lib/data-utils';
 
 function parseNum(val: any): number | null {
   if (val === undefined || val === null || val === '' || val === '-' || val === '—') return null;
@@ -163,14 +132,23 @@ const PI_METRIC_RULES: MetricRule[] = [
   },
 ];
 
+// Module-level SWR Cache for instant tab switching (0ms perceived latency)
+const cachedProductInfo = {
+  data: new Map<string, { orders: any[]; total: number; totalPages: number }>(),
+  details: new Map<string, any>(),
+};
+
 export default function ProductInfoPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCacheKey = '1_10_';
+  const initialCache = cachedProductInfo.data.get(initialCacheKey);
+
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [loading, setLoading] = useState(() => !initialCache);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
+  const [totalCount, setTotalCount] = useState(() => initialCache?.total || 0);
 
   // Expanded row details
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -178,17 +156,37 @@ export default function ProductInfoPage() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<'breakdown' | 'matrix'>('breakdown');
 
-  const fetchOrders = async () => {
-    try {
+  const fetchOrders = async (bypassCache = false) => {
+    const cacheKey = `${page}_${limit}_${search.trim().toLowerCase()}`;
+    if (!bypassCache) {
+      const cached = cachedProductInfo.data.get(cacheKey);
+      if (cached) {
+        setOrders(cached.orders);
+        setTotalCount(cached.total);
+        setTotalPages(cached.totalPages);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
       setLoading(true);
+    }
+
+    try {
       const res = await apiClient<{
         orders: any[];
         total: number;
         totalPages: number;
       }>(`/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
-      setOrders(res.orders || []);
-      setTotalCount(res.total || 0);
-      setTotalPages(res.totalPages || 1);
+      const result = {
+        orders: res.orders || [],
+        total: res.total || 0,
+        totalPages: res.totalPages || 1,
+      };
+      cachedProductInfo.data.set(cacheKey, result);
+      setOrders(result.orders);
+      setTotalCount(result.total);
+      setTotalPages(result.totalPages);
     } catch (err) {
       console.error('Failed to fetch product info orders:', err);
     } finally {
@@ -208,10 +206,21 @@ export default function ProductInfoPage() {
     }
 
     setExpandedOrder(orderNo);
-    try {
+    const cached = cachedProductInfo.details.get(orderNo);
+    if (cached) {
+      setOrderDetails(cached);
+      setLoadingDetails(false);
+    } else {
       setLoadingDetails(true);
+    }
+
+    try {
       const res = await apiClient<{ order: any }>(`/api/orders/${encodeURIComponent(orderNo)}?dept=knitting`);
-      setOrderDetails(res.order || null);
+      const order = res.order || null;
+      if (order) {
+        cachedProductInfo.details.set(orderNo, order);
+      }
+      setOrderDetails(order);
     } catch (err) {
       console.error('Failed to load order specs:', err);
     } finally {
@@ -270,26 +279,54 @@ export default function ProductInfoPage() {
       return [];
     };
 
-    const metricResults = PI_METRIC_RULES.map((metric) => {
-      const items = getItemsBySource(metric.source);
-      const colorValues = colors.map((c) => {
-        const matchingItems = items.filter((item: any) => {
-          const color = getColor(item).toLowerCase().replace(/\s+/g, ' ');
-          return color === c.key;
-        });
+    // Pre-group items by normalized color key for fast O(1) lookups
+    const groupItemsByColor = (items: any[]) => {
+      const g = new Map<string, any[]>();
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const color = getColor(item).toLowerCase().replace(/\s+/g, ' ');
+        if (!color) continue;
+        let arr = g.get(color);
+        if (!arr) {
+          arr = [];
+          g.set(color, arr);
+        }
+        arr.push(item);
+      }
+      return g;
+    };
 
-        if (matchingItems.length === 0) return null;
+    const groupedKnitting = groupItemsByColor(rawKnittingItems);
+    const groupedDyeing = groupItemsByColor(rawDyeingItems);
+    const groupedDelivery = groupItemsByColor(rawDeliveryItems);
+
+    const getGroupedBySource = (source: string) => {
+      if (source === 'knitting' && rawKnittingItems.length > 0) return groupedKnitting;
+      if (source === 'dyeing' && rawDyeingItems.length > 0) return groupedDyeing;
+      if (source === 'delivery' && rawDeliveryItems.length > 0) return groupedDelivery;
+      if (rawKnittingItems.length > 0) return groupedKnitting;
+      if (rawDyeingItems.length > 0) return groupedDyeing;
+      if (rawDeliveryItems.length > 0) return groupedDelivery;
+      return new Map<string, any[]>();
+    };
+
+    const metricResults = PI_METRIC_RULES.map((metric) => {
+      const grouped = getGroupedBySource(metric.source);
+      const colorValues = colors.map((c) => {
+        const matchingItems = grouped.get(c.key);
+        if (!matchingItems || matchingItems.length === 0) return null;
 
         let sum = 0;
         let count = 0;
-        matchingItems.forEach((item: any) => {
+        for (let i = 0; i < matchingItems.length; i++) {
+          const item = matchingItems[i];
           const raw = getColData(item, metric.fields, null);
           const val = parseNum(raw);
           if (val !== null) {
             sum += val;
             count++;
           }
-        });
+        }
 
         if (count === 0) return null;
         return metric.mode === 'average' ? sum / count : sum;
@@ -407,7 +444,7 @@ export default function ProductInfoPage() {
           </p>
         </div>
 
-        <button onClick={fetchOrders} className="btn btn-outline btn-sm gap-2">
+        <button onClick={() => fetchOrders(true)} className="btn btn-outline btn-sm gap-2">
           <RefreshCw className="h-4 w-4" /> Refresh
         </button>
       </div>

@@ -372,10 +372,14 @@ export function makeTemplate(role: string) {
   return p;
 }
 
+// Module-level cache for instant tab loading
+let cachedUsers: any[] | null = null;
+let cachedBuyersList: { id: string; name: string }[] | null = null;
+
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [buyersList, setBuyersList] = useState<{ id: string; name: string }[]>([]);
+  const [users, setUsers] = useState<any[]>(() => cachedUsers || []);
+  const [loading, setLoading] = useState(() => !cachedUsers);
+  const [buyersList, setBuyersList] = useState<{ id: string; name: string }[]>(() => cachedBuyersList || []);
 
   // Search & Filters
   const [search, setSearch] = useState('');
@@ -419,9 +423,10 @@ export default function UserManagementPage() {
   // 1. Fetch Users
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      if (!cachedUsers) setLoading(true);
       const data = await apiClient<any[]>('/api/auth/users');
-      setUsers(data || []);
+      cachedUsers = data || [];
+      setUsers(cachedUsers);
     } catch (err: any) {
       showToast(err.message || 'Failed to fetch users', true);
     } finally {
@@ -441,7 +446,8 @@ export default function UserManagementPage() {
       formatted.forEach((item) => {
         if (item.id && !uniqueMap.has(item.id)) uniqueMap.set(item.id, item);
       });
-      setBuyersList(Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      cachedBuyersList = Array.from(uniqueMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setBuyersList(cachedBuyersList);
     } catch {}
   };
 

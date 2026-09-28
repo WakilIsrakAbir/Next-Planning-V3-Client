@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Gauge,
@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx';
 import { API_BASE } from '@/lib/constants';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
+import { getColData, _norm, _getRowMap } from '@/lib/data-utils';
 
 const LOAD_DEPTS = [
   { key: 'yd', label: 'YD', pendingQtyField: 'YD DELIVERY BALANCE', colorClass: 'bg-purple-600 hover:bg-purple-700 text-white', activeClass: 'bg-purple-600 text-white border-purple-600 shadow-md' },
@@ -108,33 +109,6 @@ const LOAD_REPORT_CONFIG: Record<
 
 // Persistent module-level cache identical to Exp globalLoadData
 const cachedGlobalLoadData: Record<string, any[]> = {};
-
-// Key normalizer for flexible header matching
-const _normCache = new Map<string, string>();
-function _norm(key: any): string {
-  if (key === undefined || key === null) return '';
-  const s = String(key);
-  if (_normCache.has(s)) return _normCache.get(s)!;
-  const n = s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  _normCache.set(s, n);
-  return n;
-}
-
-function getColData(row: any, keys: string[]): any {
-  if (!row) return '';
-  const map: Record<string, string> = {};
-  for (const rk in row) {
-    map[_norm(rk)] = rk;
-  }
-  for (const k of keys) {
-    const actual = map[_norm(k)];
-    if (actual !== undefined) {
-      const val = row[actual];
-      return val !== undefined && val !== null ? val : '';
-    }
-  }
-  return '';
-}
 
 function loadNumber(value: any): number {
   if (value === null || value === undefined || value === '') return 0;
@@ -384,52 +358,26 @@ function LoadCalculationContent() {
         if (!planData || !planData[actualDept]) return;
         const excelItems = order[`${actualDept}Items`] || [];
 
+        // Build O(1) Map for excel items to eliminate 30,000+ nested comparisons
+        const excelItemMap = new Map<string, any>();
+        if (Array.isArray(excelItems)) {
+          for (let i = 0; i < excelItems.length; i++) {
+            const ex = excelItems[i];
+            const id = generateItemId(ex, actualDept);
+            if (id) excelItemMap.set(id, ex);
+            const altId = `${order.orderNo}_${getColData(ex, ['Color', 'Colour'])}_${getColData(ex, ['Process Name', 'ProcessName'])}`
+              .toLowerCase()
+              .replace(/\s+/g, '');
+            if (altId) excelItemMap.set(altId, ex);
+          }
+        }
+
         planData[actualDept].forEach((savedItem: any) => {
           let itemData = savedItem.itemData || {};
 
-          // Robust item matching against excel items
-          if (excelItems.length > 0) {
-            let exItem = excelItems.find((ex: any) => {
-              if (savedItem.itemId) {
-                if (generateItemId(ex, actualDept) === savedItem.itemId) return true;
-                const altId = `${order.orderNo}_${getColData(ex, ['Color', 'Colour'])}_${getColData(ex, ['Process Name', 'ProcessName'])}`
-                  .toLowerCase()
-                  .replace(/\s+/g, '');
-                if (altId === savedItem.itemId) return true;
-              }
-              return false;
-            });
-
-            // Fallback match by characteristics
-            if (!exItem) {
-              exItem = excelItems.find((ex: any) => {
-                const c1 = _norm(getColData(ex, ['Color', 'Colour', 'Fab Color']));
-                const c2 = _norm(getColData(itemData, ['Color', 'Colour', 'Fab Color']));
-                if (!c1 || c1 !== c2) return false;
-
-                if (actualDept === 'knitting' || actualDept === 'delivery') {
-                  const f1 = _norm(getColData(ex, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']));
-                  const f2 = _norm(getColData(itemData, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']));
-                  const g1 = _norm(getColData(ex, ['GSM', 'G.S.M']));
-                  const g2 = _norm(getColData(itemData, ['GSM', 'G.S.M']));
-                  return f1 === f2 && g1 === g2;
-                } else if (actualDept === 'yd') {
-                  const t1 = _norm(getColData(ex, ['Booking Type', 'Type', 'YD Type']));
-                  const t2 = _norm(getColData(itemData, ['Booking Type', 'Type', 'YD Type']));
-                  const y1 = _norm(getColData(ex, ['YDB', 'YD B']));
-                  const y2 = _norm(getColData(itemData, ['YDB', 'YD B']));
-                  return t1 === t2 && y1 === y2;
-                } else {
-                  const p1 = _norm(getColData(ex, ['Process Name', 'ProcessName', 'Process']));
-                  const p2 = _norm(getColData(itemData, ['Process Name', 'ProcessName', 'Process']));
-                  return !p1 || !p2 || p1 === p2;
-                }
-              });
-            }
-
-            if (exItem) {
-              itemData = { ...(savedItem.itemData || {}), ...exItem };
-            }
+          // O(1) instant match
+          if (savedItem.itemId && excelItemMap.has(savedItem.itemId)) {
+            itemData = { ...itemData, ...excelItemMap.get(savedItem.itemId) };
           }
 
           const baseRow: Record<string, any> = {};
@@ -675,7 +623,10 @@ function LoadCalculationContent() {
     }
   };
 
-  const summaryData = buildSummaryData(selectedDept);
+  const summaryData = useMemo(
+    () => buildSummaryData(selectedDept),
+    [selectedDept, departmentData, startMonth]
+  );
   const summaryRows = summaryData.rows;
   const grandMonthlyTotals = summaryData.grandMonthlyTotals;
   const grandTotal = summaryData.grandTotal;

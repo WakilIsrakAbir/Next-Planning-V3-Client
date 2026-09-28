@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
+import { getColData, _norm, _getRowMap } from '@/lib/data-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -26,35 +27,6 @@ const DEPARTMENTS: Record<string, { name: string; label: string }> = {
   delivery: { name: 'Delivery Plan', label: 'Delivery' },
   yd: { name: 'YD Plan', label: 'YD' },
 };
-
-// ==========================================================
-// EXP DATA EXTRACTION & FORMATTING HELPERS
-// ==========================================================
-function _norm(str: any): string {
-  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function _getRowMap(row: any): Record<string, string> {
-  const map: Record<string, string> = {};
-  if (!row || typeof row !== 'object') return map;
-  for (const key of Object.keys(row)) {
-    map[_norm(key)] = key;
-  }
-  return map;
-}
-
-function getColData(row: any, keys: string[]): any {
-  if (!row || typeof row !== 'object') return '';
-  const map = _getRowMap(row);
-  for (const k of keys) {
-    const actual = map[_norm(k)];
-    if (actual !== undefined) {
-      const val = row[actual];
-      return val === undefined || val === null ? '' : val;
-    }
-  }
-  return '';
-}
 
 function formatDateDisplay(d: any): string {
   if (!d || d === '-' || d === 'N/A') return '—';
