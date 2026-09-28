@@ -14,9 +14,16 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
-import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 import { getColData, _norm, _getRowMap } from '@/lib/data-utils';
+import {
+  findPrecachedOrder,
+  getPrecachedOrderDetail,
+  setPrecachedOrderDetail,
+  cachedDropdownOptions,
+  prefetchDropdowns,
+  invalidateOrderDetailCache,
+} from '@/lib/planning-cache';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -93,6 +100,167 @@ function generateItemId(itemData: any, tabId: string): string {
   }
 }
 
+function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): any[] {
+  if (!currentOrder) return [];
+  const excelItems = currentOrder[`${dept}Items`] || [];
+  const savedItems = (currentPlan && currentPlan[dept]) || [];
+  const planMap = new Map<string, any>();
+  savedItems.forEach((it: any) => {
+    if (it.itemId) planMap.set(it.itemId, it);
+  });
+
+  const merged = excelItems.map((exItem: any, idx: number) => {
+    let itemData: Record<string, any> = {};
+
+    if (dept === 'knitting' || dept === 'delivery') {
+      itemData = {
+        OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+        Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
+        FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
+        GSM: getColData(exItem, ['GSM', 'G.S.M']),
+        RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
+        Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
+        Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Allowance%']),
+        YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req']),
+        AllocatedQty: getColData(exItem, ['Allocated Qty', 'AllocatedQty']),
+        YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala']),
+        GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
+        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
+        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
+        NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
+        NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+        DeliBal: getColData(exItem, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
+        RFD: getColData(exItem, ['RFD']),
+        Slowmoving: getColData(exItem, ['Slowmoving']),
+        FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+      };
+    } else if (dept === 'yd') {
+      itemData = {
+        OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+        'Booking Type': getColData(exItem, ['Booking Type', 'Type', 'YD Type', 'BookingType']),
+        YDB: getColData(exItem, ['YDB', 'YD B', 'YDB#']),
+        'YD Booking Date': getColData(exItem, ['YD Booking Date', 'Date', 'Booking Date', 'YDBookingDate']),
+        'YD T&A Start': getColData(exItem, ['YD T&A Start', 'T&A Start', 'YD T&A Start Date', 'YD TNA Start', 'TNA Start', 'Start Date']),
+        'YD T&A End': getColData(exItem, ['YD T&A End', 'T&A End', 'YD T&A End Date', 'YD TNA End', 'TNA End', 'End Date']),
+        'YD REQ.': getColData(exItem, ['YD REQ.', 'YD REQ', 'YD Req', 'Requirement', 'YDReq']),
+        DYED: getColData(exItem, ['DYED', 'Dyed', 'Dye']),
+        'YD BALANCE': getColData(exItem, ['YD BALANCE', 'YD Balance', 'YDBalance']),
+        'YD Delivered': getColData(exItem, ['YD Delivered', 'Delivered', 'Delivery', 'YDDelivered']),
+        'YD DELIVERY BALANCE': getColData(exItem, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Balance 2', 'YDDeliveryBalance']),
+        'Barrier Qty.': getColData(exItem, ['Barrier Qty.', 'Barrier Qty', 'Barrier', 'BarrierQty']),
+        'Workable Qty.': getColData(exItem, ['Workable Qty.', 'Workable Qty', 'Workable', 'WorkableQty']),
+      };
+    } else {
+      // Dyeing / Finishing
+      itemData = {
+        OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
+        Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
+        FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
+        GSM: getColData(exItem, ['GSM', 'G.S.M']),
+        RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
+        Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
+        Unit: getColData(exItem, ['Unit']),
+        ProcessName: getColData(exItem, ['Process Name', 'ProcessName', 'Process']),
+        GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
+        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
+        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
+        BPQty: getColData(exItem, ['BP Qty', 'BPQty', 'BP Qty.']),
+        DyeingProd: getColData(exItem, ['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod']),
+        DyeingBala: getColData(exItem, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala']),
+        NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
+        NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+        RFD: getColData(exItem, ['RFD']),
+        Slowmoving: getColData(exItem, ['Slowmoving']),
+        FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+      };
+    }
+
+    const genId = generateItemId(itemData, dept);
+    const itemId = exItem.itemId || genId || `item_${idx}`;
+    const saved = planMap.get(itemId) || planMap.get(genId) || savedItems[idx] || {};
+
+    if (saved && saved.itemData) {
+      if (saved.itemData.Unit) itemData.Unit = saved.itemData.Unit;
+      if (saved.itemData.ProcessName) itemData.ProcessName = saved.itemData.ProcessName;
+      if (saved.itemData['Process Name']) itemData['Process Name'] = saved.itemData['Process Name'];
+      if (saved.itemData['Barrier Qty.']) itemData['Barrier Qty.'] = saved.itemData['Barrier Qty.'];
+      if (saved.itemData['Workable Qty.']) itemData['Workable Qty.'] = saved.itemData['Workable Qty.'];
+    }
+
+    return {
+      ...exItem,
+      itemId,
+      itemData,
+      planType: saved.planType || exItem.planType || '',
+      startDate: saved.startDate || saved.planStart || exItem.startDate || '',
+      endDate: saved.endDate || saved.planEnd || exItem.endDate || '',
+      limitation: saved.limitation || exItem.limitation || '',
+      remarks: saved.remarks || exItem.remarks || '',
+      unit: saved.unit || itemData.Unit || exItem.Unit || '',
+      processName: saved.processName || itemData.ProcessName || exItem.ProcessName || exItem['Process Name'] || '',
+      yarnDate: saved.yarnDate || exItem.yarnDate || '',
+      yarnOkDate: saved.yarnOkDate || exItem.yarnOkDate || '',
+      matchingOptionDate: saved.matchingOptionDate || exItem.matchingOptionDate || '',
+      floorStartDate: saved.floorStartDate || exItem.floorStartDate || '',
+      floorEndDate: saved.floorEndDate || exItem.floorEndDate || '',
+      floorPlanType: saved.floorPlanType || exItem.floorPlanType || '',
+      barrierQty: saved.barrierQty !== undefined ? saved.barrierQty : (saved.itemData ? saved.itemData['Barrier Qty.'] : itemData['Barrier Qty.']),
+      workableQty: saved.workableQty !== undefined ? saved.workableQty : (saved.itemData ? saved.itemData['Workable Qty.'] : itemData['Workable Qty.']),
+    };
+  });
+
+  // Parity with Exp detailed-view.js lines 361-380: Delivery Floor default dates from Dyeing plan
+  if (dept === 'delivery') {
+    merged.forEach((item: any) => {
+      const myColor = String(item.itemData.Color || '').trim().toLowerCase();
+      const dItem = currentPlan?.dyeing?.find((d: any) => {
+        const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
+        return c === myColor;
+      });
+      const hasDyePlanType = Boolean(
+        dItem?.planType && dItem.planType !== 'Select' && dItem.planType !== '-' && dItem.planType !== ''
+      );
+
+      if (hasDyePlanType) {
+        const dyeStart = dItem?.startDate || dItem?.planStart;
+        const dyeEnd = dItem?.endDate || dItem?.planEnd;
+
+        if (!item.floorStartDate && dyeStart) {
+          const d = new Date(dyeStart);
+          d.setDate(d.getDate() + 7);
+          item.floorStartDate = d.toISOString().split('T')[0];
+        }
+        if (!item.floorEndDate && dyeEnd) {
+          const d = new Date(dyeEnd);
+          d.setDate(d.getDate() + 7);
+          item.floorEndDate = d.toISOString().split('T')[0];
+        }
+        if (!item.floorPlanType) {
+          item.floorPlanType = 'Tentative';
+        }
+      }
+    });
+  }
+
+  // Parity with Exp detailed-view.js lines 472-484: YD Floor default dates from YD plan (startDate - 4 days)
+  if (dept === 'yd') {
+    merged.forEach((item: any) => {
+      if (!item.floorStartDate && item.startDate) {
+        const d = new Date(item.startDate);
+        d.setDate(d.getDate() - 4);
+        item.floorStartDate = d.toISOString().split('T')[0];
+      }
+      if (!item.floorEndDate && item.endDate) {
+        const d = new Date(item.endDate);
+        d.setDate(d.getDate() - 4);
+        item.floorEndDate = d.toISOString().split('T')[0];
+      }
+    });
+  }
+
+  return merged;
+}
+
 export default function OrderPlanningDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -100,18 +268,33 @@ export default function OrderPlanningDetailPage() {
   const dept = (params.dept as string)?.toLowerCase() || 'knitting';
   const orderNo = params.orderNo as string;
 
-  const [loading, setLoading] = useState(true);
+  // 0. High-speed initial hydration: check cache & list header (0ms instant render)
+  const cachedDetail = getPrecachedOrderDetail(dept, orderNo);
+  const precachedHeader = findPrecachedOrder(orderNo);
+
+  const [loading, setLoading] = useState<boolean>(() => !cachedDetail);
+  const [notFound, setNotFound] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
-  const [order, setOrder] = useState<any>(null);
-  const [planData, setPlanData] = useState<any>(null);
-  const [planItems, setPlanItems] = useState<any[]>([]);
-  const [orderStatus, setOrderStatus] = useState<string>('On Process');
+  const [order, setOrder] = useState<any>(() => cachedDetail?.order || precachedHeader || { orderNo });
+  const [planData, setPlanData] = useState<any>(() => cachedDetail?.planData || null);
+  const [planItems, setPlanItems] = useState<any[]>(() => {
+    if (cachedDetail?.order) {
+      return buildMergedItems(cachedDetail.order, cachedDetail.planData, dept);
+    }
+    return [];
+  });
+  const [orderStatus, setOrderStatus] = useState<string>(() => {
+    if (cachedDetail?.planData?.[`${dept}Status`]) {
+      return cachedDetail.planData[`${dept}Status`];
+    }
+    return 'On Process';
+  });
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
   // Dynamic dropdown options for Dyeing / Finishing
-  const [unitOptions, setUnitOptions] = useState<string[]>(['EFL', 'EKL', 'Ext', 'Outside']);
-  const [processOptions, setProcessOptions] = useState<string[]>([
+  const [unitOptions, setUnitOptions] = useState<string[]>(() => cachedDropdownOptions?.units || ['EFL', 'EKL', 'Ext', 'Outside']);
+  const [processOptions, setProcessOptions] = useState<string[]>(() => cachedDropdownOptions?.processes || [
     'Solid',
     'Dyeing Wash',
     'HTR',
@@ -150,37 +333,33 @@ export default function OrderPlanningDetailPage() {
   }, [dept, orderNo]);
 
   const fetchOrderAndDropdowns = async () => {
-    setLoading(true);
+    // Only set loading if items are not already populated from cache
+    if (planItems.length === 0) {
+      setLoading(true);
+    }
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      // 1. Fetch dropdown options
-      try {
-        const ddRes = await fetch(`${API_BASE}/api/dropdowns`, { headers });
-        if (ddRes.ok) {
-          const ddData = await ddRes.json();
-          if (ddData.units && ddData.units.length > 0) {
-            setUnitOptions(ddData.units.map((u: any) => u.name));
-          }
-          if (ddData.processes && ddData.processes.length > 0) {
-            setProcessOptions(ddData.processes.map((p: any) => p.name));
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load dropdowns:', e);
+      // Parallelize dropdowns fetch & order detail fetch
+      const [orderRes, ddData] = await Promise.all([
+        fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`, { headers }),
+        cachedDropdownOptions ? Promise.resolve(null) : prefetchDropdowns(),
+      ]);
+
+      if (ddData) {
+        if (ddData.units && ddData.units.length > 0) setUnitOptions(ddData.units);
+        if (ddData.processes && ddData.processes.length > 0) setProcessOptions(ddData.processes);
       }
 
-      // 2. Fetch Order Details
-      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`, {
-        headers,
-      });
-
-      if (!res.ok) {
+      if (!orderRes.ok) {
+        if (orderRes.status === 404) {
+          setNotFound(true);
+        }
         throw new Error(`Failed to load order #${orderNo}`);
       }
 
-      const data = await res.json();
+      const data = await orderRes.json();
       const currentOrder = data.order || {};
       const currentPlan = data.planData || {};
 
@@ -194,166 +373,16 @@ export default function OrderPlanningDetailPage() {
       }
 
       // Merge raw items with saved plan data using Exp detailed-view.js logic
-      const excelItems = currentOrder[`${dept}Items`] || [];
-      const savedItems = (currentPlan && currentPlan[dept]) || [];
-      const planMap = new Map<string, any>();
-      savedItems.forEach((it: any) => {
-        if (it.itemId) planMap.set(it.itemId, it);
-      });
-
-      const merged = excelItems.map((exItem: any, idx: number) => {
-        let itemData: Record<string, any> = {};
-
-        if (dept === 'knitting' || dept === 'delivery') {
-          itemData = {
-            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
-            Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
-            FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
-            GSM: getColData(exItem, ['GSM', 'G.S.M']),
-            RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
-            Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
-            Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Allowance%']),
-            YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req']),
-            AllocatedQty: getColData(exItem, ['Allocated Qty', 'AllocatedQty']),
-            YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala']),
-            GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
-            KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
-            KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
-            NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
-            NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
-            DeliBal: getColData(exItem, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
-            RFD: getColData(exItem, ['RFD']),
-            Slowmoving: getColData(exItem, ['Slowmoving']),
-            FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
-          };
-        } else if (dept === 'yd') {
-          itemData = {
-            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
-            'Booking Type': getColData(exItem, ['Booking Type', 'Type', 'YD Type', 'BookingType']),
-            YDB: getColData(exItem, ['YDB', 'YD B', 'YDB#']),
-            'YD Booking Date': getColData(exItem, ['YD Booking Date', 'Date', 'Booking Date', 'YDBookingDate']),
-            'YD T&A Start': getColData(exItem, ['YD T&A Start', 'T&A Start', 'YD T&A Start Date', 'YD TNA Start', 'TNA Start', 'Start Date']),
-            'YD T&A End': getColData(exItem, ['YD T&A End', 'T&A End', 'YD T&A End Date', 'YD TNA End', 'TNA End', 'End Date']),
-            'YD REQ.': getColData(exItem, ['YD REQ.', 'YD REQ', 'YD Req', 'Requirement', 'YDReq']),
-            DYED: getColData(exItem, ['DYED', 'Dyed', 'Dye']),
-            'YD BALANCE': getColData(exItem, ['YD BALANCE', 'YD Balance', 'YDBalance']),
-            'YD Delivered': getColData(exItem, ['YD Delivered', 'Delivered', 'Delivery', 'YDDelivered']),
-            'YD DELIVERY BALANCE': getColData(exItem, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Balance 2', 'YDDeliveryBalance']),
-            'Barrier Qty.': getColData(exItem, ['Barrier Qty.', 'Barrier Qty', 'Barrier', 'BarrierQty']),
-            'Workable Qty.': getColData(exItem, ['Workable Qty.', 'Workable Qty', 'Workable', 'WorkableQty']),
-          };
-        } else {
-          // Dyeing / Finishing
-          itemData = {
-            OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
-            Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
-            FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
-            GSM: getColData(exItem, ['GSM', 'G.S.M']),
-            RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
-            Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
-            Unit: getColData(exItem, ['Unit']),
-            ProcessName: getColData(exItem, ['Process Name', 'ProcessName', 'Process']),
-            GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
-            KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
-            KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
-            BPQty: getColData(exItem, ['BP Qty', 'BPQty', 'BP Qty.']),
-            DyeingProd: getColData(exItem, ['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod']),
-            DyeingBala: getColData(exItem, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala']),
-            NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
-            NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
-            RFD: getColData(exItem, ['RFD']),
-            Slowmoving: getColData(exItem, ['Slowmoving']),
-            FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
-          };
-        }
-
-        const genId = generateItemId(itemData, dept);
-        const itemId = exItem.itemId || genId || `item_${idx}`;
-        const saved = planMap.get(itemId) || planMap.get(genId) || savedItems[idx] || {};
-
-        if (saved && saved.itemData) {
-          if (saved.itemData.Unit) itemData.Unit = saved.itemData.Unit;
-          if (saved.itemData.ProcessName) itemData.ProcessName = saved.itemData.ProcessName;
-          if (saved.itemData['Process Name']) itemData['Process Name'] = saved.itemData['Process Name'];
-          if (saved.itemData['Barrier Qty.']) itemData['Barrier Qty.'] = saved.itemData['Barrier Qty.'];
-          if (saved.itemData['Workable Qty.']) itemData['Workable Qty.'] = saved.itemData['Workable Qty.'];
-        }
-
-        return {
-          ...exItem,
-          itemId,
-          itemData,
-          planType: saved.planType || exItem.planType || '',
-          startDate: saved.startDate || saved.planStart || exItem.startDate || '',
-          endDate: saved.endDate || saved.planEnd || exItem.endDate || '',
-          limitation: saved.limitation || exItem.limitation || '',
-          remarks: saved.remarks || exItem.remarks || '',
-          unit: saved.unit || itemData.Unit || exItem.Unit || '',
-          processName: saved.processName || itemData.ProcessName || exItem.ProcessName || exItem['Process Name'] || '',
-          yarnDate: saved.yarnDate || exItem.yarnDate || '',
-          yarnOkDate: saved.yarnOkDate || exItem.yarnOkDate || '',
-          matchingOptionDate: saved.matchingOptionDate || exItem.matchingOptionDate || '',
-          floorStartDate: saved.floorStartDate || exItem.floorStartDate || '',
-          floorEndDate: saved.floorEndDate || exItem.floorEndDate || '',
-          floorPlanType: saved.floorPlanType || exItem.floorPlanType || '',
-          barrierQty: saved.barrierQty !== undefined ? saved.barrierQty : (saved.itemData ? saved.itemData['Barrier Qty.'] : itemData['Barrier Qty.']),
-          workableQty: saved.workableQty !== undefined ? saved.workableQty : (saved.itemData ? saved.itemData['Workable Qty.'] : itemData['Workable Qty.']),
-        };
-      });
-
-      // Parity with Exp detailed-view.js lines 361-380: Delivery Floor default dates from Dyeing plan
-      if (dept === 'delivery') {
-        merged.forEach((item: any) => {
-          const myColor = String(item.itemData.Color || '').trim().toLowerCase();
-          const dItem = currentPlan?.dyeing?.find((d: any) => {
-            const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
-            return c === myColor;
-          });
-          const hasDyePlanType = Boolean(
-            dItem?.planType && dItem.planType !== 'Select' && dItem.planType !== '-' && dItem.planType !== ''
-          );
-
-          if (hasDyePlanType) {
-            const dyeStart = dItem?.startDate || dItem?.planStart;
-            const dyeEnd = dItem?.endDate || dItem?.planEnd;
-
-            if (!item.floorStartDate && dyeStart) {
-              const d = new Date(dyeStart);
-              d.setDate(d.getDate() + 7);
-              item.floorStartDate = d.toISOString().split('T')[0];
-            }
-            if (!item.floorEndDate && dyeEnd) {
-              const d = new Date(dyeEnd);
-              d.setDate(d.getDate() + 7);
-              item.floorEndDate = d.toISOString().split('T')[0];
-            }
-            if (!item.floorPlanType) {
-              item.floorPlanType = 'Tentative';
-            }
-          }
-        });
-      }
-
-      // Parity with Exp detailed-view.js lines 472-484: YD Floor default dates from YD plan (startDate - 4 days)
-      if (dept === 'yd') {
-        merged.forEach((item: any) => {
-          if (!item.floorStartDate && item.startDate) {
-            const d = new Date(item.startDate);
-            d.setDate(d.getDate() - 4);
-            item.floorStartDate = d.toISOString().split('T')[0];
-          }
-          if (!item.floorEndDate && item.endDate) {
-            const d = new Date(item.endDate);
-            d.setDate(d.getDate() - 4);
-            item.floorEndDate = d.toISOString().split('T')[0];
-          }
-        });
-      }
-
+      const merged = buildMergedItems(currentOrder, currentPlan, dept);
       setPlanItems(merged);
+
+      // Save to client cache for 0ms subsequent returns
+      setPrecachedOrderDetail(dept, orderNo, { order: currentOrder, planData: currentPlan });
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Error loading order details.');
+      if (planItems.length === 0) {
+        showToast(err.message || 'Error loading order details.');
+      }
     } finally {
       setLoading(false);
     }
@@ -1032,6 +1061,7 @@ export default function OrderPlanningDetailPage() {
         throw new Error(errorData.message || 'Failed to save planning schedule.');
       }
 
+      invalidateOrderDetailCache(orderNo);
       showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
       fetchOrderAndDropdowns();
     } catch (err: any) {
@@ -1041,19 +1071,7 @@ export default function OrderPlanningDetailPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center flex-col">
-        <ExpLoadingSpinner
-          message={`Loading detailed planning schedule for Order #${orderNo}...`}
-          subMessage="Fetching synchronized item milestones and master dropdown options"
-          overlay={false}
-        />
-      </div>
-    );
-  }
-
-  if (!order) {
+  if (notFound && !loading) {
     return (
       <div className="p-8 text-center max-w-lg mx-auto">
         <AlertCircle className="h-12 w-12 text-error mx-auto mb-3" />
@@ -1880,7 +1898,28 @@ export default function OrderPlanningDetailPage() {
 
             {/* Table Body */}
             <tbody className="text-[10px] bg-white dark:bg-[#151921] text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-[#2a3346]">
-              {planItems.map((item, idx) => {
+              {loading && planItems.length === 0 ? (
+                <tr>
+                  <td colSpan={30} className="p-12 text-center text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <InlineSpinner size={22} className="text-emerald-500" />
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                        Loading {deptMeta.name} items & milestones...
+                      </span>
+                      <span className="text-[11px] text-gray-400">
+                        Synchronizing order plan details from database
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : planItems.length === 0 ? (
+                <tr>
+                  <td colSpan={30} className="p-10 text-center text-gray-400 text-xs">
+                    No {deptMeta.name} fabric items found for Order #{orderNo}.
+                  </td>
+                </tr>
+              ) : (
+                planItems.map((item, idx) => {
                 const { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected } = getUpstreamPlans(item);
 
                 // Gating checks matching Exp detailed-view.js:
@@ -2566,8 +2605,9 @@ export default function OrderPlanningDetailPage() {
                     )}
                   </tr>
                 );
-              })}
-            </tbody>
+              })
+            )}
+          </tbody>
           </table>
         </div>
 

@@ -15,7 +15,7 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
-import { cachedPlanningOrders, cachedDeptBuyers } from '@/lib/planning-cache';
+import { cachedPlanningOrders, cachedDeptBuyers, prefetchOrderDetail } from '@/lib/planning-cache';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -425,6 +425,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
                       <Link
                         href={`/planning/${dept}/${encodeURIComponent(o.orderNo)}`}
+                        onMouseEnter={() => prefetchOrderDetail(dept, o.orderNo)}
                         className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded hover:bg-emerald-600 hover:text-white transition shadow-sm inline-flex items-center"
                         title="View/Edit detailed planning"
                       >
@@ -435,6 +436,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-emerald-700 dark:text-emerald-400 font-bold">
                       <Link
                         href={`/planning/${dept}/${encodeURIComponent(o.orderNo)}`}
+                        onMouseEnter={() => prefetchOrderDetail(dept, o.orderNo)}
                         className="hover:underline"
                       >
                         {o.orderNo}

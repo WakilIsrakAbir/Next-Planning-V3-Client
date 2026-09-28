@@ -4,16 +4,17 @@ import React from 'react';
 
 interface InlineSpinnerProps {
   size?: number; // px, default 14
+  className?: string;
 }
 
 /**
  * Compact colorful dual-ring spinner for use inside buttons.
  * Matches the ExpLoadingSpinner palette (emerald outer, teal inner).
  */
-export default function InlineSpinner({ size = 14 }: InlineSpinnerProps) {
+export default function InlineSpinner({ size = 14, className = '' }: InlineSpinnerProps) {
   return (
     <span
-      className="inline-flex items-center justify-center relative flex-shrink-0"
+      className={`inline-flex items-center justify-center relative flex-shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
       {/* Outer emerald ring */}
