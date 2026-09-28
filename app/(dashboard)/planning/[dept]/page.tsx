@@ -15,13 +15,11 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
+import { cachedPlanningOrders, cachedDeptBuyers } from '@/lib/planning-cache';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
 }
-
-const cachedPlanningOrders: Record<string, { orders: any[]; totalPages: number; total: number }> = {};
-const cachedDeptBuyers: Record<string, string[]> = {};
 
 export default function DepartmentPlanningPage({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -39,7 +37,7 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
 
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
   const [loading, setLoading] = useState(() => !initialCache);
-  const [availableBuyers, setAvailableBuyers] = useState<string[]>(() => cachedDeptBuyers[dept] || []);
+  const [availableBuyers, setAvailableBuyers] = useState<string[]>(() => cachedDeptBuyers[dept] || initialCache?.buyers || []);
   const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
   const [totalOrders, setTotalOrders] = useState(() => initialCache?.total || 0);
 
@@ -49,28 +47,36 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
   const [colSearchBuyer, setColSearchBuyer] = useState('');
   const [colSearchStatus, setColSearchStatus] = useState('');
 
-  // Fetch buyers for this department
+  // Synchronize state immediately whenever dept changes (Exp matching 0ms instant display)
   useEffect(() => {
+    setActiveBuyer('');
+    setActiveTab('Pending');
+    setPage(1);
+    setGlobalSearch('');
+    setColSearchOrder('');
+    setColSearchDate('');
+    setColSearchBuyer('');
+    setColSearchStatus('');
+
+    const defaultKey = `${dept}_Pending__1_10_`;
+    const cached = cachedPlanningOrders[defaultKey];
+    if (cached) {
+      setOrders(cached.orders);
+      setTotalPages(cached.totalPages);
+      setTotalOrders(cached.total);
+      setLoading(false);
+      if (cached.buyers && cached.buyers.length > 0) {
+        setAvailableBuyers(cached.buyers);
+      }
+    } else {
+      setLoading(true);
+    }
     if (cachedDeptBuyers[dept]) {
       setAvailableBuyers(cachedDeptBuyers[dept]);
     }
-    const fetchBuyers = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/orders/buyers/${dept}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          cachedDeptBuyers[dept] = data || [];
-          setAvailableBuyers(data || []);
-        }
-      } catch {}
-    };
-    fetchBuyers();
   }, [dept]);
 
-  // Fetch paginated department orders with SWR (Stale-While-Revalidate)
+  // Fetch paginated department orders with SWR (Single combined call matching Exp)
   const fetchOrders = async () => {
     const key = `${dept}_${activeTab}_${activeBuyer}_${page}_${limit}_${globalSearch}`;
     if (cachedPlanningOrders[key]) {
@@ -103,8 +109,13 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
         const ords = data.orders || [];
         const tPages = data.totalPages || 1;
         const total = data.total || 0;
+        const buyers = data.buyers || [];
 
-        cachedPlanningOrders[key] = { orders: ords, totalPages: tPages, total };
+        cachedPlanningOrders[key] = { orders: ords, totalPages: tPages, total, buyers };
+        if (buyers.length > 0) {
+          cachedDeptBuyers[dept] = buyers;
+          setAvailableBuyers(buyers);
+        }
         setOrders(ords);
         setTotalPages(tPages);
         setTotalOrders(total);
@@ -271,7 +282,14 @@ export default function DepartmentPlanningPage({ params }: PageProps) {
 
       {/* Main Table Container matching Exp dataTableContentWrapper */}
       <div className="border border-gray-300 dark:border-[#2a3346] w-full bg-white dark:bg-[#151921] rounded-sm shadow-sm overflow-hidden min-h-[380px] relative flex flex-col">
-        {loading && <ExpLoadingSpinner message="Processing Department Data..." />}
+        {loading && orders.length === 0 && (
+          <ExpLoadingSpinner message="Processing Department Data..." />
+        )}
+        {loading && orders.length > 0 && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500/20 overflow-hidden z-30 pointer-events-none">
+            <div className="h-full bg-emerald-500 animate-pulse w-full"></div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto custom-scrollbar w-full">
           <table className="w-full text-left whitespace-nowrap min-w-[1000px] border-collapse">

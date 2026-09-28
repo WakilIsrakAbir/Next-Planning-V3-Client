@@ -21,6 +21,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { IUser } from '@/types/user';
+import { prefetchOrderManagement } from '@/lib/planning-cache';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -307,7 +308,13 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
             const isExpanded = openSections[group.key] ?? false;
 
             return (
-              <div key={group.key} className="rounded-lg overflow-hidden">
+              <div
+                key={group.key}
+                className="rounded-lg overflow-hidden"
+                onMouseEnter={() => {
+                  if (group.key === 'orderManagement') prefetchOrderManagement();
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => toggleSection(group.key)}

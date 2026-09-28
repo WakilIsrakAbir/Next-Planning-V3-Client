@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { API_BASE } from '@/lib/constants';
+import { prefetchOrderManagement } from '@/lib/planning-cache';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
     setAuthorized(true);
+    // Background prefetch for all 5 Order Management department views
+    prefetchOrderManagement();
 
     // Heartbeat daemon to maintain online status
     const pingHeartbeat = async () => {
