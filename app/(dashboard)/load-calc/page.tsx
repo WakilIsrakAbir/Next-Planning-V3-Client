@@ -7,23 +7,21 @@ import {
   Download,
   Calendar,
   Layers,
-  CheckCircle2,
-  RefreshCw,
-  Building2,
   FileSpreadsheet,
   TrendingUp,
+  HandMetal,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { API_BASE } from '@/lib/constants';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
 const LOAD_DEPTS = [
-  { key: 'knitting', label: 'Knitting', pendingQtyField: 'KnitBala' },
-  { key: 'dyeing', label: 'Dyeing', pendingQtyField: 'DyeingBala' },
-  { key: 'delivery', label: 'Delivery', pendingQtyField: 'DeliBal' },
-  { key: 'yd', label: 'YD', pendingQtyField: 'YD DELIVERY BALANCE' },
-  { key: 'deliveryfloor', label: 'Delivery (Floor)', pendingQtyField: 'DeliBal' },
+  { key: 'yd', label: 'YD', pendingQtyField: 'YD DELIVERY BALANCE', colorClass: 'bg-purple-600 hover:bg-purple-700 text-white', activeClass: 'bg-purple-600 text-white border-purple-600 shadow-md' },
+  { key: 'knitting', label: 'Knitting', pendingQtyField: 'KnitBala', colorClass: 'bg-blue-600 hover:bg-blue-700 text-white', activeClass: 'bg-blue-600 text-white border-blue-600 shadow-md' },
+  { key: 'dyeing', label: 'Dyeing', pendingQtyField: 'DyeingBala', colorClass: 'bg-green-600 hover:bg-green-700 text-white', activeClass: 'bg-green-600 text-white border-green-600 shadow-md' },
+  { key: 'delivery', label: 'Delivery', pendingQtyField: 'DeliBal', colorClass: 'bg-orange-500 hover:bg-orange-600 text-white', activeClass: 'bg-orange-500 text-white border-orange-500 shadow-md' },
+  { key: 'deliveryfloor', label: 'Delivery (Floor)', pendingQtyField: 'DeliBal', colorClass: 'bg-amber-600 hover:bg-amber-700 text-white', activeClass: 'bg-amber-600 text-white border-amber-600 shadow-md' },
 ];
 
 const LOAD_REPORT_CONFIG: Record<
@@ -112,8 +110,14 @@ const LOAD_REPORT_CONFIG: Record<
 const cachedGlobalLoadData: Record<string, any[]> = {};
 
 // Key normalizer for flexible header matching
-function _norm(key: string): string {
-  return String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+const _normCache = new Map<string, string>();
+function _norm(key: any): string {
+  if (key === undefined || key === null) return '';
+  const s = String(key);
+  if (_normCache.has(s)) return _normCache.get(s)!;
+  const n = s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  _normCache.set(s, n);
+  return n;
 }
 
 function getColData(row: any, keys: string[]): any {
@@ -142,28 +146,47 @@ function loadNumber(value: any): number {
 function generateItemId(itemData: any, dept: string): string {
   if (!itemData) return '';
   const currentDept = dept.replace('_report', '');
-  const bNo = String(itemData.OrderNo !== undefined && itemData.OrderNo !== null ? itemData.OrderNo : 'N/A').trim();
-  const color = String(itemData.Color !== undefined && itemData.Color !== null ? itemData.Color : 'N/A').trim();
+  const bNo = String(
+    itemData.OrderNo !== undefined && itemData.OrderNo !== null
+      ? itemData.OrderNo
+      : itemData['Booking No.'] || itemData['Order No'] || itemData.BookingNo || 'N/A'
+  ).trim();
+  const color = String(
+    itemData.Color !== undefined && itemData.Color !== null
+      ? itemData.Color
+      : itemData.Colour || itemData['Fab Color'] || 'N/A'
+  ).trim();
 
   if (currentDept === 'knitting' || currentDept === 'delivery' || currentDept === 'deliveryfloor') {
     const fabConst = String(
       itemData.FabricConstruction !== undefined && itemData.FabricConstruction !== null
         ? itemData.FabricConstruction
-        : 'N/A'
+        : itemData.Construction || itemData['Fab Const'] || itemData.Fabric || 'N/A'
     ).trim();
-    const gsm = String(itemData.GSM !== undefined && itemData.GSM !== null ? itemData.GSM : 'N/A').trim();
+    const gsm = String(
+      itemData.GSM !== undefined && itemData.GSM !== null
+        ? itemData.GSM
+        : itemData['G.S.M'] || 'N/A'
+    ).trim();
     return `${bNo}_${color}_${fabConst}_${gsm}`.toLowerCase().replace(/\s+/g, '');
   } else if (currentDept === 'yd') {
     const type = String(
       itemData['Booking Type'] !== undefined && itemData['Booking Type'] !== null
         ? itemData['Booking Type']
-        : 'N/A'
+        : itemData.Type || itemData['YD Type'] || 'N/A'
     ).trim();
-    const ydb = String(itemData.YDB !== undefined && itemData.YDB !== null ? itemData.YDB : 'N/A').trim();
+    const ydb = String(
+      itemData.YDB !== undefined && itemData.YDB !== null
+        ? itemData.YDB
+        : itemData['YD B'] || 'N/A'
+    ).trim();
     return `${bNo}_${type}_${ydb}`.toLowerCase().replace(/\s+/g, '');
   } else {
+    // dyeing / finishing
     const procName = String(
-      itemData.ProcessName !== undefined && itemData.ProcessName !== null ? itemData.ProcessName : 'N/A'
+      itemData.ProcessName !== undefined && itemData.ProcessName !== null
+        ? itemData.ProcessName
+        : itemData['Process Name'] || itemData.Process || ''
     ).trim();
     return `${bNo}_${color}_${procName}`.toLowerCase().replace(/\s+/g, '');
   }
@@ -231,7 +254,7 @@ function calculateLoadAllocation(pendingQty: any, planStartVal: any, planEndVal:
   const emptyResult = { leadDay: 0, loadPerDay: 0, monthlyLoads: [0, 0, 0, 0, 0] };
   if (!planStart || !planEnd || qty <= 0) return emptyResult;
 
-  if (planEnd <= today) {
+  if (planEnd.getTime() <= today.getTime()) {
     return {
       leadDay: 1,
       loadPerDay: Math.round(qty),
@@ -305,7 +328,7 @@ function LoadCalculationContent() {
     }
   }, [tabParam]);
 
-  // Initial state: matching Exp, starts unselected for immediate 0s page load
+  // Initial state: starts unselected for immediate 0s page load, matching Exp showLoadCalculation
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloadingDept, setDownloadingDept] = useState<string | null>(null);
@@ -324,7 +347,7 @@ function LoadCalculationContent() {
   const reportMonths = Array.from({ length: 5 }, (_, i) => addLoadMonths(firstMonth, i));
   const monthLabels = reportMonths.map((d) => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
 
-  // Month options (-12 to +24) matching Exp
+  // Month options (-12 to +24) matching Exp initLoadMonthSelector
   const monthOptions = [];
   for (let i = -12; i <= 24; i++) {
     const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
@@ -362,58 +385,101 @@ function LoadCalculationContent() {
         const excelItems = order[`${actualDept}Items`] || [];
 
         planData[actualDept].forEach((savedItem: any) => {
-          if (savedItem.planType !== 'Confirm' && savedItem.planType !== 'Tentative') return;
-
           let itemData = savedItem.itemData || {};
-          if (excelItems.length > 0 && savedItem.itemId) {
-            const exItem = excelItems.find((ex: any) => generateItemId(ex, actualDept) === savedItem.itemId);
-            if (exItem) itemData = exItem;
+
+          // Robust item matching against excel items
+          if (excelItems.length > 0) {
+            let exItem = excelItems.find((ex: any) => {
+              if (savedItem.itemId) {
+                if (generateItemId(ex, actualDept) === savedItem.itemId) return true;
+                const altId = `${order.orderNo}_${getColData(ex, ['Color', 'Colour'])}_${getColData(ex, ['Process Name', 'ProcessName'])}`
+                  .toLowerCase()
+                  .replace(/\s+/g, '');
+                if (altId === savedItem.itemId) return true;
+              }
+              return false;
+            });
+
+            // Fallback match by characteristics
+            if (!exItem) {
+              exItem = excelItems.find((ex: any) => {
+                const c1 = _norm(getColData(ex, ['Color', 'Colour', 'Fab Color']));
+                const c2 = _norm(getColData(itemData, ['Color', 'Colour', 'Fab Color']));
+                if (!c1 || c1 !== c2) return false;
+
+                if (actualDept === 'knitting' || actualDept === 'delivery') {
+                  const f1 = _norm(getColData(ex, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']));
+                  const f2 = _norm(getColData(itemData, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']));
+                  const g1 = _norm(getColData(ex, ['GSM', 'G.S.M']));
+                  const g2 = _norm(getColData(itemData, ['GSM', 'G.S.M']));
+                  return f1 === f2 && g1 === g2;
+                } else if (actualDept === 'yd') {
+                  const t1 = _norm(getColData(ex, ['Booking Type', 'Type', 'YD Type']));
+                  const t2 = _norm(getColData(itemData, ['Booking Type', 'Type', 'YD Type']));
+                  const y1 = _norm(getColData(ex, ['YDB', 'YD B']));
+                  const y2 = _norm(getColData(itemData, ['YDB', 'YD B']));
+                  return t1 === t2 && y1 === y2;
+                } else {
+                  const p1 = _norm(getColData(ex, ['Process Name', 'ProcessName', 'Process']));
+                  const p2 = _norm(getColData(itemData, ['Process Name', 'ProcessName', 'Process']));
+                  return !p1 || !p2 || p1 === p2;
+                }
+              });
+            }
+
+            if (exItem) {
+              itemData = { ...(savedItem.itemData || {}), ...exItem };
+            }
           }
 
-          const row: Record<string, any> = {};
-          row.OrderNo = order.orderNo;
-          row.Buyer = getColData(itemData, ['Buyer', 'BuyerName', 'Customer']) || order.buyer || '';
-          row.Color = getColData(itemData, ['Color', 'Colour', 'Fab Color']);
-          row.FabricConstruction = getColData(itemData, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']);
-          row.GSM = getColData(itemData, ['GSM', 'G.S.M']);
-          row.RequiredQtyKgs = getColData(itemData, ['RequiredQtyKgs', 'Req Qty', 'Qty']);
-          row.GreyReq = getColData(itemData, ['Grey Req.', 'GreyReq']);
-          row.KnitProd = getColData(itemData, ['Knit Prod.', 'KnitProd']);
-          row.KnitBala = getColData(itemData, ['Knit. Bala.', 'KnitBala']);
-          row.BPQty = getColData(itemData, ['BP Qty', 'BPQty']);
-          row.DyeingProd = getColData(itemData, ['Dyeing Prod.', 'DyeingProd']);
-          row.DyeingBala = getColData(itemData, ['Dyeing Bala.', 'DyeingBala']);
-          row.NetReceivedQtyKgs = getColData(itemData, ['NetReceivedQtyKgs', 'NetReceivedQty']);
-          row.NetDeliveryQtyKgs = getColData(itemData, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']);
-          row.DeliBal = getColData(itemData, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Deli. Bala.', 'Delivery Balance']);
-          row.RFD = getColData(itemData, ['RFD']);
-          row.Slowmoving = getColData(itemData, ['Slowmoving']);
-          row.Unit = getColData(itemData, ['Unit']);
-          row.ProcessName = getColData(itemData, ['Process Name', 'ProcessName', 'Process']);
-          row['Booking Type'] = getColData(itemData, ['Booking Type', 'Type', 'YD Type']);
-          row.YDB = getColData(itemData, ['YDB', 'YD B']);
-          row['YD REQ.'] = getColData(itemData, ['YD REQ.', 'YD REQ', 'Requirement']);
-          row.DYED = getColData(itemData, ['DYED', 'Dyed']);
-          row['YD BALANCE'] = getColData(itemData, ['YD BALANCE', 'YD Balance']);
-          row['YD Delivered'] = getColData(itemData, ['YD Delivered', 'Delivered']);
-          row['YD DELIVERY BALANCE'] = getColData(itemData, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Delivery Balance']);
+          const baseRow: Record<string, any> = {};
+          baseRow.OrderNo = order.orderNo;
+          baseRow.Buyer = getColData(itemData, ['Buyer', 'BuyerName', 'Customer']) || order.buyer || '';
+          baseRow.Color = getColData(itemData, ['Color', 'Colour', 'Fab Color']);
+          baseRow.FabricConstruction = getColData(itemData, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']);
+          baseRow.GSM = getColData(itemData, ['GSM', 'G.S.M']);
+          baseRow.RequiredQtyKgs = getColData(itemData, ['RequiredQtyKgs', 'Req Qty', 'Qty']);
+          baseRow.GreyReq = getColData(itemData, ['Grey Req.', 'GreyReq']);
+          baseRow.KnitProd = getColData(itemData, ['Knit Prod.', 'KnitProd']);
+          baseRow.KnitBala = getColData(itemData, ['Knit. Bala.', 'KnitBala', 'Knit Bala', 'Knitting Balance']);
+          baseRow.BPQty = getColData(itemData, ['BP Qty', 'BPQty']);
+          baseRow.DyeingProd = getColData(itemData, ['Dyeing Prod.', 'DyeingProd']);
+          baseRow.DyeingBala = getColData(itemData, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala', 'Dyeing Balance']);
+          baseRow.NetReceivedQtyKgs = getColData(itemData, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']);
+          baseRow.NetDeliveryQtyKgs = getColData(itemData, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']);
+          baseRow.DeliBal = getColData(itemData, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Deli. Bala.', 'Delivery Balance']);
+          baseRow.RFD = getColData(itemData, ['RFD']);
+          baseRow.Slowmoving = getColData(itemData, ['Slowmoving']);
+          baseRow.Unit = getColData(itemData, ['Unit']);
+          baseRow.ProcessName = getColData(itemData, ['Process Name', 'ProcessName', 'Process']);
+          baseRow['Booking Type'] = getColData(itemData, ['Booking Type', 'Type', 'YD Type']);
+          baseRow.YDB = getColData(itemData, ['YDB', 'YD B']);
+          baseRow['YD REQ.'] = getColData(itemData, ['YD REQ.', 'YD REQ', 'Requirement']);
+          baseRow.DYED = getColData(itemData, ['DYED', 'Dyed']);
+          baseRow['YD BALANCE'] = getColData(itemData, ['YD BALANCE', 'YD Balance']);
+          baseRow['YD Delivered'] = getColData(itemData, ['YD Delivered', 'Delivered']);
+          baseRow['YD DELIVERY BALANCE'] = getColData(itemData, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Balance 2', 'YD Delivery Balance']);
 
           // Calculate DeliBal if missing
-          if (!row.DeliBal || loadNumber(row.DeliBal) === 0) {
-            const req = loadNumber(row.RequiredQtyKgs);
-            const del = loadNumber(row.NetDeliveryQtyKgs);
-            if (req > 0) row.DeliBal = req - del;
+          if (!baseRow.DeliBal || loadNumber(baseRow.DeliBal) === 0) {
+            const req = loadNumber(baseRow.RequiredQtyKgs);
+            const del = loadNumber(baseRow.NetDeliveryQtyKgs);
+            if (req > 0) baseRow.DeliBal = req - del;
           }
 
-          row.planStart = savedItem.startDate;
-          row.planEnd = savedItem.endDate;
-          row.planType = savedItem.planType;
-          rows.push(row);
+          // Regular department row
+          if (savedItem.planType === 'Confirm' || savedItem.planType === 'Tentative') {
+            const regRow = { ...baseRow };
+            regRow.planStart = savedItem.startDate;
+            regRow.planEnd = savedItem.endDate;
+            regRow.planType = savedItem.planType;
+            rows.push(regRow);
+          }
 
-          // Delivery floor logic
+          // Delivery floor row
           if (actualDept === 'delivery' && savedItem.floorStartDate && savedItem.floorEndDate) {
             if (savedItem.floorPlanType === 'Confirm' || savedItem.floorPlanType === 'Tentative') {
-              const floorRow = { ...row };
+              const floorRow = { ...baseRow };
               floorRow.planStart = savedItem.floorStartDate;
               floorRow.planEnd = savedItem.floorEndDate;
               floorRow.planType = savedItem.floorPlanType;
@@ -445,7 +511,7 @@ function LoadCalculationContent() {
     }
   };
 
-  // Build Detailed Report Data matching Exp
+  // Build Detailed Report Data matching Exp buildReportData
   const buildReportData = (deptKey: string | null, customRows?: any[]) => {
     if (!deptKey) {
       return { config: LOAD_REPORT_CONFIG.knitting, reportMonths, headers: [], rows: [] };
@@ -486,7 +552,7 @@ function LoadCalculationContent() {
     return { config, reportMonths, headers, rows };
   };
 
-  // Build Summary Data matching Exp
+  // Build Summary Data matching Exp buildSummaryData
   const buildSummaryData = (deptKey: string | null, customRows?: any[]) => {
     if (!deptKey) {
       return {
@@ -518,8 +584,7 @@ function LoadCalculationContent() {
         buyer,
         monthlyValues,
         total: monthlyValues.reduce((sum, v) => sum + v, 0),
-      }))
-      .filter((r) => r.total > 0);
+      }));
 
     const grandMonthlyTotals = [0, 0, 0, 0, 0];
     summaryRows.forEach((row) => {
@@ -576,28 +641,38 @@ function LoadCalculationContent() {
   };
 
   // Summary Load Excel Download (Matching Exp downloadLoadSummary)
-  const downloadSummaryExcel = () => {
-    if (!selectedDept) return;
-    const { config, reportMonths: rMonths, headers, rows, grandMonthlyTotals, grandTotal } = buildSummaryData(selectedDept);
-    if (!rows.length) {
-      alert(`No ${config.name} summary data found.`);
-      return;
+  const downloadSummaryExcel = async (deptKey?: string) => {
+    const targetDept = deptKey || selectedDept;
+    if (!targetDept) return;
+    setDownloadingDept(targetDept);
+    try {
+      const rows = await ensureLoadDataForDept(targetDept);
+      const { config, reportMonths: rMonths, headers, rows: sRows, grandMonthlyTotals: gTotals, grandTotal: gTot } = buildSummaryData(targetDept, rows);
+      if (!sRows.length) {
+        alert(`No ${config.name} summary data found.`);
+        return;
+      }
+
+      const worksheetData = [
+        headers,
+        ...sRows.map((row: any) => [row.buyer, ...row.monthlyValues, row.total]),
+        ['Grand Total', ...gTotals, gTot],
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      worksheet['!cols'] = [{ wch: 25 }, ...rMonths.map(() => ({ wch: 15 })), { wch: 15 }];
+      formatExcelWorksheet(worksheet);
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `${config.name} Summary`);
+      const filename = `${config.name}_Summary_${formatLoadMonthYear(rMonths[0])}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error('Error downloading summary report:', err);
+      alert('Error generating summary report');
+    } finally {
+      setDownloadingDept(null);
     }
-
-    const worksheetData = [
-      headers,
-      ...rows.map((row: any) => [row.buyer, ...row.monthlyValues, row.total]),
-      ['Grand Total', ...grandMonthlyTotals, grandTotal],
-    ];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    worksheet['!cols'] = [{ wch: 25 }, ...rMonths.map(() => ({ wch: 15 })), { wch: 15 }];
-    formatExcelWorksheet(worksheet);
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `${config.name} Summary`);
-    const filename = `${config.name}_Summary_${formatLoadMonthYear(rMonths[0])}.xlsx`;
-    XLSX.writeFile(workbook, filename);
   };
 
   const summaryData = buildSummaryData(selectedDept);
@@ -610,12 +685,14 @@ function LoadCalculationContent() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+          <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-800 dark:text-slate-100">
             <Gauge className="h-6 w-6 text-primary" />
-            5-Month Capacity & Load Forecasting
+            {activeTab === 'detailed' ? 'Detailed Load Download' : 'Buyer-wise Load Summary'}
           </h2>
           <p className="text-xs text-base-content/60">
-            Project pending machine allocations and departmental load requirements across a rolling 5-month horizon.
+            {activeTab === 'detailed'
+              ? 'Download item-level Knitting, Dyeing and Delivery load reports.'
+              : 'Download buyer-wise Knitting, Dyeing and Delivery load summaries.'}
           </p>
         </div>
 
@@ -640,125 +717,163 @@ function LoadCalculationContent() {
         </div>
       </div>
 
-      {/* Control Card */}
-      <div className="card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Calendar className="h-5 w-5 text-primary" />
-          <span className="text-xs font-bold text-base-content/70">Start Month:</span>
-          <select
-            value={startMonth}
-            onChange={(e) => setStartMonth(e.target.value)}
-            className="select select-bordered select-sm font-bold text-xs"
-          >
-            {monthOptions.map((opt) => (
-              <option key={opt.val} value={opt.val}>
-                {opt.lbl}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="text-xs text-base-content/60">
-          Projection Window:{' '}
-          <span className="font-bold text-primary">
-            {monthLabels[0]} &rarr; {monthLabels[4]}
-          </span>
-        </div>
-      </div>
-
-      {/* Tab 1: Detailed Load Download Cards */}
-      {activeTab === 'detailed' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {LOAD_DEPTS.map((d) => (
-            <div
-              key={d.key}
-              className="card bg-base-100 border border-base-300 p-5 shadow-sm hover:shadow-md transition-shadow space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-base text-base-content">{d.label} Detailed Load</h3>
-                <span className="badge badge-primary badge-outline text-xs font-bold uppercase">{d.key}</span>
-              </div>
-
-              <p className="text-xs text-base-content/60">
-                Item-level detailed machine allocation mapping pending quantities across 5 projection months.
-              </p>
-
-              <div className="text-[11px] bg-base-200/50 p-2.5 rounded text-base-content/70">
-                <span className="font-semibold">Pending Metric:</span> {d.pendingQtyField}
-              </div>
-
-              <button
-                onClick={() => downloadDetailedExcel(d.key)}
-                disabled={downloadingDept === d.key}
-                className="btn btn-primary btn-sm w-full gap-2 font-bold shadow-md shadow-primary/20"
+      {/* Control Card - Report Month Selection & Download Actions matching Exp */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Month Selector Box */}
+        <div className="bg-blue-50/80 dark:bg-slate-800/80 border border-blue-200 dark:border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-blue-900 dark:text-blue-300 text-sm mb-2 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Report Month Selection
+            </h3>
+            <label className="flex flex-col gap-1 w-full">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Starting Month</span>
+              <select
+                value={startMonth}
+                onChange={(e) => setStartMonth(e.target.value)}
+                className="select select-bordered select-sm font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:outline-none focus:border-blue-500 w-full"
               >
-                {downloadingDept === d.key ? (
-                  <InlineSpinner size={14} />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Download {d.label} Excel
-              </button>
-            </div>
-          ))}
+                {monthOptions.map((opt) => (
+                  <option key={opt.val} value={opt.val}>
+                    {opt.lbl}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="text-[11px] text-blue-800 dark:text-blue-400 font-semibold mt-3">
+            5-Month Window: <span className="font-bold">{monthLabels[0]} &rarr; {monthLabels[4]}</span>
+          </div>
         </div>
-      ) : (
-        /* Tab 2: Buyer-wise Summary Live Table */
-        <div className="space-y-4">
-          {/* Department Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+
+        {/* Quick Action Download Buttons matching Exp */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 lg:col-span-2 shadow-sm flex flex-col justify-center">
+          <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-3 text-xs uppercase tracking-wider flex items-center gap-2">
+            <Download className="h-4 w-4 text-slate-400" />
+            {activeTab === 'detailed' ? 'Download Detailed Reports (Excel)' : 'Download Summary Reports (Excel)'}
+          </h3>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {LOAD_DEPTS.map((d) => (
               <button
                 key={d.key}
                 onClick={() => {
-                  setSelectedDept(d.key);
-                  ensureLoadDataForDept(d.key);
+                  if (activeTab === 'detailed') {
+                    downloadDetailedExcel(d.key);
+                  } else {
+                    downloadSummaryExcel(d.key);
+                  }
                 }}
-                className={`btn btn-sm font-bold shrink-0 ${
-                  selectedDept === d.key ? 'btn-primary shadow-sm' : 'btn-ghost bg-base-200/60'
-                }`}
+                disabled={downloadingDept === d.key}
+                className={`${d.colorClass} rounded-md py-2 px-2.5 text-xs font-bold shadow-sm transition inline-flex items-center justify-center gap-1.5`}
               >
-                {d.label}
+                {downloadingDept === d.key ? (
+                  <InlineSpinner size={13} />
+                ) : (
+                  <FileSpreadsheet className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="truncate">{d.label} {activeTab === 'detailed' ? 'Load' : 'Summary'}</span>
               </button>
             ))}
           </div>
+        </div>
+      </div>
 
-          {/* Table Container */}
-          <div className="card bg-base-100 border border-base-300 shadow-sm p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-base-200">
-              <div>
-                <h3 className="font-extrabold text-base flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  {selectedDept
-                    ? `${LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} Buyer-Wise Load Summary`
-                    : 'Buyer-Wise Load Summary'}
-                </h3>
+      {/* View Content */}
+      {activeTab === 'detailed' ? (
+        /* MENU 1: Detailed Reports View */
+        <div className="space-y-4">
+          <div className="bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-lg p-4 text-xs text-slate-700 dark:text-slate-300">
+            <strong>Note:</strong> Download item-level detailed load reports for Knitting, Dyeing, and Delivery. Data is generated based on your confirmed and tentative plans.
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {LOAD_DEPTS.map((d) => (
+              <div
+                key={d.key}
+                className="card bg-base-100 border border-base-300 p-5 shadow-sm hover:shadow-md transition-shadow space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="font-extrabold text-base text-base-content">{d.label} Detailed Load</h3>
+                  <span className="badge badge-primary badge-outline text-xs font-bold uppercase">{d.key}</span>
+                </div>
+
                 <p className="text-xs text-base-content/60">
-                  Allocated pending weight (Kg) aggregated by buyer across the 5 projection months.
+                  Item-level detailed machine allocation mapping pending quantities across 5 projection months.
                 </p>
-              </div>
 
-              {selectedDept && (
+                <div className="text-[11px] bg-base-200/50 p-2.5 rounded text-base-content/70">
+                  <span className="font-semibold">Pending Metric:</span> {d.pendingQtyField}
+                </div>
+
                 <button
-                  onClick={downloadSummaryExcel}
-                  disabled={summaryRows.length === 0}
-                  className="btn btn-success text-white btn-sm gap-2 font-bold shadow-md"
+                  onClick={() => downloadDetailedExcel(d.key)}
+                  disabled={downloadingDept === d.key}
+                  className={`btn btn-sm w-full gap-2 font-bold shadow-md ${d.colorClass}`}
                 >
-                  <Download className="h-4 w-4" />
-                  Export Summary Excel ({summaryRows.length} Buyers)
+                  {downloadingDept === d.key ? (
+                    <InlineSpinner size={14} />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download {d.label} Load Excel
                 </button>
-              )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* MENU 2: Buyer-wise Summary Live Table */
+        <div className="border-2 border-blue-400 ring-2 ring-blue-100 dark:ring-blue-900/30 rounded-xl overflow-hidden shadow-lg bg-white dark:bg-slate-900">
+          {/* Header Bar with Department Tabs matching Exp */}
+          <div className="bg-blue-50 dark:bg-slate-800/90 border-b border-blue-300 dark:border-slate-700 px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-lg text-blue-950 dark:text-blue-200 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                Buyer-wise Summary Preview
+              </h3>
+              <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                The month names change automatically from the selected starting month.
+              </p>
             </div>
 
+            {/* Department Buttons matching Exp summaryBtn */}
+            <div className="flex flex-wrap gap-2">
+              {LOAD_DEPTS.map((d) => {
+                const isActive = selectedDept === d.key;
+                return (
+                  <button
+                    key={d.key}
+                    onClick={() => {
+                      setSelectedDept(d.key);
+                      ensureLoadDataForDept(d.key);
+                    }}
+                    className={`px-4 py-2 rounded border text-xs font-bold transition-all ${
+                      isActive
+                        ? d.activeClass
+                        : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-auto custom-scrollbar max-h-[580px]">
             {!selectedDept ? (
-              <div className="p-16 text-center space-y-3">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
-                  <Layers className="w-7 h-7" />
+              <div className="p-14 text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center mb-4 text-blue-500">
+                    <HandMetal className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-gray-800 dark:text-gray-200 font-bold text-lg">Select a Department</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">
+                    Click on a department button above (YD, Knitting, Dyeing, Delivery, Delivery (Floor)) to view the buyer-wise load summary.
+                  </p>
                 </div>
-                <h3 className="font-extrabold text-base text-base-content">Select a Department</h3>
-                <p className="text-xs text-base-content/60 max-w-md mx-auto">
-                  Click on a department button above (Knitting, Dyeing, Delivery, etc.) to view the buyer-wise load summary.
-                </p>
               </div>
             ) : loading ? (
               <div className="p-16 flex items-center justify-center">
@@ -769,60 +884,66 @@ function LoadCalculationContent() {
                 />
               </div>
             ) : summaryRows.length === 0 ? (
-              <div className="p-16 text-center text-base-content/60">
-                No active load allocation found for {LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} in this 5-month window.
+              <div className="p-12 text-center text-slate-500 dark:text-slate-400">
+                No load data available for {LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} in this 5-month projection window.
               </div>
             ) : (
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="table table-xs w-full border border-base-300">
-                  <thead className="bg-base-200/80 text-xs font-bold text-base-content">
-                    <tr>
-                      <th className="w-12 text-center">#</th>
-                      <th className="px-4 py-2 text-left">Buyer Name</th>
-                      {monthLabels.map((lbl) => (
-                        <th key={lbl} className="px-4 py-2 text-right">
-                          {lbl} [Kg]
-                        </th>
-                      ))}
-                      <th className="px-4 py-2 text-right font-black bg-primary/10 text-primary">
-                        Total [Kg]
+              <table className="w-full text-xs min-w-max border-collapse border border-gray-300 dark:border-gray-700">
+                <thead className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200">
+                  <tr>
+                    <th className="p-2 border border-slate-300 dark:border-slate-700 text-left">Buyer</th>
+                    {reportMonths.map((mDate) => (
+                      <th
+                        key={mDate.toISOString()}
+                        className="p-2 border border-slate-300 dark:border-slate-700 text-right font-bold"
+                      >
+                        {formatSummaryMonthHeader(mDate)}
                       </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs divide-y divide-base-200">
-                    {summaryRows.map((r, i) => (
-                      <tr key={r.buyer} className="hover:bg-base-200/40 transition-colors">
-                        <td className="text-center font-bold text-base-content/40">{i + 1}</td>
-                        <td className="font-bold text-base-content">{r.buyer}</td>
-                        {r.monthlyValues.map((val: number, idx: number) => (
-                          <td key={idx} className="text-right font-mono text-base-content/80">
-                            {val > 0 ? Number(val).toLocaleString() : '—'}
-                          </td>
-                        ))}
-                        <td className="text-right font-mono font-black text-primary bg-primary/5">
-                          {Number(r.total).toLocaleString()}
-                        </td>
-                      </tr>
                     ))}
-                  </tbody>
-                  {/* Grand Totals Footer */}
-                  <tfoot className="bg-base-200 font-extrabold text-xs">
-                    <tr>
-                      <td colSpan={2} className="text-center uppercase font-black text-primary">
-                        GRAND TOTAL
+                    <th className="p-2 border border-slate-300 dark:border-slate-700 text-right font-black bg-blue-50/80 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300">
+                      Total [Kg]
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {summaryRows.map((row) => (
+                    <tr key={row.buyer} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="p-2 border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300">
+                        {row.buyer}
                       </td>
-                      {grandMonthlyTotals.map((tot, idx) => (
-                        <td key={idx} className="text-right font-mono font-black text-base-content">
-                          {Number(tot).toLocaleString()}
+                      {row.monthlyValues.map((val: number, idx: number) => (
+                        <td
+                          key={idx}
+                          className="p-2 border border-slate-200 dark:border-slate-700 text-right font-mono text-slate-600 dark:text-slate-300"
+                        >
+                          {val > 0 ? Number(val).toLocaleString() : '0'}
                         </td>
                       ))}
-                      <td className="text-right font-mono font-black text-primary bg-primary/20 text-sm">
-                        {Number(grandTotal).toLocaleString()}
+                      <td className="p-2 border border-slate-200 dark:border-slate-700 text-right font-mono font-bold text-slate-900 dark:text-slate-100 bg-blue-50/40 dark:bg-blue-950/20">
+                        {Number(row.total).toLocaleString()}
                       </td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+                <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-600">
+                  <tr>
+                    <td className="p-2 border border-slate-300 dark:border-slate-700 text-left font-black text-slate-900 dark:text-slate-100">
+                      Grand Total
+                    </td>
+                    {grandMonthlyTotals.map((tot, idx) => (
+                      <td
+                        key={idx}
+                        className="p-2 border border-slate-300 dark:border-slate-700 text-right font-mono font-black text-slate-900 dark:text-slate-100"
+                      >
+                        {Number(tot).toLocaleString()}
+                      </td>
+                    ))}
+                    <td className="p-2 border border-slate-300 dark:border-slate-700 text-right font-mono font-black text-primary text-sm bg-blue-100/60 dark:bg-blue-950/60">
+                      {Number(grandTotal).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             )}
           </div>
         </div>
