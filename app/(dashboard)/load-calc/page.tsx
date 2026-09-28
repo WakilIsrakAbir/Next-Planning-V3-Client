@@ -108,6 +108,9 @@ const LOAD_REPORT_CONFIG: Record<
   },
 };
 
+// Persistent module-level cache identical to Exp globalLoadData
+const cachedGlobalLoadData: Record<string, any[]> = {};
+
 // Key normalizer for flexible header matching
 function _norm(key: string): string {
   return String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -302,7 +305,8 @@ function LoadCalculationContent() {
     }
   }, [tabParam]);
 
-  const [selectedDept, setSelectedDept] = useState<string>('knitting');
+  // Initial state: matching Exp, starts unselected for immediate 0s page load
+  const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [downloadingDept, setDownloadingDept] = useState<string | null>(null);
 
@@ -311,8 +315,8 @@ function LoadCalculationContent() {
   const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const [startMonth, setStartMonth] = useState(currentMonthStr);
 
-  // Department data cache (stores array of parsed item rows)
-  const [departmentData, setDepartmentData] = useState<Record<string, any[]>>({});
+  // Department data state
+  const [departmentData, setDepartmentData] = useState<Record<string, any[]>>(() => cachedGlobalLoadData);
 
   // Generate 5 months array
   const [y, m] = startMonth.split('-').map(Number);
@@ -329,10 +333,11 @@ function LoadCalculationContent() {
     monthOptions.push({ val, lbl });
   }
 
-  // Fetch load calculation data for department matching Exp logic
+  // Fetch load calculation data for department matching Exp logic with in-memory caching
   const ensureLoadDataForDept = async (deptKey: string): Promise<any[]> => {
-    if (departmentData[deptKey] && departmentData[deptKey].length > 0) {
-      return departmentData[deptKey];
+    if (cachedGlobalLoadData[deptKey] && cachedGlobalLoadData[deptKey].length > 0) {
+      setDepartmentData((prev) => ({ ...prev, [deptKey]: cachedGlobalLoadData[deptKey] }));
+      return cachedGlobalLoadData[deptKey];
     }
 
     setLoading(true);
@@ -418,6 +423,11 @@ function LoadCalculationContent() {
         });
       });
 
+      cachedGlobalLoadData[actualDept] = rows;
+      if (actualDept === 'delivery') {
+        cachedGlobalLoadData.deliveryfloor = floorRows;
+      }
+
       setDepartmentData((prev) => {
         const next = { ...prev, [actualDept]: rows };
         if (actualDept === 'delivery') {
@@ -435,14 +445,13 @@ function LoadCalculationContent() {
     }
   };
 
-  useEffect(() => {
-    ensureLoadDataForDept(selectedDept);
-  }, [selectedDept]);
-
   // Build Detailed Report Data matching Exp
-  const buildReportData = (deptKey: string, customRows?: any[]) => {
+  const buildReportData = (deptKey: string | null, customRows?: any[]) => {
+    if (!deptKey) {
+      return { config: LOAD_REPORT_CONFIG.knitting, reportMonths, headers: [], rows: [] };
+    }
     const config = LOAD_REPORT_CONFIG[deptKey] || LOAD_REPORT_CONFIG.knitting;
-    const sourceRows = customRows || departmentData[deptKey] || [];
+    const sourceRows = customRows || departmentData[deptKey] || cachedGlobalLoadData[deptKey] || [];
 
     const headers = [
       ...config.columns,
@@ -478,7 +487,18 @@ function LoadCalculationContent() {
   };
 
   // Build Summary Data matching Exp
-  const buildSummaryData = (deptKey: string, customRows?: any[]) => {
+  const buildSummaryData = (deptKey: string | null, customRows?: any[]) => {
+    if (!deptKey) {
+      return {
+        config: LOAD_REPORT_CONFIG.knitting,
+        reportMonths,
+        headers: ['Buyer', ...reportMonths.map(formatSummaryMonthHeader), 'Total [Kg]'],
+        rows: [],
+        grandMonthlyTotals: [0, 0, 0, 0, 0],
+        grandTotal: 0,
+      };
+    }
+
     const detailData = buildReportData(deptKey, customRows);
     const buyerMap = new Map<string, number[]>();
 
@@ -557,6 +577,7 @@ function LoadCalculationContent() {
 
   // Summary Load Excel Download (Matching Exp downloadLoadSummary)
   const downloadSummaryExcel = () => {
+    if (!selectedDept) return;
     const { config, reportMonths: rMonths, headers, rows, grandMonthlyTotals, grandTotal } = buildSummaryData(selectedDept);
     if (!rows.length) {
       alert(`No ${config.name} summary data found.`);
@@ -689,9 +710,12 @@ function LoadCalculationContent() {
             {LOAD_DEPTS.map((d) => (
               <button
                 key={d.key}
-                onClick={() => setSelectedDept(d.key)}
+                onClick={() => {
+                  setSelectedDept(d.key);
+                  ensureLoadDataForDept(d.key);
+                }}
                 className={`btn btn-sm font-bold shrink-0 ${
-                  selectedDept === d.key ? 'btn-primary' : 'btn-ghost bg-base-200/60'
+                  selectedDept === d.key ? 'btn-primary shadow-sm' : 'btn-ghost bg-base-200/60'
                 }`}
               >
                 {d.label}
@@ -705,24 +729,38 @@ function LoadCalculationContent() {
               <div>
                 <h3 className="font-extrabold text-base flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  {LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} Buyer-Wise Load Summary
+                  {selectedDept
+                    ? `${LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} Buyer-Wise Load Summary`
+                    : 'Buyer-Wise Load Summary'}
                 </h3>
                 <p className="text-xs text-base-content/60">
                   Allocated pending weight (Kg) aggregated by buyer across the 5 projection months.
                 </p>
               </div>
 
-              <button
-                onClick={downloadSummaryExcel}
-                disabled={summaryRows.length === 0}
-                className="btn btn-success text-white btn-sm gap-2 font-bold shadow-md"
-              >
-                <Download className="h-4 w-4" />
-                Export Summary Excel ({summaryRows.length} Buyers)
-              </button>
+              {selectedDept && (
+                <button
+                  onClick={downloadSummaryExcel}
+                  disabled={summaryRows.length === 0}
+                  className="btn btn-success text-white btn-sm gap-2 font-bold shadow-md"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Summary Excel ({summaryRows.length} Buyers)
+                </button>
+              )}
             </div>
 
-            {loading ? (
+            {!selectedDept ? (
+              <div className="p-16 text-center space-y-3">
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
+                  <Layers className="w-7 h-7" />
+                </div>
+                <h3 className="font-extrabold text-base text-base-content">Select a Department</h3>
+                <p className="text-xs text-base-content/60 max-w-md mx-auto">
+                  Click on a department button above (Knitting, Dyeing, Delivery, etc.) to view the buyer-wise load summary.
+                </p>
+              </div>
+            ) : loading ? (
               <div className="p-16 flex items-center justify-center">
                 <ExpLoadingSpinner
                   message="Loading Summary Data..."
@@ -732,7 +770,7 @@ function LoadCalculationContent() {
               </div>
             ) : summaryRows.length === 0 ? (
               <div className="p-16 text-center text-base-content/60">
-                No active load allocation found for {selectedDept} in this 5-month window.
+                No active load allocation found for {LOAD_DEPTS.find((d) => d.key === selectedDept)?.label} in this 5-month window.
               </div>
             ) : (
               <div className="overflow-x-auto custom-scrollbar">
@@ -756,7 +794,7 @@ function LoadCalculationContent() {
                       <tr key={r.buyer} className="hover:bg-base-200/40 transition-colors">
                         <td className="text-center font-bold text-base-content/40">{i + 1}</td>
                         <td className="font-bold text-base-content">{r.buyer}</td>
-                        {r.monthlyValues.map((val, idx) => (
+                        {r.monthlyValues.map((val: number, idx: number) => (
                           <td key={idx} className="text-right font-mono text-base-content/80">
                             {val > 0 ? Number(val).toLocaleString() : '—'}
                           </td>
