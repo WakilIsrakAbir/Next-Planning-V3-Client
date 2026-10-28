@@ -12,13 +12,25 @@ import {
   EyeOff,
   FolderOpen,
 } from 'lucide-react';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
+}
+
+// One order of /api/orders/report/:dept (dept-specific keys such as `<dept>Items` / `<dept>PlanStatus` are dynamic).
+interface ReportOrder {
+  _id?: string;
+  orderNo?: string;
+  buyer?: string;
+  style?: string;
+  bookingDate?: string;
+  gmtUnit?: string;
+  floor?: string;
+  [key: string]: unknown;
 }
 
 export default function DepartmentReportPage({ params }: PageProps) {
@@ -29,13 +41,17 @@ export default function DepartmentReportPage({ params }: PageProps) {
   const [checking, setChecking] = useState(true);
   const [confirmCount, setConfirmCount] = useState(0);
   const [tentativeCount, setTentativeCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
   const [hasData, setHasData] = useState(false);
+
+  // Old data-processing.js (HEAD): YD and Delivery reports also include Pending orders.
+  const includesPending = dept === 'yd' || dept === 'delivery';
 
   // Lazy table data (only loaded if user requests inspection/preview)
   const [showDetailedTable, setShowDetailedTable] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [planMap, setPlanMap] = useState<Record<string, any>>({});
+  const [orders, setOrders] = useState<ReportOrder[]>([]);
+  const [, setPlanMap] = useState<Record<string, unknown>>({});
   const [downloading, setDownloading] = useState(false);
   const [search, setSearch] = useState('');
   const [buyer, setBuyer] = useState('');
@@ -54,13 +70,19 @@ export default function DepartmentReportPage({ params }: PageProps) {
         const token = localStorage.getItem('token');
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const [confirmRes, tentativeRes] = await Promise.all([
+        const withPending = dept === 'yd' || dept === 'delivery';
+        const [confirmRes, tentativeRes, pendingRes] = await Promise.all([
           fetch(`${API_BASE}/api/orders?dept=${dept}&status=Confirm&limit=1`, { headers }),
           fetch(`${API_BASE}/api/orders?dept=${dept}&status=Tentative&limit=1`, { headers }),
+          // A failed Pending check must not hide the Confirm / Tentative result (old app: .catch(() => null)).
+          withPending
+            ? fetch(`${API_BASE}/api/orders?dept=${dept}&status=Pending&limit=1`, { headers }).catch(() => null)
+            : Promise.resolve(null),
         ]);
 
         let cCount = 0;
         let tCount = 0;
+        let pCount = 0;
 
         if (confirmRes.ok) {
           const d = await confirmRes.json();
@@ -72,10 +94,20 @@ export default function DepartmentReportPage({ params }: PageProps) {
           tCount = d.total || 0;
         }
 
+        if (pendingRes && pendingRes.ok) {
+          try {
+            const d = await pendingRes.json();
+            pCount = d.total || 0;
+          } catch {
+            pCount = 0;
+          }
+        }
+
         if (isMounted) {
           setConfirmCount(cCount);
           setTentativeCount(tCount);
-          setHasData(cCount > 0 || tCount > 0);
+          setPendingCount(pCount);
+          setHasData(cCount > 0 || tCount > 0 || (withPending && pCount > 0));
         }
       } catch (err) {
         console.error('Failed to check report data availability:', err);
@@ -184,7 +216,8 @@ export default function DepartmentReportPage({ params }: PageProps) {
               No Report Data Available
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              There is no Confirmed or Tentative planning data available for this department yet.
+              There is no Confirmed{includesPending ? ', Tentative or Pending' : ' or Tentative'} planning data
+              available for this department yet.
             </p>
           </div>
         ) : (
@@ -209,8 +242,13 @@ export default function DepartmentReportPage({ params }: PageProps) {
               <span className="px-2.5 py-1 bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300 font-bold rounded-full text-xs">
                 Tentative: {tentativeCount}
               </span>
+              {includesPending && (
+                <span className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 font-bold rounded-full text-xs">
+                  Pending: {pendingCount}
+                </span>
+              )}
               <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold rounded-full text-xs">
-                Total: {confirmCount + tentativeCount}
+                Total: {confirmCount + tentativeCount + (includesPending ? pendingCount : 0)}
               </span>
             </div>
 
@@ -311,9 +349,10 @@ export default function DepartmentReportPage({ params }: PageProps) {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-[#2a3346] text-[11px]">
                   {filteredOrders.map((ord) => {
-                    const items = ord[`${dept}Items`] || [];
+                    const deptItems = ord[`${dept}Items`];
+                    const items = Array.isArray(deptItems) ? deptItems : [];
                     const statusKey = `${dept}PlanStatus`;
-                    const planStatus = ord[statusKey] || 'Pending';
+                    const planStatus = String(ord[statusKey] || 'Pending');
 
                     return (
                       <tr

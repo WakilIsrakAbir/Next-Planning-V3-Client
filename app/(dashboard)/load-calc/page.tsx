@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Gauge,
   Download,
   Calendar,
-  Layers,
   FileSpreadsheet,
   TrendingUp,
   HandMetal,
@@ -15,7 +14,12 @@ import * as XLSX from 'xlsx';
 import { API_BASE } from '@/lib/constants';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
-import { getColData, _norm, _getRowMap } from '@/lib/data-utils';
+import {
+  loadNumber,
+  processOrdersForLoadDepartment,
+  type LoadReportResponse,
+  type LoadRow,
+} from '@/lib/load-calc-utils';
 
 const LOAD_DEPTS = [
   { key: 'yd', label: 'YD', pendingQtyField: 'YD DELIVERY BALANCE', colorClass: 'bg-purple-600 hover:bg-purple-700 text-white', activeClass: 'bg-purple-600 text-white border-purple-600 shadow-md' },
@@ -107,71 +111,53 @@ const LOAD_REPORT_CONFIG: Record<
   },
 };
 
-// Persistent module-level cache identical to Exp globalLoadData
-const cachedGlobalLoadData: Record<string, any[]> = {};
+// Persistent module-level cache identical to Exp globalLoadData.
+// Rows are built from the includePending report payload (Confirm + Tentative +
+// Pending with T&A / Floor date fallbacks), one entry per department key.
+const cachedGlobalLoadData: Record<string, LoadRow[]> = {};
 
-function loadNumber(value: any): number {
-  if (value === null || value === undefined || value === '') return 0;
-  const cleaned = String(value).replace(/,/g, '').replace(/\s*Kg$/i, '').trim();
-  const num = Number(cleaned);
-  return Number.isFinite(num) ? num : 0;
-}
+// Fetch a department's report (Confirm + Tentative + Pending) and build its load rows.
+// Delivery data also yields the Delivery (Floor) rows, so both keys are cached together.
+async function fetchLoadRowsForDept(deptKey: string): Promise<Record<string, LoadRow[]> | null> {
+  const token = localStorage.getItem('token');
+  const actualDept = deptKey === 'deliveryfloor' ? 'delivery' : deptKey;
 
-function generateItemId(itemData: any, dept: string): string {
-  if (!itemData) return '';
-  const currentDept = dept.replace('_report', '');
-  const bNo = String(
-    itemData.OrderNo !== undefined && itemData.OrderNo !== null
-      ? itemData.OrderNo
-      : itemData['Booking No.'] || itemData['Order No'] || itemData.BookingNo || 'N/A'
-  ).trim();
-  const color = String(
-    itemData.Color !== undefined && itemData.Color !== null
-      ? itemData.Color
-      : itemData.Colour || itemData['Fab Color'] || 'N/A'
-  ).trim();
+  const res = await fetch(`${API_BASE}/api/orders/report/${actualDept}?includePending=true`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const data: LoadReportResponse = await res.json();
+  if (!data.orders || !data.planMap) return null;
 
-  if (currentDept === 'knitting' || currentDept === 'delivery' || currentDept === 'deliveryfloor') {
-    const fabConst = String(
-      itemData.FabricConstruction !== undefined && itemData.FabricConstruction !== null
-        ? itemData.FabricConstruction
-        : itemData.Construction || itemData['Fab Const'] || itemData.Fabric || 'N/A'
-    ).trim();
-    const gsm = String(
-      itemData.GSM !== undefined && itemData.GSM !== null
-        ? itemData.GSM
-        : itemData['G.S.M'] || 'N/A'
-    ).trim();
-    return `${bNo}_${color}_${fabConst}_${gsm}`.toLowerCase().replace(/\s+/g, '');
-  } else if (currentDept === 'yd') {
-    const type = String(
-      itemData['Booking Type'] !== undefined && itemData['Booking Type'] !== null
-        ? itemData['Booking Type']
-        : itemData.Type || itemData['YD Type'] || 'N/A'
-    ).trim();
-    const ydb = String(
-      itemData.YDB !== undefined && itemData.YDB !== null
-        ? itemData.YDB
-        : itemData['YD B'] || 'N/A'
-    ).trim();
-    return `${bNo}_${type}_${ydb}`.toLowerCase().replace(/\s+/g, '');
-  } else {
-    // dyeing / finishing
-    const procName = String(
-      itemData.ProcessName !== undefined && itemData.ProcessName !== null
-        ? itemData.ProcessName
-        : itemData['Process Name'] || itemData.Process || ''
-    ).trim();
-    return `${bNo}_${color}_${procName}`.toLowerCase().replace(/\s+/g, '');
+  const updates: Record<string, LoadRow[]> = {
+    [actualDept]: processOrdersForLoadDepartment(data.orders, data.planMap, actualDept),
+  };
+  if (actualDept === 'delivery') {
+    updates.deliveryfloor = processOrdersForLoadDepartment(data.orders, data.planMap, 'deliveryfloor');
   }
+
+  Object.assign(cachedGlobalLoadData, updates);
+  return updates;
 }
 
-function parseLoadDate(value: any): Date | null {
+function excelSerialToLocalDate(serial: number): Date {
+  const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function parseLoadDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  if (typeof value === 'number' && value > 25000 && value < 70000) return excelSerialToLocalDate(value);
   const text = String(value).trim();
+  if (/^\d{5}$/.test(text)) {
+    const num = Number(text);
+    if (num > 25000 && num < 70000) return excelSerialToLocalDate(num);
+  }
   const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const dmyMatch = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) return new Date(Number(dmyMatch[3]), Number(dmyMatch[2]) - 1, Number(dmyMatch[1]));
   const parsed = new Date(text);
   if (Number.isNaN(parsed.getTime())) return null;
   return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
@@ -213,13 +199,19 @@ function formatLoadMonthYear(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).replace(' ', '-');
 }
 
-function formatLoadDate(dateValue: any): string {
+function formatLoadDate(dateValue: unknown): string {
   const date = parseLoadDate(dateValue);
   if (!date) return '';
   return date.getDate() + '-' + date.toLocaleDateString('en-US', { month: 'short' });
 }
 
-function calculateLoadAllocation(pendingQty: any, planStartVal: any, planEndVal: any, reportMonths: Date[]) {
+function getReportMonths(startMonth: string): Date[] {
+  const [year, month] = startMonth.split('-').map(Number);
+  const firstMonth = new Date(year, month - 1, 1);
+  return Array.from({ length: 5 }, (_, i) => addLoadMonths(firstMonth, i));
+}
+
+function calculateLoadAllocation(pendingQty: unknown, planStartVal: unknown, planEndVal: unknown, reportMonths: Date[]) {
   const qty = Math.max(0, loadNumber(pendingQty));
   const planStart = parseLoadDate(planStartVal);
   const planEnd = parseLoadDate(planEndVal);
@@ -261,7 +253,7 @@ function calculateLoadAllocation(pendingQty: any, planStartVal: any, planEndVal:
   };
 }
 
-function formatExcelWorksheet(ws: any) {
+function formatExcelWorksheet(ws: XLSX.WorkSheet) {
   if (!ws || !ws['!ref']) return;
   const range = XLSX.utils.decode_range(ws['!ref']);
 
@@ -289,6 +281,111 @@ function formatExcelWorksheet(ws: any) {
   }
 }
 
+interface DetailReportRow {
+  source: LoadRow;
+  excelRow: unknown[];
+  monthlyLoads: number[];
+}
+
+interface SummaryReportRow {
+  buyer: string;
+  monthlyValues: number[];
+  total: number;
+}
+
+// Build Detailed Report Data matching Exp buildReportData
+function buildReportData(deptKey: string | null, sourceRows: LoadRow[], reportMonths: Date[]) {
+  if (!deptKey) {
+    return { config: LOAD_REPORT_CONFIG.knitting, reportMonths, headers: [] as string[], rows: [] as DetailReportRow[] };
+  }
+  const config = LOAD_REPORT_CONFIG[deptKey] || LOAD_REPORT_CONFIG.knitting;
+
+  const headers = [
+    ...config.columns,
+    `${config.name} Plan Start Date`,
+    `${config.name} Plan End Date`,
+    `${config.name} Plan Type`,
+    'Lead Day',
+    'L/Day',
+    ...reportMonths.map(formatLoadMonthHeader),
+  ];
+
+  const rows: DetailReportRow[] = sourceRows
+    // Confirm / Tentative plans, plus Pending items that resolved T&A / Floor dates
+    .filter((row) => Boolean(row.planStart && row.planEnd) || row.planType === 'Confirm' || row.planType === 'Tentative')
+    .filter((row) => loadNumber(row[config.pendingQtyField]) > 0)
+    .map((row) => {
+      const allocation = calculateLoadAllocation(row[config.pendingQtyField], row.planStart, row.planEnd, reportMonths);
+      return {
+        source: row,
+        excelRow: [
+          ...config.columns.map((col) => (row[col] !== undefined && row[col] !== null ? row[col] : '')),
+          formatLoadDate(row.planStart),
+          formatLoadDate(row.planEnd),
+          row.planType || '',
+          allocation.leadDay,
+          allocation.loadPerDay,
+          ...allocation.monthlyLoads,
+        ],
+        monthlyLoads: allocation.monthlyLoads,
+      };
+    });
+
+  return { config, reportMonths, headers, rows };
+}
+
+// Build Summary Data matching Exp buildSummaryData
+function buildSummaryData(deptKey: string | null, sourceRows: LoadRow[], reportMonths: Date[]) {
+  if (!deptKey) {
+    return {
+      config: LOAD_REPORT_CONFIG.knitting,
+      reportMonths,
+      headers: ['Buyer', ...reportMonths.map(formatSummaryMonthHeader), 'Total [Kg]'],
+      rows: [] as SummaryReportRow[],
+      grandMonthlyTotals: [0, 0, 0, 0, 0],
+      grandTotal: 0,
+    };
+  }
+
+  const detailData = buildReportData(deptKey, sourceRows, reportMonths);
+  const buyerMap = new Map<string, number[]>();
+
+  detailData.rows.forEach((detailRow) => {
+    const buyer = String(detailRow.source.Buyer || 'Unspecified').trim() || 'Unspecified';
+    if (!buyerMap.has(buyer)) buyerMap.set(buyer, [0, 0, 0, 0, 0]);
+
+    const buyerMonths = buyerMap.get(buyer)!;
+    detailRow.monthlyLoads.forEach((val, idx) => {
+      buyerMonths[idx] += loadNumber(val);
+    });
+  });
+
+  const summaryRows: SummaryReportRow[] = Array.from(buyerMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+    .map(([buyer, monthlyValues]) => ({
+      buyer,
+      monthlyValues,
+      total: monthlyValues.reduce((sum, v) => sum + v, 0),
+    }));
+
+  const grandMonthlyTotals = [0, 0, 0, 0, 0];
+  summaryRows.forEach((row) => {
+    row.monthlyValues.forEach((val, idx) => {
+      grandMonthlyTotals[idx] += val;
+    });
+  });
+  const grandTotal = grandMonthlyTotals.reduce((sum, v) => sum + v, 0);
+
+  return {
+    config: detailData.config,
+    reportMonths: detailData.reportMonths,
+    headers: ['Buyer', ...detailData.reportMonths.map(formatSummaryMonthHeader), 'Total [Kg]'],
+    rows: summaryRows,
+    grandMonthlyTotals,
+    grandTotal,
+  };
+}
+
 function LoadCalculationContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -296,11 +393,14 @@ function LoadCalculationContent() {
     tabParam === 'detailed' ? 'detailed' : 'summary'
   );
 
-  useEffect(() => {
+  // Follow ?tab= changes (sidebar links) by adjusting state during render
+  const [prevTabParam, setPrevTabParam] = useState(tabParam);
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
     if (tabParam === 'detailed' || tabParam === 'summary') {
       setActiveTab(tabParam);
     }
-  }, [tabParam]);
+  }
 
   // Initial state: starts unselected for immediate 0s page load, matching Exp showLoadCalculation
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
@@ -313,12 +413,10 @@ function LoadCalculationContent() {
   const [startMonth, setStartMonth] = useState(currentMonthStr);
 
   // Department data state
-  const [departmentData, setDepartmentData] = useState<Record<string, any[]>>(() => cachedGlobalLoadData);
+  const [departmentData, setDepartmentData] = useState<Record<string, LoadRow[]>>(() => ({ ...cachedGlobalLoadData }));
 
   // Generate 5 months array
-  const [y, m] = startMonth.split('-').map(Number);
-  const firstMonth = new Date(y, m - 1, 1);
-  const reportMonths = Array.from({ length: 5 }, (_, i) => addLoadMonths(firstMonth, i));
+  const reportMonths = useMemo(() => getReportMonths(startMonth), [startMonth]);
   const monthLabels = reportMonths.map((d) => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
 
   // Month options (-12 to +24) matching Exp initLoadMonthSelector
@@ -331,126 +429,19 @@ function LoadCalculationContent() {
   }
 
   // Fetch load calculation data for department matching Exp logic with in-memory caching
-  const ensureLoadDataForDept = async (deptKey: string): Promise<any[]> => {
-    if (cachedGlobalLoadData[deptKey] && cachedGlobalLoadData[deptKey].length > 0) {
-      setDepartmentData((prev) => ({ ...prev, [deptKey]: cachedGlobalLoadData[deptKey] }));
-      return cachedGlobalLoadData[deptKey];
+  const ensureLoadDataForDept = async (deptKey: string): Promise<LoadRow[]> => {
+    const cachedRows = cachedGlobalLoadData[deptKey];
+    if (cachedRows && cachedRows.length > 0) {
+      setDepartmentData((prev) => ({ ...prev, [deptKey]: cachedRows }));
+      return cachedRows;
     }
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const actualDept = deptKey === 'deliveryfloor' ? 'delivery' : deptKey;
-
-      const res = await fetch(`${API_BASE}/api/orders/report/${actualDept}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) return [];
-      const data = await res.json();
-      if (!data.orders || !data.planMap) return [];
-
-      const rows: any[] = [];
-      const floorRows: any[] = [];
-
-      data.orders.forEach((order: any) => {
-        const planData = data.planMap[order.orderNo];
-        if (!planData || !planData[actualDept]) return;
-        const excelItems = order[`${actualDept}Items`] || [];
-
-        // Build O(1) Map for excel items to eliminate 30,000+ nested comparisons
-        const excelItemMap = new Map<string, any>();
-        if (Array.isArray(excelItems)) {
-          for (let i = 0; i < excelItems.length; i++) {
-            const ex = excelItems[i];
-            const id = generateItemId(ex, actualDept);
-            if (id) excelItemMap.set(id, ex);
-            const altId = `${order.orderNo}_${getColData(ex, ['Color', 'Colour'])}_${getColData(ex, ['Process Name', 'ProcessName'])}`
-              .toLowerCase()
-              .replace(/\s+/g, '');
-            if (altId) excelItemMap.set(altId, ex);
-          }
-        }
-
-        planData[actualDept].forEach((savedItem: any) => {
-          let itemData = savedItem.itemData || {};
-
-          // O(1) instant match
-          if (savedItem.itemId && excelItemMap.has(savedItem.itemId)) {
-            itemData = { ...itemData, ...excelItemMap.get(savedItem.itemId) };
-          }
-
-          const baseRow: Record<string, any> = {};
-          baseRow.OrderNo = order.orderNo;
-          baseRow.Buyer = getColData(itemData, ['Buyer', 'BuyerName', 'Customer']) || order.buyer || '';
-          baseRow.Color = getColData(itemData, ['Color', 'Colour', 'Fab Color']);
-          baseRow.FabricConstruction = getColData(itemData, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']);
-          baseRow.GSM = getColData(itemData, ['GSM', 'G.S.M']);
-          baseRow.RequiredQtyKgs = getColData(itemData, ['RequiredQtyKgs', 'Req Qty', 'Qty']);
-          baseRow.GreyReq = getColData(itemData, ['Grey Req.', 'GreyReq']);
-          baseRow.KnitProd = getColData(itemData, ['Knit Prod.', 'KnitProd']);
-          baseRow.KnitBala = getColData(itemData, ['Knit. Bala.', 'KnitBala', 'Knit Bala', 'Knitting Balance']);
-          baseRow.BPQty = getColData(itemData, ['BP Qty', 'BPQty']);
-          baseRow.DyeingProd = getColData(itemData, ['Dyeing Prod.', 'DyeingProd']);
-          baseRow.DyeingBala = getColData(itemData, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala', 'Dyeing Balance']);
-          baseRow.NetReceivedQtyKgs = getColData(itemData, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']);
-          baseRow.NetDeliveryQtyKgs = getColData(itemData, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']);
-          baseRow.DeliBal = getColData(itemData, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Deli. Bala.', 'Delivery Balance']);
-          baseRow.RFD = getColData(itemData, ['RFD']);
-          baseRow.Slowmoving = getColData(itemData, ['Slowmoving']);
-          baseRow.Unit = getColData(itemData, ['Unit']);
-          baseRow.ProcessName = getColData(itemData, ['Process Name', 'ProcessName', 'Process']);
-          baseRow['Booking Type'] = getColData(itemData, ['Booking Type', 'Type', 'YD Type']);
-          baseRow.YDB = getColData(itemData, ['YDB', 'YD B']);
-          baseRow['YD REQ.'] = getColData(itemData, ['YD REQ.', 'YD REQ', 'Requirement']);
-          baseRow.DYED = getColData(itemData, ['DYED', 'Dyed']);
-          baseRow['YD BALANCE'] = getColData(itemData, ['YD BALANCE', 'YD Balance']);
-          baseRow['YD Delivered'] = getColData(itemData, ['YD Delivered', 'Delivered']);
-          baseRow['YD DELIVERY BALANCE'] = getColData(itemData, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Balance 2', 'YD Delivery Balance']);
-
-          // Calculate DeliBal if missing
-          if (!baseRow.DeliBal || loadNumber(baseRow.DeliBal) === 0) {
-            const req = loadNumber(baseRow.RequiredQtyKgs);
-            const del = loadNumber(baseRow.NetDeliveryQtyKgs);
-            if (req > 0) baseRow.DeliBal = req - del;
-          }
-
-          // Regular department row
-          if (savedItem.planType === 'Confirm' || savedItem.planType === 'Tentative') {
-            const regRow = { ...baseRow };
-            regRow.planStart = savedItem.startDate;
-            regRow.planEnd = savedItem.endDate;
-            regRow.planType = savedItem.planType;
-            rows.push(regRow);
-          }
-
-          // Delivery floor row
-          if (actualDept === 'delivery' && savedItem.floorStartDate && savedItem.floorEndDate) {
-            if (savedItem.floorPlanType === 'Confirm' || savedItem.floorPlanType === 'Tentative') {
-              const floorRow = { ...baseRow };
-              floorRow.planStart = savedItem.floorStartDate;
-              floorRow.planEnd = savedItem.floorEndDate;
-              floorRow.planType = savedItem.floorPlanType;
-              floorRows.push(floorRow);
-            }
-          }
-        });
-      });
-
-      cachedGlobalLoadData[actualDept] = rows;
-      if (actualDept === 'delivery') {
-        cachedGlobalLoadData.deliveryfloor = floorRows;
-      }
-
-      setDepartmentData((prev) => {
-        const next = { ...prev, [actualDept]: rows };
-        if (actualDept === 'delivery') {
-          next.deliveryfloor = floorRows;
-        }
-        return next;
-      });
-
-      return deptKey === 'deliveryfloor' ? floorRows : rows;
+      const updates = await fetchLoadRowsForDept(deptKey);
+      if (!updates) return [];
+      setDepartmentData((prev) => ({ ...prev, ...updates }));
+      return updates[deptKey] || [];
     } catch (err) {
       console.error(`Error loading load calculation data for ${deptKey}:`, err);
       return [];
@@ -459,111 +450,18 @@ function LoadCalculationContent() {
     }
   };
 
-  // Build Detailed Report Data matching Exp buildReportData
-  const buildReportData = (deptKey: string | null, customRows?: any[]) => {
-    if (!deptKey) {
-      return { config: LOAD_REPORT_CONFIG.knitting, reportMonths, headers: [], rows: [] };
-    }
-    const config = LOAD_REPORT_CONFIG[deptKey] || LOAD_REPORT_CONFIG.knitting;
-    const sourceRows = customRows || departmentData[deptKey] || cachedGlobalLoadData[deptKey] || [];
-
-    const headers = [
-      ...config.columns,
-      `${config.name} Plan Start Date`,
-      `${config.name} Plan End Date`,
-      `${config.name} Plan Type`,
-      'Lead Day',
-      'L/Day',
-      ...reportMonths.map(formatLoadMonthHeader),
-    ];
-
-    const rows = sourceRows
-      .filter((row: any) => row.planType === 'Confirm' || row.planType === 'Tentative')
-      .filter((row: any) => loadNumber(row[config.pendingQtyField]) > 0)
-      .map((row: any) => {
-        const allocation = calculateLoadAllocation(row[config.pendingQtyField], row.planStart, row.planEnd, reportMonths);
-        return {
-          source: row,
-          excelRow: [
-            ...config.columns.map((col: string) => (row[col] !== undefined && row[col] !== null ? row[col] : '')),
-            formatLoadDate(row.planStart),
-            formatLoadDate(row.planEnd),
-            row.planType || '',
-            allocation.leadDay,
-            allocation.loadPerDay,
-            ...allocation.monthlyLoads,
-          ],
-          monthlyLoads: allocation.monthlyLoads,
-        };
-      });
-
-    return { config, reportMonths, headers, rows };
-  };
-
-  // Build Summary Data matching Exp buildSummaryData
-  const buildSummaryData = (deptKey: string | null, customRows?: any[]) => {
-    if (!deptKey) {
-      return {
-        config: LOAD_REPORT_CONFIG.knitting,
-        reportMonths,
-        headers: ['Buyer', ...reportMonths.map(formatSummaryMonthHeader), 'Total [Kg]'],
-        rows: [],
-        grandMonthlyTotals: [0, 0, 0, 0, 0],
-        grandTotal: 0,
-      };
-    }
-
-    const detailData = buildReportData(deptKey, customRows);
-    const buyerMap = new Map<string, number[]>();
-
-    detailData.rows.forEach((detailRow: any) => {
-      const buyer = String(detailRow.source.Buyer || 'Unspecified').trim() || 'Unspecified';
-      if (!buyerMap.has(buyer)) buyerMap.set(buyer, [0, 0, 0, 0, 0]);
-
-      const buyerMonths = buyerMap.get(buyer)!;
-      detailRow.monthlyLoads.forEach((val: number, idx: number) => {
-        buyerMonths[idx] += loadNumber(val);
-      });
-    });
-
-    const summaryRows = Array.from(buyerMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
-      .map(([buyer, monthlyValues]) => ({
-        buyer,
-        monthlyValues,
-        total: monthlyValues.reduce((sum, v) => sum + v, 0),
-      }));
-
-    const grandMonthlyTotals = [0, 0, 0, 0, 0];
-    summaryRows.forEach((row) => {
-      row.monthlyValues.forEach((val, idx) => {
-        grandMonthlyTotals[idx] += val;
-      });
-    });
-    const grandTotal = grandMonthlyTotals.reduce((sum, v) => sum + v, 0);
-
-    return {
-      config: detailData.config,
-      reportMonths: detailData.reportMonths,
-      headers: ['Buyer', ...detailData.reportMonths.map(formatSummaryMonthHeader), 'Total [Kg]'],
-      rows: summaryRows,
-      grandMonthlyTotals,
-      grandTotal,
-    };
-  };
-
   // Detailed Load Excel Download (Matching Exp downloadLoadReport)
   const downloadDetailedExcel = async (deptKey: string) => {
     setDownloadingDept(deptKey);
     try {
       const rows = await ensureLoadDataForDept(deptKey);
-      const { config, reportMonths: rMonths, headers, rows: detailRows } = buildReportData(deptKey, rows);
+      const { config, reportMonths: rMonths, headers, rows: detailRows } = buildReportData(deptKey, rows, reportMonths);
       if (!detailRows.length) {
         alert(`No ${config.name} load data found for this period.`);
         return;
       }
 
-      const worksheetData = [headers, ...detailRows.map((r: any) => r.excelRow)];
+      const worksheetData = [headers, ...detailRows.map((r) => r.excelRow)];
       const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
       worksheet['!autofilter'] = {
@@ -595,7 +493,14 @@ function LoadCalculationContent() {
     setDownloadingDept(targetDept);
     try {
       const rows = await ensureLoadDataForDept(targetDept);
-      const { config, reportMonths: rMonths, headers, rows: sRows, grandMonthlyTotals: gTotals, grandTotal: gTot } = buildSummaryData(targetDept, rows);
+      const {
+        config,
+        reportMonths: rMonths,
+        headers,
+        rows: sRows,
+        grandMonthlyTotals: gTotals,
+        grandTotal: gTot,
+      } = buildSummaryData(targetDept, rows, reportMonths);
       if (!sRows.length) {
         alert(`No ${config.name} summary data found.`);
         return;
@@ -603,7 +508,7 @@ function LoadCalculationContent() {
 
       const worksheetData = [
         headers,
-        ...sRows.map((row: any) => [row.buyer, ...row.monthlyValues, row.total]),
+        ...sRows.map((row) => [row.buyer, ...row.monthlyValues, row.total]),
         ['Grand Total', ...gTotals, gTot],
       ];
 
@@ -624,8 +529,13 @@ function LoadCalculationContent() {
   };
 
   const summaryData = useMemo(
-    () => buildSummaryData(selectedDept),
-    [selectedDept, departmentData, startMonth]
+    () =>
+      buildSummaryData(
+        selectedDept,
+        (selectedDept && (departmentData[selectedDept] || cachedGlobalLoadData[selectedDept])) || [],
+        reportMonths
+      ),
+    [selectedDept, departmentData, reportMonths]
   );
   const summaryRows = summaryData.rows;
   const grandMonthlyTotals = summaryData.grandMonthlyTotals;
