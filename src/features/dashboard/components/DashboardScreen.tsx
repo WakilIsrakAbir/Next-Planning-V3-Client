@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import InteractivePlayground from './InteractivePlayground';
 import PlanSummary from './PlanSummary';
 
 export default function DashboardScreen() {
@@ -24,10 +23,8 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      {/* Planning overview (read only) on the animated background of the old dashboard widget */}
-      <InteractivePlayground>
-        <PlanSummary />
-      </InteractivePlayground>
+      {/* Planning overview (read only) */}
+      <PlanSummary />
     </div>
   );
 }

@@ -68,7 +68,7 @@ export default function PlanSummary() {
   return (
     <section
       aria-label="Planning overview"
-      className="w-full max-w-3xl rounded-xl border border-gray-200 bg-white/95 p-5 shadow-sm backdrop-blur-sm sm:p-6 dark:border-gray-700 dark:bg-[#1a1d24]/95"
+      className="w-full rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8 dark:border-gray-700/60 dark:bg-[#1a202c]"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -103,7 +103,7 @@ export default function PlanSummary() {
           <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">The overview could not be loaded.</p>
         ) : !summary ? (
           Array.from({ length: 5 }, (_, index) => (
-            <div key={index} className="grid grid-cols-[110px_1fr] items-center gap-3 sm:grid-cols-[120px_1fr_200px]">
+            <div key={index} className="grid grid-cols-[110px_1fr] items-center gap-3 sm:grid-cols-[150px_1fr_240px]">
               <div className="h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
               <div className="h-3.5 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
             </div>
@@ -115,7 +115,7 @@ export default function PlanSummary() {
             const name = DEPARTMENTS[plan.dept]?.name || plan.dept;
             const planTotal = total(plan);
             return (
-              <div key={plan.dept} className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-1 sm:grid-cols-[120px_1fr_200px]">
+              <div key={plan.dept} className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-1 sm:grid-cols-[150px_1fr_240px] sm:gap-x-5">
                 <div className="truncate text-xs font-semibold text-gray-800 dark:text-gray-100">{name}</div>
                 <div className="h-3.5" role="img" aria-label={`${name}: ${plan.pending} pending, ${plan.tentative} tentative, ${plan.confirm} confirm`}>
                   {planTotal > 0 ? (
