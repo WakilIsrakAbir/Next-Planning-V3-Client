@@ -90,7 +90,15 @@ export default function LoginScreen() {
             Textile Planning Solution
           </h1>
           <p className="mt-1 text-xs font-medium text-emerald-200/80">
-            Developed by Wakil Israk Abir
+            Developed by{' '}
+            <a
+              href="https://www.linkedin.com/in/wakil-israk-abir/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 transition-colors hover:text-emerald-100 hover:underline focus-visible:underline focus-visible:outline-none"
+            >
+              Wakil Israk Abir
+            </a>
           </p>
           <p className="mt-2 text-xs text-slate-400">
             Sign in to your account
