@@ -1,7 +1,8 @@
 'use client';
 
 /* Page heading of the Batch pages (old <header class="top-header">): eyebrow, title, optional unit tabs
-   (Batch Card passes <UnitTabs/>) and the status badge. Batch Plan has no heading (register and report). */
+   (Batch Card passes <UnitTabs/>) and the status badge. Batch Plan (register and report) and the Setup pages
+   have no heading. */
 import React from 'react';
 import { cn } from '@/lib/cn';
 import { S, useBatchVersion } from '@/features/batch/lib';

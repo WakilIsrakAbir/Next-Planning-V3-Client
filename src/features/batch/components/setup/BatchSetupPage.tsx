@@ -1,10 +1,10 @@
 'use client';
 
 /* Setup route page (/batch/setup/dyeing | flat | unit): the old #setupView with its three panels
-   (Dyeing MC, Flat Allowance, Unit Setup) and the Not Possible Fabric dialog. The route gives the panel;
-   selectSetupPanel(panel) keeps S.activeSetupPanel in step and builds the panel's draft (old renderSetupPanels). */
+   (Dyeing MC, Flat Allowance, Unit Setup) and the Not Possible Fabric dialog, without a page heading (each panel
+   has its own title). The route gives the panel; selectSetupPanel(panel) keeps S.activeSetupPanel in step and
+   builds the panel's draft (old renderSetupPanels). */
 import React, { useEffect } from 'react';
-import BatchHeader from '@/features/batch/components/shell/BatchHeader';
 import { S, closeFabricPicker, selectSetupPanel, useBatchVersion } from '@/features/batch/lib';
 import type { SetupPanel } from '@/features/batch/lib';
 import MachineSetupPanel from './MachineSetupPanel';
@@ -32,8 +32,7 @@ export default function BatchSetupPage({ panel }: { panel: SetupPanel }) {
 
   return (
     <>
-      <BatchHeader eyebrow="Data Management" title="Setup" badge="Storage Active" />
-      {/* The page area below the heading scrolls on its own; it is never printed. */}
+      {/* The page area scrolls on its own; it is never printed. */}
       <div id="setupView" className="min-h-0 flex-1 overflow-auto overscroll-contain print:!hidden">
         {panel === 'dyeing' && <MachineSetupPanel />}
         {panel === 'unit' && <UnitSetupPanel />}
