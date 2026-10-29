@@ -9,7 +9,7 @@ export default function DashboardScreen() {
       {/* Welcome Banner matching exp index.html */}
       <div className="rounded-xl p-5 sm:p-6 md:p-8 text-white shadow-lg relative overflow-hidden shrink-0 min-h-[180px] flex flex-col justify-center bg-[#1f232b]">
         <img
-          src="/assets/pexels-going-to-the-river-1386266882-26146519.jpg"
+          src="/assets/dashboard-bg.jpg"
           alt="Background"
           className="absolute inset-0 w-full h-full object-cover object-[0%_60%] z-0 pointer-events-none dark:opacity-40 transition-opacity duration-300"
         />

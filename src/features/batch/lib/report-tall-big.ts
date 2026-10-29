@@ -1,7 +1,7 @@
 /* Batch Plan report: Tall/Big sizes (re-exported by report-model.ts).
    Port of the old js/batch/batch-app.js Tall/Big functions: the report's Tall/Big setting, body Tall/Big kg
    declarations (they regenerate the batch rows), component Tall/Big piece declarations and allocation.
-   The rules are unchanged. The declaration dialog (reportui) shows `S.tallBigDeclarationContext` and writes
+   The rules are unchanged. The declaration dialog (components/plan/report/ReportDialogs.tsx) shows `S.tallBigDeclarationContext` and writes
    its inputs into `context.quantities`; the functions here put their messages into `context.error`
    (the old #tallBigDeclarationError). */
 import { BATCH_CALCULATION } from '@/features/batch/constants';
@@ -575,7 +575,7 @@ export function buildBodyTallBigRows(booking: Row, floor: Floor, fabrics: Row[],
   throw new Error('Tall/Big batch allocation could not fit the configured machines. Review the quantities or machine setup.');
 }
 
-/* ---------- Declaration dialog actions (the dialog component is reportui's) ---------- */
+/* ---------- Declaration dialog actions (the dialog component is in ReportDialogs.tsx) ---------- */
 export async function saveBodyTallBigDeclaration(context: Row): Promise<boolean> {
   const error = validateBodyTallBig(context.pools, context.quantities);
   if (error) {

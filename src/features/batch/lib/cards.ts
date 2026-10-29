@@ -343,7 +343,7 @@ export function renderCardRegister(): void {
   }
   const counts = { Pending: scopes.length, Partial: partial.length, Completed: completed.length, Revision: revisions.length };
   highlightUnitTabs('cards');
-  // The unit tab counts (old [data-card-floor-count]) are computed by the tabs (planflow's updateCardFloorCounts).
+  // The unit tab counts (old [data-card-floor-count]) are computed by the tabs (plan-flow's updateCardFloorCounts).
   const status = S.activeCardStatus;
   let rows: Row[] = status === 'Pending' ? scopes : status === 'Partial' ? partial : status === 'Completed' ? completed : revisions;
   if (search)

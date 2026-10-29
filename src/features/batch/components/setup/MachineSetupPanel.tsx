@@ -3,7 +3,9 @@
 /* Dyeing MC panel (old #dyeingMCSetupPanel, renderMachineSetup): the editable machine table. Edits change
    S.setupDraft until Save Changes; the Not Possible Fabric cell opens the fabric picker dialog. */
 import React, { useEffect, useRef } from 'react';
+import { cn } from '@/lib/cn';
 import {
+  BatchApi,
   MACHINE_SETUP_FIELDS,
   S,
   changeMachineSetupField,
@@ -15,6 +17,8 @@ import {
   useBatchVersion,
 } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
+import { card, input } from '../ui/styles';
+import { actions, field, setupButton, statusBar, table, tablePane, td, th, thead, toolbar, toolbarTitle, tr } from './setup-styles';
 
 const COLUMN_WIDTHS = [100, 95, 130, 160, 75, 100, 105, 330, 100];
 
@@ -38,6 +42,8 @@ export default function MachineSetupPanel() {
   const rows: Row[] = S.setupDraft ?? getMachineSetup();
   const locked = S.mutationBusy || !S.storageReady;
   const statusText = String(S.ui.setupSaveStatus || (S.setupDirty ? 'Unsaved changes' : 'Saved'));
+  // Insert and Save need the Dyeing MC permission (the old page hid them with body.perm-no-dyeingmc).
+  const canEdit = BatchApi.has('menus.dataManagement.dyeingMc');
 
   const insertRow = () => {
     focusNewRow.current = true;
@@ -45,66 +51,72 @@ export default function MachineSetupPanel() {
   };
 
   return (
-    <div className="card" id="dyeingMCSetupPanel">
-      <div className="setup-toolbar">
+    <div className={card} id="dyeingMCSetupPanel">
+      <div className={toolbar}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 17 }}>Dyeing Machine Setup</h2>
-          <p style={{ margin: '6px 0 0', fontSize: 12.5, color: '#64748b' }}>Edit any cell or insert a new row, then click Save Changes.</p>
+          <h2 className={toolbarTitle}>Dyeing Machine Setup</h2>
+          <p className="mx-0 mb-0 mt-1.5 text-[12.5px] text-[#64748b] dark:text-[#94a3b8]">
+            Edit any cell or insert a new row, then click Save Changes.
+          </p>
         </div>
-        <div className="btn-group-actions">
-          <button type="button" className="btn success" id="btnInsertMachine" disabled={locked} onClick={insertRow}>
-            ＋ Insert New Row
-          </button>
-          <button type="button" className="btn" id="btnSaveSetup" disabled={locked} onClick={() => void saveMachineSetup()}>
-            Save Changes
-          </button>
+        <div className={actions}>
+          {canEdit && (
+            <button type="button" className={setupButton('success')} id="btnInsertMachine" disabled={locked} onClick={insertRow}>
+              ＋ Insert New Row
+            </button>
+          )}
+          {canEdit && (
+            <button type="button" className={setupButton()} id="btnSaveSetup" disabled={locked} onClick={() => void saveMachineSetup()}>
+              Save Changes
+            </button>
+          )}
         </div>
       </div>
-      <div className="setup-status-bar">
+      <div className={statusBar}>
         <span id="setupRowCount">{rows.length + ' machines'}</span>
-        <strong id="setupSaveStatus" style={{ color: S.setupDirty ? '#b45309' : '#047857' }}>
+        <strong id="setupSaveStatus" className={S.setupDirty ? 'text-[#b45309]' : 'text-[#047857]'}>
           {statusText}
         </strong>
       </div>
-      <div className="table-wrap freeze-pane" tabIndex={0} aria-label="Dyeing machine setup">
-        <table className="setup-table">
+      <div className={tablePane} tabIndex={0} aria-label="Dyeing machine setup">
+        <table className={table}>
           <colgroup>
             {COLUMN_WIDTHS.map((width, index) => (
               <col key={index} style={{ width }} />
             ))}
           </colgroup>
-          <thead>
+          <thead className={thead}>
             <tr>
-              <th>Dyeing Floor</th>
-              <th>MC Type</th>
-              <th>M/C Group</th>
-              <th>MC Brand</th>
-              <th>MC No.</th>
-              <th>Capacity</th>
-              <th>Collar Cuff</th>
-              <th>Not Possible Fabric</th>
-              <th>Loading</th>
+              <th className={th}>Dyeing Floor</th>
+              <th className={th}>MC Type</th>
+              <th className={th}>M/C Group</th>
+              <th className={th}>MC Brand</th>
+              <th className={th}>MC No.</th>
+              <th className={th}>Capacity</th>
+              <th className={th}>Collar Cuff</th>
+              <th className={th}>Not Possible Fabric</th>
+              <th className={th}>Loading</th>
             </tr>
           </thead>
           <tbody id="machineSetupRows" ref={rowsRef}>
             {rows.map((row, index) => (
-              <tr key={index}>
-                {MACHINE_SETUP_FIELDS.map(([field, label]) =>
-                  field === 'notPossibleFabric' ? (
-                    <td key={field}>
+              <tr key={index} className={tr}>
+                {MACHINE_SETUP_FIELDS.map(([fieldName, label]) =>
+                  fieldName === 'notPossibleFabric' ? (
+                    <td key={fieldName} className={td}>
                       <FabricPickerCell row={row} index={index} />
                     </td>
                   ) : (
-                    <td key={field}>
+                    <td key={fieldName} className={td}>
                       <input
                         type="text"
-                        className="setup-input"
+                        className={field}
                         data-setup-row={index}
-                        data-setup-field={field}
-                        value={String(row[field] ?? '')}
+                        data-setup-field={fieldName}
+                        value={String(row[fieldName] ?? '')}
                         aria-label={label + ' for row ' + (index + 1)}
                         disabled={locked}
-                        onChange={(event) => changeMachineSetupField(index, field, event.target.value)}
+                        onChange={(event) => changeMachineSetupField(index, fieldName, event.target.value)}
                       />
                     </td>
                   )
@@ -118,20 +130,20 @@ export default function MachineSetupPanel() {
   );
 }
 
-/** The Not Possible Fabric cell (old fabricPickerButton). */
+/** The Not Possible Fabric cell (old fabricPickerButton; old `.setup-input.fabric-picker-button`). */
 function FabricPickerCell({ row, index }: { row: Row; index: number }) {
   const button = fabricPickerButton(row, index);
   return (
     <button
       type="button"
-      className="setup-input fabric-picker-button"
+      className={cn(input, 'flex min-h-8 cursor-pointer items-center justify-between gap-2 whitespace-normal text-left')}
       data-fabric-picker={index}
       aria-label={button.ariaLabel}
       title={button.title}
       disabled={button.disabled}
       onClick={() => openFabricPicker(index)}
     >
-      {button.label} <span>▾</span>
+      {button.label} <span className="flex-none">▾</span>
     </button>
   );
 }

@@ -252,8 +252,6 @@ export function updateFloorScopeNote(search: { term: string; list: Row[] } | nul
 }
 
 export interface FloorOrderLinksData {
-  /** 'report-floor-links' in the report heading, 'order-floor-links' in the register. */
-  className: string;
   /** The report heading shows "Same order on:" before the buttons. */
   showLabel: boolean;
   /** Units to jump to (keys). */
@@ -270,7 +268,7 @@ export function floorOrderLinks(number: string, floor: string | null = S.activeF
     (key) => key !== floor && (BatchApi.has('menus.batchPlan.all') || BatchApi.has('menus.batchPlan.' + key.toLowerCase()))
   );
   if (!targets.length) return null;
-  return { className: report ? 'report-floor-links' : 'order-floor-links', showLabel: report, floors: targets };
+  return { showLabel: report, floors: targets };
 }
 
 /** Old selectFloor (state only): the unit's list, page 1, an open report is closed (old switchMainView('batch')). */

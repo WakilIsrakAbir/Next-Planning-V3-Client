@@ -6,6 +6,8 @@
 import React, { useEffect, useRef } from 'react';
 import { S, closeInternalChangeDialog, floorLabel, submitInternalChange, useBatchVersion } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
+import { cn } from '@/lib/cn';
+import { button, controlFont, dialog } from '../ui/styles';
 import { trapTab } from './dialogKeys';
 
 export default function InternalChangeDialog() {
@@ -28,7 +30,7 @@ function InternalChangePanel({ context }: { context: Row }) {
   return (
     <div
       id="internalChangeDialog"
-      className="tentative-overlay"
+      className={dialog.overlay}
       aria-hidden="false"
       ref={overlayRef}
       onClick={(event) => {
@@ -43,29 +45,29 @@ function InternalChangePanel({ context }: { context: Row }) {
       }}
     >
       <section
-        className="tentative-panel"
+        className={dialog.panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby="internalChangeTitle"
         aria-describedby="internalChangeHelp"
       >
-        <h3 id="internalChangeTitle">Do you want to change this batch plan?</h3>
-        <p id="internalChangeContext" className="tentative-context">
+        <h3 id="internalChangeTitle" className={dialog.title}>Do you want to change this batch plan?</h3>
+        <p id="internalChangeContext" className={dialog.context}>
           {'Order / Booking No: ' + context.number + (context.floor ? ' · ' + floorLabel(context.floor) : '')}
         </p>
-        <p id="internalChangeHelp">
+        <p id="internalChangeHelp" className="my-4">
           Yes approves all staged internal edits and keeps the revision number. No discards these edits and returns to the Confirm List.
         </p>
-        <p id="internalChangeError" className="tentative-error" role="alert">
+        <p id="internalChangeError" className={dialog.error} role="alert">
           {context.error}
         </p>
-        <div className="tentative-actions">
-          <button id="btnInternalChangeNo" className="btn secondary" type="button" disabled={disabled} onClick={() => void submitInternalChange(false)}>
+        <div className={dialog.actions}>
+          <button id="btnInternalChangeNo" className={cn(button('secondary'), controlFont)} type="button" disabled={disabled} onClick={() => void submitInternalChange(false)}>
             No
           </button>
           <button
             id="btnInternalChangeYes"
-            className="btn success"
+            className={cn(button('success'), controlFont)}
             type="button"
             ref={yesRef}
             disabled={disabled}

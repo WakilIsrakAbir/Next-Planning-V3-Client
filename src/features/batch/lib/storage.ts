@@ -147,7 +147,7 @@ export async function ensureExcelReader(): Promise<typeof import('xlsx')> {
 
 /* ---------- printing ----------
    Old print modes set a class on <body> (printing-batch-card, printing-dyeable-summary,
-   printing-daily-confirm) that the print styles in styles/batch.css read. */
+   printing-daily-confirm); the components' print variants read it ([body.printing-batch-card_&]:...). */
 export function printWithBodyClass(className: string | null): void {
   if (className) document.body.classList.add(className);
   try {

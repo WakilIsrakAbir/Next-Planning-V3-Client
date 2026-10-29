@@ -1,11 +1,11 @@
 /* Batch Plan report model: the editable report draft, manual edits and dyeing modes (ported from the old js/batch/batch-app.js).
    The editable Batch Plan report's data: the report draft and its manual edits (fabric, batch, instruction
    and component rows), Dyeing Mode, and writing the draft into the booking's saved floor plan.
-   Tall/Big is in model-tallbig.ts, BP rows and components in model-components.ts, OD BP in model-od.ts;
+   Tall/Big is in report-tall-big.ts, BP rows and components in report-components.ts, OD BP in report-od.ts;
    this file re-exports them, so other slices import everything from './report-model'.
 
    The rules and the saved plan fields are unchanged (the old page reads the same records). The old
-   top-level variables are `S.<name>` (state.ts). No DOM here: the editing row's inputs keep
+   top-level variables are `S.<name>` (store/batch-store.ts). No DOM here: the editing row's inputs keep
    `S.reportRowEditor.values` up to date, and the screen re-renders after notify() / refreshEditableReport(). */
 import { BATCH_CALCULATION } from '@/features/batch/constants';
 import { S, notify } from '@/features/batch/store/batch-store';

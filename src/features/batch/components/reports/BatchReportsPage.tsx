@@ -7,6 +7,7 @@
    The rule runs again after a data reload and when the sidebar re-opens this page (BATCH_NAVIGATE_EVENT).
    The panel shown follows S.dyeableReportMode, as the old renderDyeableReport did. */
 import React, { useEffect, useRef } from 'react';
+import { cn } from '@/lib/cn';
 import { BATCH_NAVIGATE_EVENT } from '@/features/batch/lib/batch-navigation';
 import BatchHeader from '@/features/batch/components/shell/BatchHeader';
 import { S, showReportRoute, useBatchVersion } from '@/features/batch/lib';
@@ -50,7 +51,17 @@ export default function BatchReportsPage({ kind }: { kind: 'detail' | 'summary' 
   return (
     <>
       <BatchHeader eyebrow="Reports" title={TITLES[kind]} badge="Report Preview" />
-      <div id="reportsView">
+      {/* Scrolls on its own below the heading. Printed only by the Summary and Daily Confirm print modes; the
+          Daily Confirm print shows only its own panel. */}
+      <div
+        id="reportsView"
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-auto print:hidden!',
+          'print:[body.printing-dyeable-summary_&]:block! print:[body.printing-daily-confirm_&]:block!',
+          'print:h-auto print:min-h-0 print:overflow-visible',
+          'print:[body.printing-daily-confirm_&>:not(#dailyConfirmPanel)]:hidden!'
+        )}
+      >
         <DailyConfirmPanel hidden={mode !== 'daily'} />
         <DyeableReportEmpty hidden={mode === 'daily' || !!result} />
         <DyeableReportPanel hidden={mode !== 'detail' || !S.dyeableReportResult} />

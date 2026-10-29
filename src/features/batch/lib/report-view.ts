@@ -170,7 +170,10 @@ let viewSeq = 0;
 
 /* ---------- knitting status badge (old knittingBadge(state, summary) returned the <span>) ---------- */
 export interface KnittingBadgeView {
-  className: string;
+  /** Readiness kind ('ready', 'short', 'unknown', 'cc' or 'empty'); KnittingBadge maps it to its colours. */
+  kind: string;
+  /** The batch row's summary badge (larger text, bounded width) rather than a fabric cell badge. */
+  summary: boolean;
   title: string;
   label: string;
 }
@@ -181,7 +184,7 @@ export function knittingBadge(state: Row | null | undefined, summary = false): K
     state.requiredKg === undefined
       ? ''
       : `Produced: ${kgText(state.producedKg)} kg; available before this batch: ${kgText(state.availableKg)} kg; required: ${kgText(state.requiredKg)} kg.`;
-  return { className: `knit-status ${summary ? 'knit-status-summary ' : ''}knit-${state.kind}`, title: detail, label: String(state.label ?? '') };
+  return { kind: String(state.kind ?? ''), summary, title: detail, label: String(state.label ?? '') };
 }
 
 /* ---------- Machine Selection Evaluation rows ---------- */
@@ -189,7 +192,8 @@ export interface MachineEvaluationRowView {
   row: Row;
   display: Row;
   remarks: string;
-  className: string;
+  /** 'selected': the applied machine (green); 'recommended': the algorithm's choice (blue). */
+  highlight: 'selected' | 'recommended' | null;
 }
 
 /** Rows of the evaluation table for one colour (old renderMachineEvaluationRows returned the table HTML). */
@@ -197,14 +201,14 @@ export function renderMachineEvaluationRows(index = 0): { error: string; rows: M
   const group = S.currentReportMachineEvaluations[index];
   if (!group) return null;
   const display: Row[] = GenericMachineSelection.formatEvaluations(group.rows);
-  const rows = (group.rows as Row[]).map((row, i) => {
+  const rows = (group.rows as Row[]).map((row, i): MachineEvaluationRowView => {
     const applied = row.applied;
     const remarks = applied
       ? (row.appliedBy === 'manual' ? 'Loaded manually for this colour. ' : 'Applied automatically. ') + (row.selected ? 'Recommended by algorithm.' : row.remarks)
       : row.selected
         ? 'Recommended by algorithm.'
         : row.remarks;
-    return { row, display: display[i], remarks: String(remarks ?? ''), className: applied ? 'machine-selected' : row.selected ? 'machine-recommended' : '' };
+    return { row, display: display[i], remarks: String(remarks ?? ''), highlight: applied ? 'selected' : row.selected ? 'recommended' : null };
   });
   return { error: group.error ? String(group.error) : '', rows };
 }

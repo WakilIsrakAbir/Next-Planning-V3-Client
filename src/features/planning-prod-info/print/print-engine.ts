@@ -2,7 +2,7 @@
 // PPI report: dynamic A4 landscape multi-page print engine.
 // Ported from the old js/planning-prod-info.js (buildPrintPages, createPrintPage, createSummaryPrintShell,
 // printContentOverflows, clearPrintPages). The report sections on screen are cloned into fixed-size A4 pages
-// inside a container appended to <body>; ppi-print.css hides everything else while printing.
+// inside a container appended to <body>; print.css hides everything else while printing.
 // ==========================================================
 
 export const PRINT_CONTAINER_ID = 'printPagesContainer';

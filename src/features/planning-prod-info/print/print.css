@@ -3,7 +3,7 @@
    (ported from the old index.html "REPORT SCREEN & A4 LANDSCAPE PRINT ENGINE" block).
 
    Next.js keeps a page's global stylesheet loaded after navigating away, so every rule here is scoped:
-   to the #printPagesContainer node that ppi-print-engine.ts appends to <body>, or to body.ppi-print-active,
+   to the #printPagesContainer node that print-engine.ts appends to <body>, or to body.ppi-print-active,
    which is only set while generated PPI pages exist. Printing any other screen is unaffected.
    ========================================================== */
 

@@ -11,6 +11,7 @@ import {
   Layers,
 } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
+import { API_BASE } from '@/lib/constants';
 import { getColData } from '@/lib/data-utils';
 import {
   findPrecachedOrder,
@@ -43,8 +44,6 @@ function readIsAdminRole(): boolean {
   const r = String(role).toLowerCase();
   return r === 'admin' || r === 'approver';
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const DEPARTMENTS: Record<string, { name: string; label: string }> = {
   knitting: { name: 'Knitting Plan', label: 'Knitting' },

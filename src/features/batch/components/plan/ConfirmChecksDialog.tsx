@@ -5,6 +5,8 @@
    the backdrop close it; Tab moves between the two buttons. */
 import React, { useEffect, useRef } from 'react';
 import { S, closeConfirmChecks, proceedConfirmChecks, useBatchVersion } from '@/features/batch/lib';
+import { cn } from '@/lib/cn';
+import { button, controlFont, dialog } from '../ui/styles';
 
 export default function ConfirmChecksDialog() {
   useBatchVersion();
@@ -23,7 +25,7 @@ function ConfirmChecksPanel() {
   return (
     <div
       id="confirmChecksDialog"
-      className="tentative-overlay"
+      className={dialog.overlay}
       aria-hidden="false"
       onClick={(event) => {
         if (event.target === event.currentTarget) closeConfirmChecks();
@@ -46,13 +48,13 @@ function ConfirmChecksPanel() {
         }
       }}
     >
-      <section className="tentative-panel" role="dialog" aria-modal="true" aria-labelledby="confirmChecksTitle">
-        <h3 id="confirmChecksTitle">Are Lapdip, Reference, and Additional Process correct?</h3>
-        <div className="tentative-actions">
-          <button id="btnConfirmChecksYes" className="btn success" type="button" ref={yesRef} onClick={() => void proceedConfirmChecks()}>
+      <section className={dialog.panel} role="dialog" aria-modal="true" aria-labelledby="confirmChecksTitle">
+        <h3 id="confirmChecksTitle" className={dialog.title}>Are Lapdip, Reference, and Additional Process correct?</h3>
+        <div className={dialog.actions}>
+          <button id="btnConfirmChecksYes" className={cn(button('success'), controlFont)} type="button" ref={yesRef} onClick={() => void proceedConfirmChecks()}>
             Yes, Proceed
           </button>
-          <button id="btnConfirmChecksNo" className="btn secondary" type="button" ref={noRef} onClick={closeConfirmChecks}>
+          <button id="btnConfirmChecksNo" className={cn(button('secondary'), controlFont)} type="button" ref={noRef} onClick={closeConfirmChecks}>
             No, Cancel
           </button>
         </div>

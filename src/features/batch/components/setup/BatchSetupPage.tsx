@@ -33,7 +33,8 @@ export default function BatchSetupPage({ panel }: { panel: SetupPanel }) {
   return (
     <>
       <BatchHeader eyebrow="Data Management" title="Setup" badge="Storage Active" />
-      <div id="setupView">
+      {/* The page area below the heading scrolls on its own; it is never printed. */}
+      <div id="setupView" className="min-h-0 flex-1 overflow-auto overscroll-contain print:!hidden">
         {panel === 'dyeing' && <MachineSetupPanel />}
         {panel === 'unit' && <UnitSetupPanel />}
         {panel === 'flat' && <FlatAllowancePanel />}

@@ -2,7 +2,7 @@
    js/batch/batch-app.js openBatchPlanReport, refreshEditableReport, row editing, General Info edits, Machine
    Selection Evaluation, Tall/Big declaration and OD BP declaration; see docs/batch-module.md).
 
-   The report body is built as data by reportui-view.ts (old generateBlankBatchPlanHtml) and rendered by
+   The report body is built as data by report-view.ts (old generateBlankBatchPlanHtml) and rendered by
    components/plan/report/ReportBody.tsx; the dialogs are rendered by components/plan/report/ReportDialogs.tsx
    while their context is set (S.machineEvaluationContext, S.tallBigDeclarationContext,
    S.odDeclarationContext). Dialog inputs write into those contexts as the user types, so the old collect*()
@@ -153,7 +153,7 @@ export function startReportRowEdit(kind: string, index: number, isNew = false): 
   if (isNew && kind === 'fabric') values.name = 'Fabric ' + (S.currentFabricRows.length + 1);
   S.reportRowEditor = { kind, index, isNew, values, error: '' };
   refreshEditableReport();
-  requestReportFocus('#reportContent .report-row-editing input');
+  requestReportFocus('#reportContent [data-report-row-editing] input');
 }
 
 /** Click on a row button (old delegated listener on [data-report-row-action]). */

@@ -41,8 +41,8 @@ import {
   hasPrintPages,
   removePrintContainer,
   type PPIPrintSources,
-} from '@/features/planning-prod-info/lib/print-engine';
-import '@/features/planning-prod-info/lib/print.css';
+} from '@/features/planning-prod-info/print/print-engine';
+import '@/features/planning-prod-info/print/print.css';
 
 interface PPIListResult {
   orders: PPIOrder[];

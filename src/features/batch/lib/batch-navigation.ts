@@ -57,7 +57,7 @@ export function isBatchPath(pathname: string | null | undefined): boolean {
   return pathname === '/batch' || String(pathname || '').startsWith('/batch/');
 }
 
-/* ---------- permissions (the server checks the same keys, lib/batch/source.ts) ---------- */
+/* ---------- permissions (the server checks the same keys, server src/utils/batch-rules.ts) ---------- */
 type PermissionTree = {
   menus?: Record<string, Record<string, unknown> | undefined>;
   actions?: Record<string, unknown>;

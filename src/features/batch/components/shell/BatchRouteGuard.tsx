@@ -6,18 +6,20 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { batchCanOpenRoute, batchRouteInfo } from '@/features/batch/lib/batch-navigation';
+import { button, card } from '../ui/styles';
 
 export default function BatchRouteGuard({ route, children }: { route: string; children: React.ReactNode }) {
   // The dashboard renders pages only on the client (after the session check), so localStorage is readable.
   const info = batchRouteInfo(route);
   if (info && batchCanOpenRoute(route)) return <>{children}</>;
   return (
-    <div className="card" style={{ margin: 24, textAlign: 'center', padding: 40 }}>
-      <ShieldAlert style={{ width: 40, height: 40, color: '#dc2626', margin: '0 auto 12px' }} />
-      <h2 style={{ margin: 0 }}>Access Denied</h2>
-      <p style={{ color: 'var(--text-muted)' }}>{(info?.title || 'Batch Plan') + ' permission required.'}</p>
-      <Link href="/dashboard" className="btn">
+    <div className={cn(card, 'm-6 p-10 text-center')}>
+      <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-[#dc2626]" />
+      <h2 className="m-0 text-xl font-bold">Access Denied</h2>
+      <p className="text-batch-muted">{(info?.title || 'Batch Plan') + ' permission required.'}</p>
+      <Link href="/dashboard" className={button('primary')}>
         Back to Dashboard
       </Link>
     </div>

@@ -14,7 +14,24 @@ import {
   useBatchVersion,
 } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
+import { cn } from '@/lib/cn';
+import { button, controlFont, dialog } from '../ui/styles';
 import { trapTab } from './dialogKeys';
+
+/* Exclusive Yes/No options drawn as check boxes (old .tentative-options input). */
+const CHECK_RADIO =
+  'm-0 grid h-[17px] w-[17px] appearance-none place-content-center rounded-[3px] border border-solid border-[#93a8bd] bg-white font-[Arial] ' +
+  "checked:border-[#1d5ab2] checked:bg-[#1d5ab2] checked:after:text-[13px] checked:after:font-bold checked:after:text-white checked:after:content-['✓'] " +
+  'focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[#1d5ab2] ' +
+  'dark:border-[#3b4560] dark:bg-[#1e2330] dark:checked:border-[#10b981] dark:checked:bg-[#10b981] ' +
+  'dark:focus:shadow-[0_0_0_2px_rgba(16,185,129,0.15)] dark:focus-visible:outline-[#10b981]';
+
+/* Old .tentative-panel textarea: the browser's white field with black text. */
+const TEXTAREA = cn(
+  dialog.textarea,
+  'bg-white text-black placeholder:text-[#757575] dark:placeholder:text-[#475569] ' +
+    'dark:focus:border-[#10b981] dark:focus:shadow-[0_0_0_2px_rgba(16,185,129,0.15)] dark:focus:outline-[#10b981]'
+);
 
 const QUESTIONS = [
   { name: 'labDip', legend: 'A. Is the lab dip approved?' },
@@ -47,7 +64,7 @@ function TentativePanel({ context }: { context: Row }) {
   return (
     <div
       id="tentativeQuestionnaire"
-      className="tentative-overlay"
+      className={dialog.overlay}
       aria-hidden="false"
       ref={overlayRef}
       onClick={(event) => {
@@ -63,7 +80,7 @@ function TentativePanel({ context }: { context: Row }) {
     >
       <form
         id="tentativeQuestionnaireForm"
-        className="tentative-panel"
+        className={dialog.panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tentativeTitle"
@@ -73,18 +90,19 @@ function TentativePanel({ context }: { context: Row }) {
           void saveTentativeQuestionnaire();
         }}
       >
-        <h3 id="tentativeTitle">Save as Tentative</h3>
-        <p id="tentativeContext" className="tentative-context">
+        <h3 id="tentativeTitle" className={dialog.title}>Save as Tentative</h3>
+        <p id="tentativeContext" className={dialog.context}>
           {'Order / Booking No: ' + context.number + (context.floor ? ' · ' + floorLabel(context.floor) : '')}
         </p>
         {QUESTIONS.map((question, index) => (
-          <fieldset key={question.name}>
-            <legend>{question.legend}</legend>
-            <div className="tentative-options">
+          <fieldset key={question.name} className={dialog.fieldset}>
+            <legend className={dialog.legend}>{question.legend}</legend>
+            <div className="flex gap-[30px]">
               {['Yes', 'No'].map((value) => (
-                <label key={value}>
+                <label key={value} className="flex cursor-pointer items-center gap-2 text-[13px]">
                   <input
                     type="radio"
+                    className={CHECK_RADIO}
                     name={question.name}
                     value={value}
                     required
@@ -99,24 +117,25 @@ function TentativePanel({ context }: { context: Row }) {
             </div>
           </fieldset>
         ))}
-        <label className="tentative-other-label" htmlFor="tentativeOthers">
+        <label className="block text-[13px] font-semibold text-[#23496b] dark:text-[#cbd5e1]" htmlFor="tentativeOthers">
           D. Others (optional)
         </label>
         <textarea
           id="tentativeOthers"
+          className={TEXTAREA}
           placeholder="Enter any other reason or comment…"
           value={String(answers.others ?? '')}
           disabled={disabled}
           onChange={(event) => changeTentativeAnswer('others', event.target.value)}
         />
-        <p id="tentativeQuestionnaireError" className="tentative-error" role="alert">
+        <p id="tentativeQuestionnaireError" className={dialog.error} role="alert">
           {context.error}
         </p>
-        <div className="tentative-actions">
-          <button type="button" id="btnCancelTentative" className="btn secondary" disabled={disabled} onClick={() => closeTentativeQuestionnaire()}>
+        <div className={dialog.actions}>
+          <button type="button" id="btnCancelTentative" className={cn(button('secondary'), controlFont)} disabled={disabled} onClick={() => closeTentativeQuestionnaire()}>
             Cancel
           </button>
-          <button type="submit" id="btnSaveTentative" className="btn warning" disabled={disabled}>
+          <button type="submit" id="btnSaveTentative" className={cn(button('warning'), controlFont)} disabled={disabled}>
             Save Tentative
           </button>
         </div>

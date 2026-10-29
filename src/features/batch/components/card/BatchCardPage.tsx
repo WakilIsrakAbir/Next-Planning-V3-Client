@@ -6,6 +6,7 @@
    URL follows), then selectCardFloor(unit) opens that unit's register. It runs again after a data reload and
    when the sidebar re-opens this page (BATCH_NAVIGATE_EVENT), as the old route() did. */
 import React, { useEffect, useRef } from 'react';
+import { cn } from '@/lib/cn';
 import { BATCH_NAVIGATE_EVENT, rememberBatchRoute } from '@/features/batch/lib/batch-navigation';
 import BatchHeader from '@/features/batch/components/shell/BatchHeader';
 import UnitTabs from '@/features/batch/components/plan/UnitTabs';
@@ -48,7 +49,15 @@ export default function BatchCardPage({ unit }: { unit: string | null }) {
       >
         <UnitTabs kind="card" />
       </BatchHeader>
-      <div id="batchCardView">
+      {/* Scrolls on its own below the heading; printed only while a card prints (body.printing-batch-card). */}
+      <div
+        id="batchCardView"
+        className={cn(
+          'min-h-0 flex-1 overflow-auto overscroll-contain',
+          'print:[body:not(.printing-batch-card)_&]:hidden! print:[body.printing-batch-card_&]:block!',
+          'print:[body.printing-batch-card_&]:h-auto print:[body.printing-batch-card_&]:overflow-visible'
+        )}
+      >
         <CardRegisterPanel hidden={panel !== 'register'} />
         <CardOrderPanel hidden={panel !== 'order'} />
         <CardPreviewPanel hidden={panel !== 'preview'} />

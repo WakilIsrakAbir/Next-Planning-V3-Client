@@ -1,7 +1,7 @@
 /* Batch Plan: batch calculation — flat allowance, knitting fabric columns and fabric de-duplication, machine
    setup rules, knitting readiness, machine evaluation and production math, colour batch generation.
    Port of the old js/batch/batch-app.js (see docs/batch-module.md). Every rule is kept statement for statement;
-   old globals are S.<name>. The Generic ERP Machine Selection lives in ./calc-selection (re-exported). */
+   old globals are S.<name>. The Generic ERP Machine Selection lives in ./machine-selection (re-exported). */
 import { BATCH_CALCULATION, COMPONENT_KINDS, INITIAL_FLAT_ALLOWANCE, KNITTING_FABRIC_COLUMNS, MACHINE_FLOOR_POOLS } from '@/features/batch/constants';
 import { S, notify } from '@/features/batch/store/batch-store';
 import { getStoredDatasets, setMutationBusy, showSaveError, toast } from './storage';

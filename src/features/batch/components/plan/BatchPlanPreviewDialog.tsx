@@ -7,6 +7,7 @@
    booking; Print keeps the saved-PDF layout. Escape closes; Tab stays inside. */
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
+  BatchApi,
   S,
   actualSizeBatchPlanPreview,
   closeBatchPlanPreview,
@@ -17,7 +18,20 @@ import {
   zoomBatchPlanPreview,
 } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
+import { cn } from '@/lib/cn';
+import { button, type ButtonVariant } from '../ui/styles';
 import { trapTab } from './dialogKeys';
+
+/** A zoom bar button (old .batch-plan-preview-controls .btn; the browser's control font, Arial, as before). */
+const controlButton = (variant: ButtonVariant) => cn(button(variant), 'px-2.5! py-[7px]! font-[Arial] text-[12px]!');
+
+/* The copied page on the paper (old .batch-plan-preview-page.report): white paper scaled from its top left
+   corner, which stays light paper in the dark theme. Every table wrap, section and heading row of the report
+   is expanded, so only the outer viewport scrolls. */
+const PREVIEW_PAGE =
+  'absolute left-0 top-0 m-0 block h-auto max-h-none max-w-none origin-top-left overflow-visible rounded-none border-0 bg-white p-6 ' +
+  'shadow-[0_2px_12px_#0f172a26] [color-scheme:light] dark:shadow-[0_2px_10px_rgba(0,0,0,0.45)] ' +
+  '[&_[data-report-section]]:overflow-visible [&_[data-report-table-wrap]]:max-h-none [&_[data-report-table-wrap]]:overflow-visible [&_thead]:static';
 
 export default function BatchPlanPreviewDialog() {
   useBatchVersion();
@@ -31,16 +45,17 @@ function readOnlyReportCopy(source: HTMLElement): HTMLElement {
   const page = source.cloneNode(true) as HTMLElement;
   page.removeAttribute('id');
   page.removeAttribute('aria-live');
-  page.classList.add('batch-plan-preview-page');
+  // The paper's look replaces the article's (old .batch-plan-preview-page.report); [data-preview-page] marks the copy.
+  page.className = PREVIEW_PAGE;
+  page.setAttribute('data-preview-page', '');
   page.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
-  page.querySelectorAll('.report-edit-table').forEach((table) => {
+  // Editable tables lose their 'Action' heading; their row action cells carry [data-preview-strip].
+  page.querySelectorAll('[data-report-edit-table]').forEach((table) => {
     const heading = table.querySelector('thead tr');
     if (heading?.lastElementChild?.textContent?.trim() === 'Action') heading.lastElementChild.remove();
-    table.querySelectorAll('.report-row-actions').forEach((element) => element.remove());
   });
-  page
-    .querySelectorAll('button,.report-floor-links,.manual-report-notice:not(.internal-change-notice),.print-note,.manual-row-label,.row-edit-label,.cc-mode-control')
-    .forEach((element) => element.remove());
+  // Buttons, floor links, edit notes and labels, the print note and the CC mode control are not copied.
+  page.querySelectorAll('button,[data-preview-strip]').forEach((element) => element.remove());
   // Inputs become their text (cloneNode keeps the values shown on the screen, as before).
   page.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input,textarea,select').forEach((element) => {
     const text = document.createElement('span');
@@ -125,9 +140,9 @@ function PreviewPanel({ state }: { state: Row }) {
   }, [fit]);
 
   return (
-    <div id="batchPlanPreviewDialog" className="batch-plan-preview-overlay" aria-hidden="false" ref={overlayRef}>
+    <div id="batchPlanPreviewDialog" className="fixed inset-0 z-[150] flex bg-[#dce4ed] p-3 dark:bg-[#0f1117] max-[700px]:p-0 print:hidden!" aria-hidden="false" ref={overlayRef}>
       <div
-        className="batch-plan-preview-panel"
+        className="flex min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-[#bccbdb] bg-[#f1f5f9] shadow-[0_12px_45px_#0f172a33] dark:border-[#2a3346] dark:bg-[#151921] max-[700px]:rounded-none"
         role="dialog"
         aria-modal="true"
         aria-labelledby="batchPlanPreviewTitle"
@@ -140,48 +155,50 @@ function PreviewPanel({ state }: { state: Row }) {
           trapTab(event, overlayRef.current, 'button,[tabindex="0"]');
         }}
       >
-        <div className="batch-plan-preview-toolbar">
+        <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-b border-solid border-[#cbd5e1] bg-white px-4 py-3 dark:border-b-[#2a3346] dark:bg-[#181c25]">
           <div>
-            <h3 id="batchPlanPreviewTitle">Batch Plan · Full View</h3>
-            <p id="batchPlanPreviewContext">
+            <h3 id="batchPlanPreviewTitle" className="m-0 text-[16px] font-bold text-[#15395c] dark:text-[#f8fafc]">Batch Plan · Full View</h3>
+            <p id="batchPlanPreviewContext" className="mx-0 mb-0 mt-1 text-[12px] text-[#64748b]">
               {'Order ' + state.number + (state.floor ? ' · ' + floorLabel(state.floor) : '') + ' · Read-only view'}
             </p>
           </div>
-          <div className="batch-plan-preview-controls" role="group" aria-label="Batch plan zoom controls">
-            <button type="button" className="btn secondary" id="btnPreviewZoomOut" aria-label="Zoom out" disabled={scale <= 0.05} onClick={() => zoomBatchPlanPreview(-0.1)}>
+          <div className="flex flex-wrap items-center gap-[7px]" role="group" aria-label="Batch plan zoom controls">
+            <button type="button" className={controlButton('secondary')} id="btnPreviewZoomOut" aria-label="Zoom out" disabled={scale <= 0.05} onClick={() => zoomBatchPlanPreview(-0.1)}>
               −
             </button>
-            <output id="batchPlanPreviewZoom" aria-live="polite">
+            <output id="batchPlanPreviewZoom" className="min-w-[45px] text-center text-[12px] font-bold text-[#23496b] dark:text-[#cbd5e1]" aria-live="polite">
               {Math.round(scale * 100) + '%'}
             </output>
-            <button type="button" className="btn secondary" id="btnPreviewZoomIn" aria-label="Zoom in" disabled={scale >= 2} onClick={() => zoomBatchPlanPreview(0.1)}>
+            <button type="button" className={controlButton('secondary')} id="btnPreviewZoomIn" aria-label="Zoom in" disabled={scale >= 2} onClick={() => zoomBatchPlanPreview(0.1)}>
               ＋
             </button>
-            <button type="button" className="btn secondary" id="btnPreviewFitWidth" onClick={() => fit('width')}>
+            <button type="button" className={controlButton('secondary')} id="btnPreviewFitWidth" onClick={() => fit('width')}>
               Fit width
             </button>
-            <button type="button" className="btn secondary" id="btnPreviewFitPage" onClick={() => fit('page')}>
+            <button type="button" className={controlButton('secondary')} id="btnPreviewFitPage" onClick={() => fit('page')}>
               Fit page
             </button>
-            <button type="button" className="btn secondary" id="btnPreviewActualSize" onClick={actualSizeBatchPlanPreview}>
+            <button type="button" className={controlButton('secondary')} id="btnPreviewActualSize" onClick={actualSizeBatchPlanPreview}>
               100%
             </button>
-            <button type="button" className="btn" id="btnPreviewPrint" onClick={printBatchPlan}>
-              Print / Save PDF
-            </button>
-            <button type="button" className="btn secondary" id="btnCloseBatchPlanPreview" ref={closeRef} onClick={() => closeBatchPlanPreview()}>
+            {BatchApi.has('downloads.batchPlanPrint') && (
+              <button type="button" className={controlButton('primary')} id="btnPreviewPrint" onClick={printBatchPlan}>
+                Print / Save PDF
+              </button>
+            )}
+            <button type="button" className={controlButton('secondary')} id="btnCloseBatchPlanPreview" ref={closeRef} onClick={() => closeBatchPlanPreview()}>
               Close ✕
             </button>
           </div>
         </div>
         <div
           id="batchPlanPreviewViewport"
-          className="batch-plan-preview-viewport"
+          className="min-h-0 flex-1 overflow-auto overscroll-contain p-6"
           tabIndex={0}
           aria-label="Full batch plan; scroll to view all rows and columns"
           ref={viewportRef}
         >
-          <div id="batchPlanPreviewPaper" className="batch-plan-preview-paper" ref={paperRef} />
+          <div id="batchPlanPreviewPaper" className="relative mx-auto my-0 overflow-hidden shadow-[0_2px_12px_#0f172a26]" ref={paperRef} />
         </div>
       </div>
     </div>

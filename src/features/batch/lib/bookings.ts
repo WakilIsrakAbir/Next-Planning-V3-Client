@@ -2,7 +2,7 @@
    Formatting helpers, booking keys, units/floors and the knitting index, floor bookings, the all-units
    search, revisions and report locking, knitting fingerprints, confirmed snapshots and Need Re-Confirm,
    General Info values and Unit Setup values.
-   The rules are unchanged; the old top-level variables are `S.<name>` (state.ts). No DOM here. */
+   The rules are unchanged; the old top-level variables are `S.<name>` (store/batch-store.ts). No DOM here. */
 import {
   APP_SETTINGS,
   CONFIRMED_HEADER_FIELDS,
@@ -103,7 +103,7 @@ export function normalizeFloor(value: unknown): string | null {
 }
 /* The floor list is the list of Dyeing Plan units that the server sends ([{key, label}], e.g. EFL, EKL, Ext,
    DTL). The demo's five floors keep their keys and old spellings (DEMO_FLOOR_ALIASES). BATCH_FLOORS,
-   floorAliases and DYEABLE_FLOOR_LABELS (state.ts) are changed in place. */
+   floorAliases and DYEABLE_FLOOR_LABELS (store/batch-store.ts) are changed in place. */
 export function setBatchUnits(units: ReadonlyArray<Partial<BatchUnit> | null | undefined>): void {
   BATCH_FLOORS.length = 0;
   for (const unit of units) {

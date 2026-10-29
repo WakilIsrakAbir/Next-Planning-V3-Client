@@ -1,6 +1,6 @@
 /* Batch Plan report: OD BP (re-exported by report-model.ts).
    OD BP is an explicit manual batch-count override for Semi Bleach only. Port of the old
-   js/batch/batch-app.js OD functions; the rules are unchanged. The OD declaration dialog (reportui) keeps
+   js/batch/batch-app.js OD functions; the rules are unchanged. The OD declaration dialog (components/plan/report/ReportDialogs.tsx) keeps
    `S.odDeclarationContext` up to date: its inputs write `context.colours[odBatchIndex]` and
    `context.quantityEdits[rowKey][fabricKey]` on change, so collectODColours()/collectODQuantities() have
    nothing left to read. */

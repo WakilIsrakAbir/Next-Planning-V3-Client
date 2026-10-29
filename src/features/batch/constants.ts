@@ -1,7 +1,7 @@
 /* Batch Plan module constants: settings, default Setup tables and fixed column/label lists.
    Copied unchanged from the old project's js/batch/batch-app.js (the server keeps identical default
-   Setup tables in src/lib/batch/setup-defaults.ts). This module imports nothing, so every engine module
-   can use these values while the modules are still loading. */
+   Setup tables in its src/constants/batch-setup-defaults.ts). This module imports nothing, so every
+   engine module can use these values while the modules are still loading. */
 
 function batchSignedInUser(): string {
   try {

@@ -3,7 +3,9 @@
 /* Unit Setup panel (old #unitSetupPanel, renderUnitSetup): one row per buyer with its default unit, chosen from
    the ACTIVE units of Dropdown Master Setup. Changes stay in S.unitSetupDraft until Save Changes. */
 import React from 'react';
+import { cn } from '@/lib/cn';
 import {
+  BatchApi,
   S,
   changeUnitSetupDefault,
   changeUnitSetupSearch,
@@ -12,49 +14,70 @@ import {
   unitSetupTableView,
   useBatchVersion,
 } from '@/features/batch/lib';
+import { card } from '../ui/styles';
+import {
+  field,
+  note,
+  plainField,
+  setupButton,
+  statusBar,
+  table,
+  tablePane,
+  td,
+  th,
+  thead,
+  toolbar,
+  toolbarTitle,
+  tr,
+} from './setup-styles';
 
 export default function UnitSetupPanel() {
   useBatchVersion();
   const view = unitSetupTableView();
 
   return (
-    <div id="unitSetupPanel" className="card">
-      <div className="setup-toolbar">
+    <div id="unitSetupPanel" className={card}>
+      <div className={toolbar}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 17 }}>Unit Setup</h2>
-          <p className="component-note">
+          <h2 className={toolbarTitle}>Unit Setup</h2>
+          <p className={note}>
             Every buyer in the uploaded orders. Choose a default unit from the active units in Dropdown Master Setup, then Save Changes.
           </p>
         </div>
-        <button
-          type="button"
-          id="btnSaveUnitSetup"
-          className="btn"
-          disabled={S.mutationBusy || !S.storageReady}
-          onClick={() => void saveUnitSetup()}
-        >
-          Save Changes
-        </button>
+        {/* Save needs the Unit Setup permission (the old page hid it with body.perm-no-unit). */}
+        {BatchApi.has('menus.dataManagement.unitSetup') && (
+          <button
+            type="button"
+            id="btnSaveUnitSetup"
+            className={setupButton()}
+            disabled={S.mutationBusy || !S.storageReady}
+            onClick={() => void saveUnitSetup()}
+          >
+            Save Changes
+          </button>
+        )}
       </div>
-      <p>
+      {/* Paragraph margins of the browser default (1em). */}
+      <p className="my-[1em]">
         <input
           id="unitSetupSearch"
           type="search"
+          className={plainField}
           placeholder="Search buyer or unit"
           aria-label="Search Unit Setup"
           value={String(S.ui.setupUnitSearch ?? '')}
           onChange={(event) => changeUnitSetupSearch(event.target.value)}
         />
       </p>
-      <p id="unitSetupStatus" className="setup-status-bar">
+      <p id="unitSetupStatus" className={cn(statusBar, 'my-[1em]')}>
         {view.status}
       </p>
-      <div className="table-wrap freeze-pane">
-        <table className="setup-table">
-          <thead>
+      <div className={tablePane}>
+        <table className={table}>
+          <thead className={thead}>
             <tr>
-              <th>Buyer</th>
-              <th>Default Unit</th>
+              <th className={th}>Buyer</th>
+              <th className={th}>Default Unit</th>
             </tr>
           </thead>
           <tbody id="unitSetupRows">
@@ -64,11 +87,11 @@ export default function UnitSetupPanel() {
                 // The browser showed the last <option selected>, or the first option when none had it.
                 const selected = options.filter((option) => option.selected).pop()?.value ?? '';
                 return (
-                  <tr key={row.key}>
-                    <td>{row.buyer}</td>
-                    <td>
+                  <tr key={row.key} className={tr}>
+                    <td className={td}>{row.buyer}</td>
+                    <td className={td}>
                       <select
-                        className="setup-input"
+                        className={field}
                         data-unit-buyer={row.key}
                         aria-label={'Default Unit for ' + row.buyer}
                         disabled={view.locked}
@@ -86,8 +109,10 @@ export default function UnitSetupPanel() {
                 );
               })
             ) : (
-              <tr>
-                <td colSpan={2}>No matching buyer.</td>
+              <tr className={tr}>
+                <td colSpan={2} className={td}>
+                  No matching buyer.
+                </td>
               </tr>
             )}
           </tbody>

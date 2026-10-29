@@ -106,30 +106,6 @@ function has(path: string): boolean {
   return node === true;
 }
 
-/** CSS flags on the feature root (old body.perm-no-*): a button without permission is hidden. */
-export function permissionClasses(): string {
-  const flags: [string, string][] = [
-    ['edit', 'actions.batchEdit'],
-    ['tentative', 'actions.batchTentative'],
-    ['confirm', 'actions.batchConfirm'],
-    ['internal', 'actions.batchInternalChange'],
-    ['pending', 'actions.batchMovePending'],
-    ['card', 'actions.batchCardGenerate'],
-    ['dyeingmc', 'menus.dataManagement.dyeingMc'],
-    ['flat', 'menus.dataManagement.flatAllowance'],
-    ['unit', 'menus.dataManagement.unitSetup'],
-    ['plan-print', 'downloads.batchPlanPrint'],
-    ['card-print', 'downloads.batchCardPrint'],
-    ['dyeable-excel', 'downloads.dyeableExcel'],
-    ['summary-excel', 'downloads.dyeableSummaryExcel'],
-    ['daily-excel', 'downloads.dailyConfirmExcel'],
-  ];
-  return flags
-    .filter(([, path]) => !has(path))
-    .map(([name]) => 'perm-no-' + name)
-    .join(' ');
-}
-
 export const BatchApi = {
   loadState: fetchState,
   commit(payload: BatchCommitPayload): Promise<BatchCommitResult> {

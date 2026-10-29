@@ -3,7 +3,18 @@
   themes: light --default;
 }
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+/* Inside the Batch pages ([data-batch-app]) the dark theme is screen only: their printouts stay light,
+   as in the old Batch page. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *):not(:where([data-batch-app], [data-batch-app] *)) {
+    @slot;
+  }
+  @media screen {
+    &:where([data-theme="dark"] [data-batch-app], [data-theme="dark"] [data-batch-app] *, .dark [data-batch-app], .dark [data-batch-app] *) {
+      @slot;
+    }
+  }
+}
 
 :root,
 [data-theme="light"],
@@ -119,3 +130,90 @@ body {
   animation: fadeInUp 1.5s ease-out;
 }
 
+
+/* ---------- Batch Plan module ----------
+   Colour tokens of the Batch pages (bg-batch-*, text-batch-*, border-batch-* utilities). They switch with the
+   dark theme on screen, as the old page's CSS variables did; printing keeps the light values. */
+@theme {
+  --color-batch-navy: #112a46;
+  --color-batch-navy-accent: #1f3650;
+  --color-batch-primary: #1d5ab2;
+  --color-batch-primary-hover: #15468d;
+  --color-batch-active: #203348;
+  --color-batch-text: #17263b;
+  --color-batch-muted: #5c6f84;
+  --color-batch-page: #f2f5f9;
+  --color-batch-card: #ffffff;
+  --color-batch-border: #d1dce7;
+  --color-batch-border-light: #e3ebf3;
+  --color-batch-row-alt: #f8fbfe;
+  --color-batch-cyan: #0284c7;
+  --font-batch: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media screen {
+  [data-theme="dark"],
+  .dark {
+    --color-batch-navy: #131620;
+    --color-batch-navy-accent: #1a2030;
+    --color-batch-primary: #10b981;
+    --color-batch-primary-hover: #059669;
+    --color-batch-active: #10b981;
+    --color-batch-text: #e2e8f0;
+    --color-batch-muted: #94a3b8;
+    --color-batch-page: #0f1117;
+    --color-batch-card: #181c25;
+    --color-batch-border: #2a3346;
+    --color-batch-border-light: #1e2536;
+    --color-batch-row-alt: #13161e;
+    --color-batch-cyan: #34d399;
+  }
+
+  /* Dark scrollbars inside the Batch pages. */
+  :where([data-theme="dark"], .dark) [data-batch-app] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  :where([data-theme="dark"], .dark) [data-batch-app] ::-webkit-scrollbar-track {
+    background: #0f1117;
+  }
+  :where([data-theme="dark"], .dark) [data-batch-app] ::-webkit-scrollbar-thumb {
+    background: #2a3346;
+    border-radius: 5px;
+  }
+  :where([data-theme="dark"], .dark) [data-batch-app] ::-webkit-scrollbar-thumb:hover {
+    background: #3b4560;
+  }
+}
+
+/* Paper sizes of the Batch printouts (plan and reports: A4 landscape; batch cards: A4 portrait). */
+@page batch-plan {
+  size: A4 landscape;
+  margin: 8mm;
+}
+@page batchcard {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+/* Printing a Batch page prints only the Batch content, never the app sidebar and header. */
+@media print {
+  html:has([data-batch-app]),
+  body:has([data-batch-app]) {
+    height: auto;
+    overflow: visible;
+  }
+  body:has([data-batch-app]) aside:not([data-batch-app] *),
+  body:has([data-batch-app]) header:not([data-batch-app] *) {
+    display: none !important;
+  }
+  body:has([data-batch-app]) .h-screen,
+  body:has([data-batch-app]) #mainContent {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+  body:has([data-batch-app]) #mainContent > :not([data-batch-app]) {
+    display: none !important;
+  }
+}
