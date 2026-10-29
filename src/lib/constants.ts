@@ -46,6 +46,16 @@ export const DEPARTMENTS: Record<string, IDepartmentConfig> = {
   },
 };
 
+/* Department keys of the department routes (the sidebar's links). Each route is prerendered for its keys
+   (generateStaticParams), so the pages come from the CDN and the sidebar prefetches them in full: a click
+   opens the page without waiting for the server. Other keys still render on request, as before. */
+export const PLAN_DEPT_KEYS = Object.keys(DEPARTMENTS); // /planning, /reports
+export const TRACKING_DEPT_KEYS = [...PLAN_DEPT_KEYS, 'deliveryfloor']; // /tracking, /tracking-report
+export const FILTER_DEPT_KEYS = ['yd', 'knitting', 'dyeing', 'delivery', 'deliveryfloor']; // /plan-filter, /tracking-filter
+
+/** generateStaticParams of a /<route>/[dept] page. */
+export const deptParams = (keys: string[]) => keys.map((dept) => ({ dept }));
+
 export const STATUS_COLORS: Record<string, string> = {
   Pending: 'badge-warning',
   Tentative: 'badge-accent',
