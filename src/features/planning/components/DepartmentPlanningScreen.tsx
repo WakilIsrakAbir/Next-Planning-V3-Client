@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import {
   CalendarDays,
@@ -10,7 +10,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { DEPARTMENTS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -18,6 +18,8 @@ import Pagination from '@/components/ui/Pagination';
 import {
   cachedPlanningOrders,
   cachedDeptBuyers,
+  fetchPlanningOrders,
+  planningListKey,
   prefetchOrderDetail,
   getSavedDeptState,
   saveDeptState,
@@ -55,8 +57,16 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   const [colSearchBuyer, setColSearchBuyer] = useState(() => savedState.colSearchBuyer);
   const [colSearchStatus, setColSearchStatus] = useState(() => savedState.colSearchStatus);
 
-  // Synchronize state immediately whenever dept changes (Exp matching 0ms instant display)
-  useEffect(() => {
+  // Bumped by a search submit so the fetch effect runs exactly once for it (also when already on page 1)
+  const [searchRun, setSearchRun] = useState(0);
+  // Only the newest list request may update the table (responses can arrive out of order)
+  const latestRequestRef = useRef(0);
+
+  // Synchronize state immediately whenever dept changes (Exp matching 0ms instant display).
+  // Done during render, so the fetch effect below only ever runs with this dept's restored state.
+  const [stateDept, setStateDept] = useState(dept);
+  if (stateDept !== dept) {
+    setStateDept(dept);
     const s = getSavedDeptState(dept);
     setActiveBuyer(s.activeBuyer);
     setActiveTab(s.activeTab);
@@ -84,11 +94,13 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     if (cachedDeptBuyers[dept]) {
       setAvailableBuyers(cachedDeptBuyers[dept]);
     }
-  }, [dept]);
+  }
 
-  // Fetch paginated department orders with SWR (Single combined call matching Exp)
+  // Fetch paginated department orders with SWR (Single combined call matching Exp).
+  // The request is shared with the background prefetch when both ask for the same page.
   const fetchOrders = async () => {
-    const key = `${dept}_${activeTab}_${activeBuyer}_${page}_${limit}_${globalSearch}`;
+    const q = { dept, activeTab, activeBuyer, page, limit, globalSearch };
+    const key = planningListKey(q);
     if (cachedPlanningOrders[key]) {
       setOrders(cachedPlanningOrders[key].orders);
       setTotalPages(cachedPlanningOrders[key].totalPages);
@@ -98,48 +110,32 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
       setLoading(true);
     }
 
+    const requestId = ++latestRequestRef.current;
     try {
-      const token = localStorage.getItem('token');
-      const statusParam = activeTab === 'All' ? 'Completed' : activeTab;
-      const query = new URLSearchParams({
-        dept,
-        status: statusParam,
-        buyer: activeBuyer,
-        page: String(page),
-        limit: String(limit),
-        search: globalSearch,
-      });
+      const data = await fetchPlanningOrders(q);
+      // A newer request (tab / page / search change) owns the table now
+      if (requestId !== latestRequestRef.current) return;
 
-      const res = await fetch(`${API_BASE}/api/orders?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const ords = data.orders || [];
-        const tPages = data.totalPages || 1;
-        const total = data.total || 0;
-        const buyers = data.buyers || [];
-
-        cachedPlanningOrders[key] = { orders: ords, totalPages: tPages, total, buyers };
-        if (buyers.length > 0) {
-          cachedDeptBuyers[dept] = buyers;
-          setAvailableBuyers(buyers);
+      if (data) {
+        if (data.buyers && data.buyers.length > 0) {
+          setAvailableBuyers(data.buyers);
         }
-        setOrders(ords);
-        setTotalPages(tPages);
-        setTotalOrders(total);
+        setOrders(data.orders);
+        setTotalPages(data.totalPages);
+        setTotalOrders(data.total);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchOrders();
-  }, [dept, activeTab, activeBuyer, page, limit]);
+    // The typed search applies on submit (searchRun), not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dept, activeTab, activeBuyer, page, limit, searchRun]);
 
   const handleTabChange = (tab: PlanStatus | 'All') => {
     setActiveTab(tab);
@@ -168,7 +164,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     e.preventDefault();
     setPage(1);
     saveDeptState(dept, { globalSearch, page: 1 });
-    fetchOrders();
+    setSearchRun((n) => n + 1);
   };
 
   const clearGlobalSearch = () => {

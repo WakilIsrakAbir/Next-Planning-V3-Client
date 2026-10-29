@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
     setAuthorized(true);
-    // Background prefetch for all 5 Order Management department views
+    // Background prefetch for all 5 Order Management department views (starts after the opened screen's own requests)
     prefetchOrderManagement();
 
     // Heartbeat daemon to maintain online status

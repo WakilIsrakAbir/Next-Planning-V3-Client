@@ -19,6 +19,7 @@ import {
   setPrecachedOrderDetail,
   cachedDropdownOptions,
   prefetchDropdowns,
+  fetchOrderDetail,
   invalidateOrderDetailCache,
 } from '@/features/planning/lib/planning-cache';
 import { markBatchDataStale } from '@/features/batch/lib/batch-navigation';
@@ -410,15 +411,13 @@ export default function OrderPlanningScreen() {
     setTimeout(() => setToast(null), 3800);
   };
 
-  const fetchOrderAndDropdowns = async () => {
+  const fetchOrderAndDropdowns = async (fresh = false) => {
     // `loading` starts true when no items are populated from cache; re-fetches after a save keep the table visible.
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      // Parallelize dropdowns fetch & order detail fetch
+      // Parallelize dropdowns fetch & order detail fetch (joins a still-running hover prefetch of this order;
+      // `fresh` after a save always reads the saved state)
       const [orderRes, ddData] = await Promise.all([
-        fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`, { headers }),
+        fetchOrderDetail(dept, orderNo, fresh),
         cachedDropdownOptions ? Promise.resolve(null) : prefetchDropdowns(),
       ]);
 
@@ -434,7 +433,7 @@ export default function OrderPlanningScreen() {
         throw new Error(`Failed to load order #${orderNo}`);
       }
 
-      const data = await orderRes.json();
+      const data = orderRes.data || {};
       const currentOrder = data.order || {};
       const currentPlan = data.planData || {};
 
@@ -1145,7 +1144,7 @@ export default function OrderPlanningScreen() {
       // Batch Plan reads the saved units and plan dates: reload it the next time it is shown.
       markBatchDataStale();
       showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
-      fetchOrderAndDropdowns();
+      fetchOrderAndDropdowns(true);
     } catch (err: Loose) {
       showToast(err.message || 'Error saving planning schedule.');
     } finally {

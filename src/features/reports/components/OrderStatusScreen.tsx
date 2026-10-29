@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Layers,
   Search,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { API_BASE, STATUS_COLORS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import { sharedGetJson } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 
@@ -43,6 +44,12 @@ export default function OrderStatusScreen() {
   const [planData, setPlanData] = useState<any | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
+  // Bumped by a search submit so the fetch effect runs exactly once for it (also when already on page 1)
+  const [searchRun, setSearchRun] = useState(0);
+  // Only the newest list / detail request may update the screen (responses can arrive out of order)
+  const latestRequestRef = useRef(0);
+  const latestDetailRef = useRef(0);
+
   const fetchOrderStatus = async () => {
     const key = `${page}_${limit}_${search}`;
     if (cachedOrderStatus[key]) {
@@ -54,24 +61,25 @@ export default function OrderStatusScreen() {
       setLoading(true);
     }
 
+    const requestId = ++latestRequestRef.current;
     try {
-      const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         search,
       });
 
-      const res = await fetch(`${API_BASE}/api/orders/all-list?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const data = await sharedGetJson<Partial<(typeof cachedOrderStatus)[string]>>(
+        `${API_BASE}/api/orders/all-list?${query.toString()}`
+      );
 
-      if (res.ok) {
-        const data = await res.json();
+      if (data) {
         const ords = data.orders || [];
         const tTotal = data.total || 0;
         const tPages = data.totalPages || 1;
         cachedOrderStatus[key] = { orders: ords, total: tTotal, totalPages: tPages };
+        // A newer request (page / search change) owns the table now
+        if (requestId !== latestRequestRef.current) return;
         setOrders(ords);
         setTotal(tTotal);
         setTotalPages(tPages);
@@ -79,22 +87,25 @@ export default function OrderStatusScreen() {
     } catch (err) {
       console.error('Failed to load order status:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchOrderStatus();
-  }, [page, limit]);
+    // The typed search applies on submit (searchRun), not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, searchRun]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchOrderStatus();
+    setSearchRun((n) => n + 1);
   };
 
   const openOrderDetails = async (orderNo: string) => {
     setModalLoading(true);
+    const requestId = ++latestDetailRef.current;
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=knitting`, {
@@ -103,13 +114,15 @@ export default function OrderStatusScreen() {
 
       if (res.ok) {
         const data = await res.json();
+        // Another order was clicked meanwhile: its response owns the modal
+        if (requestId !== latestDetailRef.current) return;
         setSelectedOrder(data.order);
         setPlanData(data.planData);
       }
     } catch (err) {
       console.error('Failed to load order details:', err);
     } finally {
-      setModalLoading(false);
+      if (requestId === latestDetailRef.current) setModalLoading(false);
     }
   };
 

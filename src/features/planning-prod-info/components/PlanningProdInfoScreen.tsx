@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { apiClient } from '@/lib/api-client';
+import { sharedRequest } from '@/lib/shared-request';
 import {
   PPI_METRICS,
   buildPPIExcelSheet,
@@ -63,6 +64,9 @@ const cachedPPI = {
 
 const EMPTY_LIST: PPIListResult = { orders: [], total: 0, totalPages: 1 };
 
+// Typing pause before the search box text is sent (Enter searches immediately)
+const SEARCH_DEBOUNCE_MS = 350;
+
 // Report zoom (old setReportZoom / fitReportToScreen): 30%..150% in 10% steps; the sheet is max-w-6xl.
 const REPORT_MAX_WIDTH = 1152;
 const ZOOM_MIN = 0.3;
@@ -76,9 +80,11 @@ const hasValue = (v: unknown) => v !== undefined && v !== null && v !== '';
 
 export default function PlanningProdInfoScreen() {
   const [search, setSearch] = useState('');
+  // Search text actually requested: follows `search` after a typing pause, or at once on Enter
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const listKey = `${page}_${limit}_${search.trim().toLowerCase()}`;
+  const listKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}`;
   const [listState, setListState] = useState<{ key: string; data: PPIListResult } | null>(null);
 
   // Detailed view state
@@ -102,14 +108,23 @@ export default function PlanningProdInfoScreen() {
     []
   );
 
+  // Debounced search: one request after the user stops typing instead of one per keystroke
+  useEffect(() => {
+    if (search === appliedSearch) return;
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(search);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search, appliedSearch]);
+
   // Order list: cached pages show instantly, the server copy refreshes them.
   useEffect(() => {
     let isMounted = true;
     const fetchOrders = async () => {
       try {
-        const res = await apiClient<Partial<PPIListResult>>(
-          `/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`
-        );
+        const endpoint = `/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(appliedSearch)}`;
+        const res = await sharedRequest(endpoint, () => apiClient<Partial<PPIListResult>>(endpoint));
         if (!isMounted) return;
         const result: PPIListResult = {
           orders: res.orders || [],
@@ -129,15 +144,19 @@ export default function PlanningProdInfoScreen() {
     return () => {
       isMounted = false;
     };
-  }, [listKey, page, limit, search, showToast]);
+  }, [listKey, page, limit, appliedSearch, showToast]);
 
   const cachedList = cachedPPI.data.get(listKey);
   const listData = listState?.key === listKey ? listState.data : (cachedList ?? listState?.data ?? EMPTY_LIST);
   const loading = listState?.key !== listKey && !cachedList;
   const { orders, total, totalPages } = listData;
 
+  // Only the newest detail request may open the report (responses can arrive out of order)
+  const latestDetailRef = useRef(0);
+
   const loadOrderDetail = async (orderNo?: string) => {
     if (!orderNo) return;
+    const requestId = ++latestDetailRef.current;
     const cached = cachedPPI.details.get(orderNo);
     if (cached) {
       setSelectedOrder(cached.order);
@@ -151,13 +170,15 @@ export default function PlanningProdInfoScreen() {
       const res = await apiClient<Partial<PPIDetail>>(`/api/orders/${encodeURIComponent(orderNo)}?dept=knitting`);
       const detail: PPIDetail = { order: res.order || null, planData: res.planData || null };
       cachedPPI.details.set(orderNo, detail);
+      // Another order was opened meanwhile: its response owns the report
+      if (requestId !== latestDetailRef.current) return;
       setSelectedOrder(detail.order);
       setPlanData(detail.planData);
     } catch (err) {
       console.error('Failed to load order detail:', err);
-      showToast('Error loading order details.');
+      if (requestId === latestDetailRef.current) showToast('Error loading order details.');
     } finally {
-      setDetailLoading(false);
+      if (requestId === latestDetailRef.current) setDetailLoading(false);
     }
   };
 
@@ -376,9 +397,12 @@ export default function PlanningProdInfoScreen() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setAppliedSearch(search);
+                    setPage(1);
+                  }
                 }}
                 placeholder="Search Booking / Order No..."
                 className="input input-bordered input-sm w-48 sm:w-64 pl-8 text-xs"
@@ -459,7 +483,11 @@ export default function PlanningProdInfoScreen() {
           <div className="no-print sticky top-0 z-20 bg-base-100 border border-base-300 rounded-lg flex items-center justify-between px-4 py-2.5 shrink-0 shadow-xs flex-wrap gap-2">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSelectedOrder(null)}
+                onClick={() => {
+                  // A refresh of this order still in flight must not reopen the report
+                  latestDetailRef.current++;
+                  setSelectedOrder(null);
+                }}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20 active:scale-95"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
