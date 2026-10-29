@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -215,22 +215,27 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
   },
 ];
 
+/* Right-hand marker of a menu link: a small spinner from the click until the page opens (only when the page
+   was not prefetched yet, so the click is confirmed at once), and the pulsing dot on the page that is open. */
+function LinkMarker({ active }: { active: boolean }) {
+  const { pending } = useLinkStatus();
+  if (pending) {
+    return (
+      <span
+        className="ml-1.5 h-2.5 w-2.5 shrink-0 animate-spin rounded-full border-[1.5px] border-emerald-500 border-t-transparent"
+        aria-hidden="true"
+      />
+    );
+  }
+  return active ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-1.5 animate-pulse" /> : null;
+}
+
 export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
 
-  // Accordion state
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    dataManagement: true,
-    orderManagement: true,
-    reports: false,
-    planFilter: false,
-    actualTracking: false,
-    trackingReports: false,
-    planTrackingFilter: false,
-    loadCalculation: false,
-    manageUsers: false,
-  });
+  // Open menu groups: all closed at first; the group of the open page opens by itself (effect below).
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     try {
@@ -457,9 +462,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                   }`}
                 >
                   <span className="truncate">{item.label}</span>
-                  {active && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-1.5 animate-pulse" />
-                  )}
+                  <LinkMarker active={active} />
                 </Link>
               );
             };

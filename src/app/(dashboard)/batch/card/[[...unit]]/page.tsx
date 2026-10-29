@@ -3,6 +3,10 @@ import { notFound } from 'next/navigation';
 import BatchRouteGuard from '@/features/batch/components/shell/BatchRouteGuard';
 import BatchCardPage from '@/features/batch/components/card/BatchCardPage';
 
+// /batch/card is prerendered; a unit page is rendered on its first request and then served from the cache
+// (the units come from the data, so they are not known at build time).
+export const generateStaticParams = (): { unit?: string[] }[] => [{ unit: undefined }];
+
 export default async function Page({ params }: { params: Promise<{ unit?: string[] }> }) {
   const { unit } = await params;
   if (unit && (unit.length > 1 || !/^[A-Za-z0-9]{1,40}$/.test(unit[0]))) notFound();
