@@ -3,8 +3,8 @@
 /* Batch Plan route page (/batch/plan and /batch/plan/<UNIT>; an open report adds ?order=<number>).
    The old #batchPlanListView (register) or #reportContainer (report), and the page's dialogs (reportui's machine
    evaluation / Tall/Big / OD dialogs, Internal change, re-confirm revision, tentative questionnaire, confirm checks,
-   full view). The report keeps the heading (eyebrow, title, badge) with the unit tabs; the register has no heading
-   and starts with its own unit tabs, like the plan lists (see BatchRegister).
+   full view). Neither has a heading: the report starts with its toolbar (Back to List and the status buttons), the
+   register with its own unit tabs, like the plan lists (see BatchRegister).
    Route -> state (old BatchApi.route()): when the data is ready, and whenever the URL changes from outside
    (sidebar, browser history, a typed URL) or the data is reloaded, the unit of the URL is opened
    (routeBatchPlan -> selectFloor; without the all-orders permission /batch/plan opens the first unit the user
@@ -24,8 +24,6 @@ import {
   takePendingBatchPlanUrl,
   useBatchVersion,
 } from '@/features/batch/lib';
-import BatchHeader from '@/features/batch/components/shell/BatchHeader';
-import UnitTabs from './UnitTabs';
 import BatchRegister from './BatchRegister';
 import BatchPlanReportView from './BatchPlanReportView';
 import InternalChangeDialog from './InternalChangeDialog';
@@ -83,21 +81,13 @@ export default function BatchPlanPage({ unit }: { unit: string | null }) {
     if (element && typeof element.focus === 'function') element.focus();
   });
 
-  // The open unit shows as the active tab in the heading (old switchMainView: the title has no unit).
-  const title = 'Batch Plan Generation';
-
   return (
     <>
       <Suspense fallback={null}>
         <PlanRouteSync unit={unit} />
       </Suspense>
       {S.currentViewingNumber ? (
-        <>
-          <BatchHeader eyebrow="Planning & Production Info" title={title} badge="Active Register">
-            <UnitTabs kind="plan" />
-          </BatchHeader>
-          <BatchPlanReportView />
-        </>
+        <BatchPlanReportView />
       ) : (
         // Mounted once the data has loaded, so the register measures its table area at once (Auto page size).
         !S.loading && <BatchRegister />
