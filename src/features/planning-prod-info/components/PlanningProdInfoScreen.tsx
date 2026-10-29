@@ -36,6 +36,7 @@ import {
 } from '@/features/planning-prod-info/lib/ppi-utils';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
 import {
   buildPrintPages,
   clearPrintPages,
@@ -67,6 +68,9 @@ const EMPTY_LIST: PPIListResult = { orders: [], total: 0, totalPages: 1 };
 // Typing pause before the search box text is sent (Enter searches immediately)
 const SEARCH_DEBOUNCE_MS = 350;
 
+// Natural height of a list row (view button + status badge + padding); "Auto" stretches rows slightly to fill the table area.
+const ROW_HEIGHT = 41;
+
 // Report zoom (old setReportZoom / fitReportToScreen): 30%..150% in 10% steps; the sheet is max-w-6xl.
 const REPORT_MAX_WIDTH = 1152;
 const ZOOM_MIN = 0.3;
@@ -83,7 +87,21 @@ export default function PlanningProdInfoScreen() {
   // Search text actually requested: follows `search` after a typing pause, or at once on Enter
   const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
+  // The list's table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band.
+  // Kept as state (not a ref): the list unmounts while a report is open, and the table area mounted on "Back" is measured again.
+  const [tableArea, setTableArea] = useState<HTMLDivElement | null>(null);
+  const tableAreaRef = useMemo(() => ({ current: tableArea }), [tableArea]);
+  const fit = useFitRows(tableAreaRef, ROW_HEIGHT);
+  const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
+
+  // When "Auto" fits a different number of rows (window or sidebar resized), keep the first visible row in view
+  const [prevLimit, setPrevLimit] = useState(limit);
+  if (limit !== prevLimit) {
+    setPrevLimit(limit);
+    if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
+  }
+
   const listKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}`;
   const [listState, setListState] = useState<{ key: string; data: PPIListResult } | null>(null);
 
@@ -120,6 +138,8 @@ export default function PlanningProdInfoScreen() {
 
   // Order list: cached pages show instantly, the server copy refreshes them.
   useEffect(() => {
+    // "Auto" waits until the table area has been measured
+    if (limit === null) return;
     let isMounted = true;
     const fetchOrders = async () => {
       try {
@@ -150,6 +170,14 @@ export default function PlanningProdInfoScreen() {
   const listData = listState?.key === listKey ? listState.data : (cachedList ?? listState?.data ?? EMPTY_LIST);
   const loading = listState?.key !== listKey && !cachedList;
   const { orders, total, totalPages } = listData;
+  // At most one page of rows (the previous page's rows are cut while a smaller page loads); "Auto" rows fill the table area
+  const visibleOrders = limit ? orders.slice(0, limit) : orders;
+  const rowStyle = limitChoice === 'auto' && fit ? { height: fit.rowHeight } : undefined;
+
+  const handleLimitChange = (newLimit: number | 'auto') => {
+    setLimitChoice(newLimit);
+    setPage(1);
+  };
 
   // Only the newest detail request may open the report (responses can arrive out of order)
   const latestDetailRef = useRef(0);
@@ -364,7 +392,9 @@ export default function PlanningProdInfoScreen() {
   const o = selectedOrder;
 
   return (
-    <div className="space-y-6">
+    // The list fills the content area: its header and the pagination stay put, only the table rows scroll.
+    // The report scrolls with the page as before.
+    <div className={o ? 'space-y-6' : 'flex h-full min-h-0 w-full flex-col gap-6'}>
       {toast && (
         <div className="fixed top-5 right-5 z-50">
           <div
@@ -381,7 +411,7 @@ export default function PlanningProdInfoScreen() {
       {!o ? (
         <>
           {/* List Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-none flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
@@ -412,7 +442,7 @@ export default function PlanningProdInfoScreen() {
           </div>
 
           {/* Order List Table */}
-          <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+          <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
             {loading && (
               <LoadingSpinner
                 message="Processing PPI Records..."
@@ -420,10 +450,11 @@ export default function PlanningProdInfoScreen() {
               />
             )}
 
-            <div className="overflow-x-auto flex-1">
+            <div ref={setTableArea} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
               <table className="table table-sm w-full">
-                <thead className="bg-base-200/60 text-xs font-extrabold uppercase">
-                  <tr>
+                {/* Sticky header: an opaque base under the same tint, so scrolled rows do not show through */}
+                <thead className="sticky top-0 z-10 bg-base-100 text-xs font-extrabold uppercase">
+                  <tr className="bg-base-200/60">
                     <th className="text-center w-16">View</th>
                     <th>Booking No. / Order No.</th>
                     <th>Buyer Name</th>
@@ -432,15 +463,15 @@ export default function PlanningProdInfoScreen() {
                   </tr>
                 </thead>
                 <tbody className="text-xs divide-y divide-base-200">
-                  {!loading && orders.length === 0 ? (
+                  {!loading && visibleOrders.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-12 text-center text-base-content/60">
                         No orders found.
                       </td>
                     </tr>
                   ) : (
-                    orders.map((ord) => (
-                      <tr key={ord._id || ord.orderNo} className="hover">
+                    visibleOrders.map((ord) => (
+                      <tr key={ord._id || ord.orderNo} style={rowStyle} className="hover">
                         <td className="text-center">
                           <button
                             onClick={() => loadOrderDetail(ord.orderNo)}
@@ -468,12 +499,11 @@ export default function PlanningProdInfoScreen() {
               currentPage={page}
               totalPages={totalPages}
               totalItems={total}
-              limit={limit}
+              limit={limit ?? fit?.rows ?? 10}
               onPageChange={(newPage) => setPage(newPage)}
-              onLimitChange={(newLimit) => {
-                setLimit(newLimit);
-                setPage(1);
-              }}
+              onLimitChange={handleLimitChange}
+              autoRows={fit?.rows}
+              isAuto={limitChoice === 'auto'}
             />
           </div>
         </>

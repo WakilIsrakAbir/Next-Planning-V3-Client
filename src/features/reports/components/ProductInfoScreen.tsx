@@ -18,6 +18,7 @@ import { apiClient } from '@/lib/api-client';
 import { sharedRequest } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
 
 import { getColData } from '@/lib/data-utils';
 
@@ -138,12 +139,17 @@ const cachedProductInfo = {
   data: new Map<string, { orders: any[]; total: number; totalPages: number }>(),
   details: new Map<string, any>(),
 };
+// Rows per page of the last list request, so a revisit can show that cached first page before "Auto" has measured the table
+const lastListRequest = { limit: 10 };
 
 // Typing pause before the search box text is sent (Enter searches immediately)
 const SEARCH_DEBOUNCE_MS = 350;
 
+// Natural height of a list row (chevron + status badges + padding); "Auto" stretches rows slightly to fill the table area.
+const ROW_HEIGHT = 35;
+
 export default function ProductInfoScreen() {
-  const initialCacheKey = '1_10_';
+  const initialCacheKey = `1_${lastListRequest.limit}_`;
   const initialCache = cachedProductInfo.data.get(initialCacheKey);
 
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
@@ -152,7 +158,11 @@ export default function ProductInfoScreen() {
   // Search text actually requested: follows `search` after a typing pause, or at once on Enter
   const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
+  // The table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fit = useFitRows(scrollRef, ROW_HEIGHT);
+  const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
   const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
   const [totalCount, setTotalCount] = useState(() => initialCache?.total || 0);
 
@@ -176,7 +186,17 @@ export default function ProductInfoScreen() {
     return () => window.clearTimeout(timer);
   }, [search, appliedSearch]);
 
+  // When "Auto" fits a different number of rows (window or sidebar resized), keep the first visible row in view
+  const [prevLimit, setPrevLimit] = useState(limit);
+  if (limit !== prevLimit) {
+    setPrevLimit(limit);
+    if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
+  }
+
   const fetchOrders = async (bypassCache = false) => {
+    // "Auto" waits until the table area has been measured
+    if (limit === null) return;
+    lastListRequest.limit = limit;
     const cacheKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}`;
     if (!bypassCache) {
       const cached = cachedProductInfo.data.get(cacheKey);
@@ -228,6 +248,15 @@ export default function ProductInfoScreen() {
     // Refetch only when the page or the applied (debounced / Enter) search changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, appliedSearch]);
+
+  const handleLimitChange = (newLimit: number | 'auto') => {
+    setLimitChoice(newLimit);
+    setPage(1);
+  };
+
+  // At most one page of rows (the previous page's rows are cut while a smaller page loads); "Auto" rows fill the table area
+  const visibleOrders = limit ? orders.slice(0, limit) : orders;
+  const rowStyle = limitChoice === 'auto' && fit ? { height: fit.rowHeight } : undefined;
 
   const toggleExpand = async (orderNo: string) => {
     const requestId = ++latestDetailRef.current;
@@ -465,9 +494,11 @@ export default function ProductInfoScreen() {
   };
 
   return (
-    <div className="space-y-6">
+    // The page fills the content area: the header, the search and the pagination stay put, only the table rows scroll
+    // (an expanded order's specifications scroll with them).
+    <div className="flex h-full min-h-0 w-full flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-none flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" />
@@ -484,7 +515,7 @@ export default function ProductInfoScreen() {
       </div>
 
       {/* Control Card */}
-      <div className="card bg-base-100 border border-base-300 p-4 shadow-sm">
+      <div className="flex-none card bg-base-100 border border-base-300 p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-base-content/40" />
@@ -510,7 +541,7 @@ export default function ProductInfoScreen() {
       </div>
 
       {/* Order List Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
         {loading && (
           <LoadingSpinner
             message="Compiling Product Info..."
@@ -518,31 +549,36 @@ export default function ProductInfoScreen() {
           />
         )}
 
-        {!loading && orders.length === 0 ? (
-          <div className="p-8 text-center text-sm text-base-content/60">
-            No orders found matching your search.
-          </div>
-        ) : (
-          <div className="overflow-x-auto flex-1">
-            <table className="table table-sm">
-              <thead className="bg-base-200/50 text-[11px] uppercase tracking-wider font-extrabold">
+        {/* The table area stays mounted (also while empty), so "Auto" keeps measuring it */}
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
+          <table className="table table-sm">
+            {/* Sticky header: an opaque base under the same tint, so scrolled rows do not show through */}
+            <thead className="sticky top-0 z-10 bg-base-100 text-[11px] uppercase tracking-wider font-extrabold">
+              <tr className="bg-base-200/50">
+                <th className="w-10"></th>
+                <th>Order No</th>
+                <th>Buyer</th>
+                <th>Booking Date</th>
+                <th>Knitting Status</th>
+                <th>Dyeing Status</th>
+                <th>Delivery Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-base-200 text-xs">
+              {!loading && visibleOrders.length === 0 ? (
                 <tr>
-                  <th className="w-10"></th>
-                  <th>Order No</th>
-                  <th>Buyer</th>
-                  <th>Booking Date</th>
-                  <th>Knitting Status</th>
-                  <th>Dyeing Status</th>
-                  <th>Delivery Status</th>
+                  <td colSpan={7} className="p-8 text-center text-sm text-base-content/60">
+                    No orders found matching your search.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-base-200 text-xs">
-                {orders.map((ord) => {
+              ) : (
+                visibleOrders.map((ord) => {
                   const isExpanded = expandedOrder === ord.orderNo;
 
                   return (
                     <React.Fragment key={ord.orderNo}>
                       <tr
+                        style={rowStyle}
                         onClick={() => toggleExpand(ord.orderNo)}
                         className={`cursor-pointer hover:bg-base-200/40 transition-colors ${
                           isExpanded ? 'bg-primary/5' : ''
@@ -915,23 +951,22 @@ export default function ProductInfoScreen() {
                       )}
                     </React.Fragment>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Exact Exp Pagination Bar */}
         <Pagination
           currentPage={page}
           totalPages={totalPages}
           totalItems={totalCount}
-          limit={limit}
+          limit={limit ?? fit?.rows ?? 10}
           onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          }}
+          onLimitChange={handleLimitChange}
+          autoRows={fit?.rows}
+          isAuto={limitChoice === 'auto'}
         />
       </div>
     </div>

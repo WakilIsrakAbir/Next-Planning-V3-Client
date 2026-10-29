@@ -4,7 +4,8 @@ import { PlanStatus } from '@/types/order';
 
 export interface IDeptPageState {
   page: number;
-  limit: number;
+  /** Rows per page, or 'auto': as many rows as fit on the screen (the default). */
+  limit: number | 'auto';
   activeTab: PlanStatus | 'All';
   activeBuyer: string;
   globalSearch: string;
@@ -23,7 +24,7 @@ export function getSavedDeptState(dept: string): IDeptPageState {
   }
   if (typeof window !== 'undefined') {
     try {
-      const stored = sessionStorage.getItem(`dept_state_${d}`);
+      const stored = sessionStorage.getItem(`dept_state_v2_${d}`);
       if (stored) {
         const parsed = JSON.parse(stored);
         deptListStates[d] = parsed;
@@ -33,7 +34,7 @@ export function getSavedDeptState(dept: string): IDeptPageState {
   }
   return {
     page: 1,
-    limit: 10,
+    limit: 'auto',
     activeTab: 'Pending',
     activeBuyer: '',
     globalSearch: '',
@@ -51,7 +52,7 @@ export function saveDeptState(dept: string, state: Partial<IDeptPageState>): voi
   deptListStates[d] = updated;
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem(`dept_state_${d}`, JSON.stringify(updated));
+      sessionStorage.setItem(`dept_state_v2_${d}`, JSON.stringify(updated));
     } catch {}
   }
 }
@@ -78,6 +79,8 @@ let isPrefetching = false;
 
 // Background prefetch waits this long after it is requested, so the screen being opened sends its own requests first.
 const PREFETCH_START_DELAY_MS = 800;
+// The prefetch loads the first 30 rows, so a screen that fits fewer rows can show its first page at once.
+export const PREFETCH_LIMIT = 30;
 
 // One department list page request (the same query shape the department screen keeps in state).
 export interface IPlanningListQuery {
@@ -92,6 +95,24 @@ export interface IPlanningListQuery {
 /** Cache key of a department list page in `cachedPlanningOrders` (shared by the screen and the prefetch). */
 export function planningListKey(q: IPlanningListQuery): string {
   return `${q.dept}_${q.activeTab}_${q.activeBuyer}_${q.page}_${q.limit}_${q.globalSearch}`;
+}
+
+/**
+ * A cached list page: the exact page, or page 1 cut from a larger cached first page of the same list
+ * (the prefetch loads 30 rows; a screen shows as many rows as fit).
+ */
+export function findCachedPlanningPage(q: IPlanningListQuery): ICachedPlanningData | null {
+  const exact = cachedPlanningOrders[planningListKey(q)];
+  if (exact) return exact;
+  if (q.page !== 1) return null;
+  for (const limit of [PREFETCH_LIMIT, 50, 100]) {
+    if (limit <= q.limit) continue;
+    const larger = cachedPlanningOrders[planningListKey({ ...q, limit })];
+    if (larger) {
+      return { ...larger, orders: larger.orders.slice(0, q.limit), totalPages: Math.max(1, Math.ceil(larger.total / q.limit)) };
+    }
+  }
+  return null;
 }
 
 /**
@@ -286,7 +307,7 @@ export async function prefetchOrderManagement(): Promise<void> {
 
   try {
     for (const dept of depts) {
-      const q: IPlanningListQuery = { dept, activeTab: 'Pending', activeBuyer: '', page: 1, limit: 10, globalSearch: '' };
+      const q: IPlanningListQuery = { dept, activeTab: 'Pending', activeBuyer: '', page: 1, limit: PREFETCH_LIMIT, globalSearch: '' };
       if (cachedPlanningOrders[planningListKey(q)]) continue;
 
       if (!started) {

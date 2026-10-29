@@ -15,6 +15,7 @@ import { sharedGetJson } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import InlineSpinner from '@/components/ui/InlineSpinner';
+import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -23,6 +24,9 @@ interface PageProps {
 // Port of the old `.resizable-table-input` CSS (index.html): one-row textarea that resizes both ways.
 const RESIZABLE_INPUT_CLS =
   'resize min-w-[90px] min-h-[26px] h-[26px] leading-[1.25] align-middle box-border overflow-auto dark:bg-[#151921] dark:border-[#2a3346] dark:text-[#cbd5e1]';
+
+// Natural height of a list row (date inputs / one-row textareas + padding); "Auto" stretches rows slightly to fill the table area.
+const ROW_HEIGHT = 35;
 
 function calcTrackingBadge(actualDateStr?: string, planDateStr?: string) {
   const hasActual = actualDateStr && String(actualDateStr).trim() !== '' && String(actualDateStr).trim() !== '-';
@@ -76,6 +80,8 @@ const cachedTrackingOrders: Record<
     initialEdits: Record<string, TrackingEdit>;
   }
 > = {};
+// Rows per page of the last list request, so a revisit can show that cached first page before "Auto" has measured the table
+const lastListRequest = { limit: 10 };
 
 // Cache key of one tracking list page (the same format when reading and storing).
 function trackingCacheKey(
@@ -105,9 +111,14 @@ export default function TrackingScreen({ params }: PageProps) {
   const [endMin, setEndMin] = useState('');
   const [endMax, setEndMax] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
+  // The table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fit = useFitRows(scrollRef, ROW_HEIGHT);
+  // Rows per page in use (the fitted row count while "Auto" is selected); the request and the list cache key use it
+  const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
 
-  const initialKey = trackingCacheKey(dept, 'Pending', '', 1, 10, '', '', '', '', '');
+  const initialKey = trackingCacheKey(dept, 'Pending', '', 1, lastListRequest.limit, '', '', '', '', '');
   const initialCache = cachedTrackingOrders[initialKey];
 
   const [orders, setOrders] = useState<TrackingOrder[]>(() => initialCache?.orders || []);
@@ -123,8 +134,18 @@ export default function TrackingScreen({ params }: PageProps) {
   // Only the newest list request may update the table (responses can arrive out of order)
   const latestRequestRef = useRef(0);
 
+  // When "Auto" fits a different number of rows (window or sidebar resized), keep the first visible row in view
+  const [prevLimit, setPrevLimit] = useState(limit);
+  if (limit !== prevLimit) {
+    setPrevLimit(limit);
+    if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
+  }
+
   // `fresh` skips joining an identical request still in flight (refresh right after saving).
   const fetchTracking = async (fresh = false) => {
+    // "Auto" waits until the table area has been measured
+    if (limit === null) return;
+    lastListRequest.limit = limit;
     const key = trackingCacheKey(dept, activeTab, selectedBuyer, page, limit, search, startMin, startMax, endMin, endMax);
     if (cachedTrackingOrders[key]) {
       const c = cachedTrackingOrders[key];
@@ -295,6 +316,15 @@ export default function TrackingScreen({ params }: PageProps) {
     }
   };
 
+  const handleLimitChange = (newLimit: number | 'auto') => {
+    setLimitChoice(newLimit);
+    setPage(1);
+  };
+
+  // At most one page of rows (the previous page's rows are cut while a smaller page loads); "Auto" rows fill the table area
+  const visibleOrders = limit ? orders.slice(0, limit) : orders;
+  const rowStyle = limitChoice === 'auto' && fit ? { height: fit.rowHeight } : undefined;
+
   const downloadTrackingExcel = () => {
     const token = localStorage.getItem('token');
     const query = new URLSearchParams({ buyer: selectedBuyer, search, status: activeTab });
@@ -314,9 +344,11 @@ export default function TrackingScreen({ params }: PageProps) {
     dynCol1 = 'NetDeliveryQtyKgs';
     dynCol2 = 'Deli. Bal.';
   }
+  const columnCount = 11 + (dynCol1 ? 1 : 0) + (dynCol2 ? 1 : 0);
 
   return (
-    <div className="space-y-6">
+    // The page fills the content area: the header, tabs, filters and the pagination stay put, only the table rows scroll.
+    <div className="flex h-full min-h-0 w-full flex-col gap-6">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="toast toast-top toast-end z-50">
@@ -328,7 +360,7 @@ export default function TrackingScreen({ params }: PageProps) {
       )}
 
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-none flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
@@ -358,7 +390,7 @@ export default function TrackingScreen({ params }: PageProps) {
       </div>
 
       {/* Tab Controls: Pending vs Complete */}
-      <div className="flex items-center justify-between border-b border-base-300 pb-2">
+      <div className="flex-none flex items-center justify-between border-b border-base-300 pb-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -410,36 +442,34 @@ export default function TrackingScreen({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Buyer Filter Pills */}
-      {availableBuyers.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+      {/* Buyer Filter Pills (always shown, also before the buyers have loaded, so the table area keeps its height) */}
+      <div className="flex-none flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+        <button
+          onClick={() => {
+            setSelectedBuyer('');
+            setPage(1);
+          }}
+          className={`btn btn-xs font-bold shrink-0 ${
+            selectedBuyer === '' ? 'btn-primary' : 'btn-ghost bg-base-200/60'
+          }`}
+        >
+          ALL BUYERS
+        </button>
+        {availableBuyers.map((b) => (
           <button
+            key={b}
             onClick={() => {
-              setSelectedBuyer('');
+              setSelectedBuyer(b);
               setPage(1);
             }}
             className={`btn btn-xs font-bold shrink-0 ${
-              selectedBuyer === '' ? 'btn-primary' : 'btn-ghost bg-base-200/60'
+              selectedBuyer === b ? 'btn-primary' : 'btn-ghost bg-base-200/60'
             }`}
           >
-            ALL BUYERS
+            {b}
           </button>
-          {availableBuyers.map((b) => (
-            <button
-              key={b}
-              onClick={() => {
-                setSelectedBuyer(b);
-                setPage(1);
-              }}
-              className={`btn btn-xs font-bold shrink-0 ${
-                selectedBuyer === b ? 'btn-primary' : 'btn-ghost bg-base-200/60'
-              }`}
-            >
-              {b}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Date Range Filter (Exact 1-row layout matching Exp) */}
       <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap custom-scrollbar shrink-0 py-1">
@@ -492,39 +522,45 @@ export default function TrackingScreen({ params }: PageProps) {
       </div>
 
       {/* Interactive Tracking Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[380px]">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
         {/* Exact Exp 3-Ring Loading Overlay */}
         {loading && <LoadingSpinner message="Processing Tracking Data..." />}
 
-        {!loading && orders.length === 0 ? (
-          <div className="p-16 text-center text-base-content/60 space-y-2">
-            <AlertCircle className="h-8 w-8 mx-auto text-base-content/30" />
-            <p className="text-sm font-bold">No {activeTab} tracking records found.</p>
-            <p className="text-xs">Adjust your search or filter parameters to find confirmed plans.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto custom-scrollbar flex-1">
-            <table className="table table-xs w-full">
-              <thead className="bg-base-200/80 text-[11px] font-bold">
+        {/* The table area stays mounted (also while empty), so "Auto" keeps measuring it */}
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
+          <table className="table table-xs w-full">
+            {/* Sticky header: an opaque base under the same tint, so scrolled rows do not show through */}
+            <thead className="sticky top-0 z-10 bg-base-100 text-[11px] font-bold">
+              <tr className="bg-base-200/80">
+                <th className="text-center w-10">SL</th>
+                <th>Order / Booking No</th>
+                <th>Buyer</th>
+                {dynCol1 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol1}</th>}
+                {dynCol2 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol2}</th>}
+                <th className="text-center bg-primary/10 text-primary">Plan Start</th>
+                <th className="text-center bg-primary/10 text-primary">Plan End</th>
+                <th className="text-center min-w-[125px]">Actual Start</th>
+                <th className="text-center min-w-[125px]">Actual End</th>
+                <th className="text-center w-16">Start Result</th>
+                <th className="text-center w-16">End Result</th>
+                <th className="min-w-[150px]">Fail Reason</th>
+                <th className="min-w-[130px]">Related Dept.</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs divide-y divide-base-200">
+              {!loading && visibleOrders.length === 0 ? (
                 <tr>
-                  <th className="text-center w-10">SL</th>
-                  <th>Order / Booking No</th>
-                  <th>Buyer</th>
-                  {dynCol1 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol1}</th>}
-                  {dynCol2 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol2}</th>}
-                  <th className="text-center bg-primary/10 text-primary">Plan Start</th>
-                  <th className="text-center bg-primary/10 text-primary">Plan End</th>
-                  <th className="text-center min-w-[125px]">Actual Start</th>
-                  <th className="text-center min-w-[125px]">Actual End</th>
-                  <th className="text-center w-16">Start Result</th>
-                  <th className="text-center w-16">End Result</th>
-                  <th className="min-w-[150px]">Fail Reason</th>
-                  <th className="min-w-[130px]">Related Dept.</th>
+                  <td colSpan={columnCount} className="p-16 text-center text-base-content/60">
+                    <div className="space-y-2">
+                      <AlertCircle className="h-8 w-8 mx-auto text-base-content/30" />
+                      <p className="text-sm font-bold">No {activeTab} tracking records found.</p>
+                      <p className="text-xs">Adjust your search or filter parameters to find confirmed plans.</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="text-xs divide-y divide-base-200">
-                {orders.map((ord, idx) => {
-                  const sl = (page - 1) * 15 + idx + 1;
+              ) : (
+                visibleOrders.map((ord, idx) => {
+                  const sl = (page - 1) * (limit ?? 0) + idx + 1;
                   const rowEdit = editedRows[ord.orderNo] || {
                     actualStart: ord.actualStart || '',
                     actualEnd: ord.actualEnd || '',
@@ -536,7 +572,7 @@ export default function TrackingScreen({ params }: PageProps) {
                   const endResult = calcTrackingBadge(rowEdit.actualEnd, ord.planEnd);
 
                   return (
-                    <tr key={ord.orderNo} className="hover:bg-base-200/40 transition-colors">
+                    <tr key={ord.orderNo} style={rowStyle} className="hover:bg-base-200/40 transition-colors">
                       <td className="text-center font-bold text-base-content/40">{sl}</td>
                       <td className="font-bold text-primary whitespace-nowrap">{ord.orderNo}</td>
                       <td className="font-medium whitespace-nowrap">{ord.buyer}</td>
@@ -627,23 +663,22 @@ export default function TrackingScreen({ params }: PageProps) {
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Exact Exp Pagination Bar */}
         <Pagination
           currentPage={page}
           totalPages={totalPages}
           totalItems={total}
-          limit={limit}
+          limit={limit ?? fit?.rows ?? 10}
           onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          }}
+          onLimitChange={handleLimitChange}
+          autoRows={fit?.rows}
+          isAuto={limitChoice === 'auto'}
         />
       </div>
     </div>
