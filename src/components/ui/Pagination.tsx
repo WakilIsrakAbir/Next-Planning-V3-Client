@@ -77,7 +77,7 @@ export default function Pagination({
   return (
     <div
       id="paginationControls"
-      className="bg-white border-t border-gray-300 p-2 md:px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-700 shrink-0 gap-3"
+      className="bg-white border-t border-gray-300 p-2 md:px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-700 shrink-0 gap-3 dark:bg-[#181c25] dark:border-[#2a3346] dark:text-[#cbd5e1]"
     >
       {/* Left: Rows per page and Showing count */}
       <div className="flex items-center gap-2">
@@ -86,7 +86,7 @@ export default function Pagination({
           id="rowsPerPage"
           value={limit}
           onChange={(e) => handleLimitChange(Number(e.target.value))}
-          className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-emerald-400 bg-gray-50 text-gray-800 cursor-pointer text-xs"
+          className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-emerald-400 bg-gray-50 text-gray-800 cursor-pointer text-xs dark:bg-[#1e2330] dark:text-[#e2e8f0] dark:border-[#2a3346]"
         >
           {limitOptions.map((opt) => (
             <option key={opt} value={opt}>
@@ -106,14 +106,14 @@ export default function Pagination({
           onClick={() => handlePageChange(currentPage - 1)}
           className={`px-3 py-1.5 border rounded font-medium text-xs transition-colors inline-flex items-center ${
             currentPage <= 1
-              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 cursor-pointer shadow-xs'
+              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed dark:bg-[#151921] dark:text-gray-500 dark:border-[#1e2536]'
+              : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 cursor-pointer shadow-xs dark:bg-[#1e2330] dark:hover:bg-[#252b3b] dark:text-[#cbd5e1] dark:border-[#2a3346]'
           }`}
         >
           <ChevronLeft className="h-3 w-3 mr-1 inline-block" /> Prev
         </button>
 
-        <span className="px-3 py-1 font-semibold text-gray-700 hidden sm:inline-block">
+        <span className="px-3 py-1 font-semibold text-gray-700 hidden sm:inline-block dark:text-[#cbd5e1]">
           Page {totalPages === 0 ? 0 : currentPage} of {totalPages}
         </span>
 
@@ -122,8 +122,8 @@ export default function Pagination({
           onClick={() => handlePageChange(currentPage + 1)}
           className={`px-3 py-1.5 border rounded font-medium text-xs transition-colors inline-flex items-center ${
             currentPage >= totalPages || totalPages === 0
-              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-              : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 cursor-pointer shadow-xs'
+              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed dark:bg-[#151921] dark:text-gray-500 dark:border-[#1e2536]'
+              : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300 cursor-pointer shadow-xs dark:bg-[#1e2330] dark:hover:bg-[#252b3b] dark:text-[#cbd5e1] dark:border-[#2a3346]'
           }`}
         >
           Next <ChevronRight className="h-3 w-3 ml-1 inline-block" />

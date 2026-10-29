@@ -3,14 +3,11 @@
   themes: light --default;
 }
 
-/* Inside the Batch pages ([data-batch-app]) the dark theme is screen only: their printouts stay light,
-   as in the old Batch page. */
+/* The dark theme (html[data-theme="dark"] / html.dark, set by the theme toggle) is screen only: printouts
+   stay light. */
 @custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *):not(:where([data-batch-app], [data-batch-app] *)) {
-    @slot;
-  }
   @media screen {
-    &:where([data-theme="dark"] [data-batch-app], [data-theme="dark"] [data-batch-app] *, .dark [data-batch-app], .dark [data-batch-app] *) {
+    &:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *) {
       @slot;
     }
   }
@@ -58,12 +55,47 @@
   --brand-green-border: #a7f3d0;
 }
 
-[data-theme="dark"],
-.dark {
-  --color-primary: oklch(69.6% 0.17 154);   /* Vibrant Emerald 500 in dark mode */
-  --color-primary-content: oklch(15% 0.02 155);
-  --color-accent: oklch(76% 0.15 152);
-  --color-accent-content: oklch(15% 0.02 155);
+/* Dark theme: the same palette as the Batch pages and the screens' dark: classes (page #0f1117, surfaces
+   #181c25 / #151921, raised #1e2330, borders #2a3346, text #e2e8f0, muted #94a3b8, emerald accent). */
+@media screen {
+  [data-theme="dark"],
+  .dark {
+    color-scheme: dark;
+
+    --color-primary: #10b981;            /* Emerald 500 */
+    --color-primary-content: #052e1f;
+
+    --color-secondary: #14b8a6;          /* Teal 500 */
+    --color-secondary-content: #042f2c;
+
+    --color-accent: #34d399;             /* Emerald 400 */
+    --color-accent-content: #052e1f;
+
+    --color-neutral: #1e2330;
+    --color-neutral-content: #e2e8f0;
+
+    --color-base-100: #181c25;           /* cards, sidebar, header */
+    --color-base-200: #0f1117;           /* page background */
+    --color-base-300: #2a3346;           /* borders */
+    --color-base-content: #e2e8f0;
+
+    --color-success: #22c55e;
+    --color-success-content: #052e16;
+
+    --color-info: #38bdf8;
+    --color-info-content: #082f49;
+
+    --color-warning: #f59e0b;
+    --color-warning-content: #451a03;
+
+    --color-error: #f87171;
+    --color-error-content: #450a0a;
+
+    --brand-green-primary: #10b981;
+    --brand-green-hover: #059669;
+    --brand-green-light: rgba(16, 185, 129, 0.12);
+    --brand-green-border: rgba(16, 185, 129, 0.35);
+  }
 }
 
 body {
