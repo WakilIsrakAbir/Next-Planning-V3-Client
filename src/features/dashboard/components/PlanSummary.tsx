@@ -54,8 +54,18 @@ export default function PlanSummary() {
     sharedGetJson<DashboardSummary>(`${API_BASE}/api/orders/dashboard-summary`)
       .then((data) => {
         if (!active) return;
-        if (data) setSummary({ buyers: data.buyers, plans: allowedPlans(data.plans || []) });
-        else setFailed(true);
+        // An unexpected answer shows the error line instead of breaking the dashboard.
+        if (data && typeof data.buyers === 'number' && Array.isArray(data.plans)) {
+          const plans = data.plans.map((plan) => ({
+            dept: String(plan.dept),
+            pending: Number(plan.pending) || 0,
+            tentative: Number(plan.tentative) || 0,
+            confirm: Number(plan.confirm) || 0,
+          }));
+          setSummary({ buyers: data.buyers, plans: allowedPlans(plans) });
+        } else {
+          setFailed(true);
+        }
       })
       .catch(() => active && setFailed(true));
     return () => {
