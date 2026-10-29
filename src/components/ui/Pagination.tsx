@@ -17,6 +17,10 @@ interface PaginationProps {
   autoRows?: number | null;
   /** Whether "Auto" is the selected page size. */
   isAuto?: boolean;
+  /** When given, an "All" option (every row on one page) is offered; called when it is chosen. */
+  onShowAll?: () => void;
+  /** Whether "All" is the selected page size. */
+  isAll?: boolean;
 }
 
 export function scrollToPageTop() {
@@ -57,6 +61,8 @@ export default function Pagination({
   limitOptions = [10, 20, 50, 100],
   autoRows,
   isAuto = false,
+  onShowAll,
+  isAll = false,
 }: PaginationProps) {
   const start = totalItems === 0 ? 0 : (currentPage - 1) * limit + 1;
   const end = Math.min(currentPage * limit, totalItems);
@@ -77,8 +83,9 @@ export default function Pagination({
     scrollToPageTop();
   };
 
-  const handleLimitChange = (newLimit: number | 'auto') => {
-    onLimitChange(newLimit);
+  const handleLimitChange = (value: string) => {
+    if (value === 'all') onShowAll?.();
+    else onLimitChange(value === 'auto' ? 'auto' : Number(value));
     scrollToPageTop();
   };
 
@@ -92,8 +99,8 @@ export default function Pagination({
         <span>Rows per page:</span>
         <select
           id="rowsPerPage"
-          value={isAuto ? 'auto' : limit}
-          onChange={(e) => handleLimitChange(e.target.value === 'auto' ? 'auto' : Number(e.target.value))}
+          value={isAll ? 'all' : isAuto ? 'auto' : limit}
+          onChange={(e) => handleLimitChange(e.target.value)}
           className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-emerald-400 bg-gray-50 text-gray-800 cursor-pointer text-xs dark:bg-[#1e2330] dark:text-[#e2e8f0] dark:border-[#2a3346]"
         >
           {autoRows ? <option value="auto">Auto ({autoRows})</option> : null}
@@ -102,6 +109,7 @@ export default function Pagination({
               {opt}
             </option>
           ))}
+          {onShowAll ? <option value="all">All</option> : null}
         </select>
         <span id="pageInfo" className="ml-2 font-medium">
           Showing {totalItems === 0 ? '0-0 of 0' : `${start}-${end} of ${totalItems.toLocaleString()}`}

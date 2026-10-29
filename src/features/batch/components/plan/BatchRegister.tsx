@@ -1,9 +1,16 @@
 'use client';
 
-/* Batch Plan register (old #batchPlanListView): status tabs with counts, the all-units search, buyer pills,
-   the scope note, the order table with column filters, and pagination. It shows the register as built by
-   the last renderBatchRegister() (S.ui.planflowRegister), like the old page showed the last rendered HTML. */
-import React, { useEffect, useRef, useState } from 'react';
+/* Batch Plan register (old #batchPlanListView), in the plan lists' look (DepartmentPlanningScreen): the top part
+   (unit tabs, status tabs with counts and the all-units search, buyer pills) and the order table with column
+   filters and the shared pagination. It shows the register as built by the last renderBatchRegister()
+   (S.ui.planflowRegister), like the old page showed the last rendered HTML.
+   Fixed layout: the register fills the Batch page; the top part and the pagination stay put and only the table
+   rows scroll. "Auto" (the default page size) shows as many orders as fit in the table area: the register
+   measures it (useFitRows) and stores the row count in S (setRegisterAutoRows), which paginateRegister cuts. */
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Eye, Search, X } from 'lucide-react';
+import Pagination from '@/components/ui/Pagination';
+import { useFitRows } from '@/lib/use-fit-rows';
 import {
   S,
   buyerPillNames,
@@ -16,13 +23,15 @@ import {
   selectBuyerFilter,
   selectStatusTab,
   setColumnSearch,
+  setRegisterAutoRows,
   setRegisterPageSize,
   useBatchVersion,
 } from '@/features/batch/lib';
 import type { BatchRegisterView } from '@/features/batch/lib';
 import { cn } from '@/lib/cn';
-import { button, card, controlFont, emptyState, statusTab, tabCount } from '../ui/styles';
+import { listStatusTab, listTabCount } from '../ui/styles';
 import FloorOrderLinks from './FloorOrderLinks';
+import UnitTabs from './UnitTabs';
 
 const STATUS_TABS = [
   { status: 'Pending', id: 'btnTabPending', label: 'PENDING LIST', countId: 'countPending' },
@@ -43,41 +52,41 @@ const EMPTY_REGISTER: BatchRegisterView = {
   pageInfo: 'Page 1 of 1',
   previousDisabled: true,
   nextDisabled: true,
+  total: 0,
+  page: 1,
+  totalPages: 1,
+  pageSize: 10,
   empty: false,
   rows: [],
 };
 
-/* Buyer pills (old .buyer-btn, .buyer-btn.active). */
-const BUYER_PILL =
-  'flex-none cursor-pointer whitespace-nowrap rounded border border-solid px-3 py-[5px] font-[Arial] text-[11px] font-bold uppercase ' +
-  'tracking-[0.3px] transition-all duration-[120ms]';
+// Natural height of a register row (eye button + padding, as in the plan lists); "Auto" stretches rows slightly
+// to fill the table area.
+const ROW_HEIGHT = 40;
+
+/* Buyer pills (the plan lists' buyer chips; old .buyer-btn, .buyer-btn.active). */
+const BUYER_PILL = 'flex-none cursor-pointer whitespace-nowrap rounded border border-solid px-3 py-1 text-xs transition';
 const BUYER_PILL_IDLE =
-  'border-[#ccd8e6] bg-white text-[#233d59] hover:border-[#b5cde6] hover:bg-[#e8f1fb] ' +
-  'dark:border-[#2a3346] dark:bg-[#1e2330] dark:text-[#cbd5e1] dark:hover:bg-[#252b3b] dark:hover:text-[#f8fafc]';
-const BUYER_PILL_ACTIVE =
-  'border-[#1d5ab2] bg-[#1d5ab2] text-white dark:border-[#10b981] dark:bg-[#10b981] dark:shadow-[0_2px_6px_rgba(0,0,0,0.4)]';
+  'border-gray-300 bg-gray-100 text-gray-700 hover:bg-emerald-50/50 ' +
+  'dark:border-[#2a3346] dark:bg-[#1f2637] dark:text-gray-300 dark:hover:bg-[#283347]';
+const BUYER_PILL_ACTIVE = 'border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-600/20';
 
-/* Carousel arrows (old .carousel-btn; the browser's button padding 1px 6px). */
+/* Carousel arrows of the buyer pills (old .carousel-btn). */
 const CAROUSEL_BUTTON =
-  'flex h-7 w-6 flex-none cursor-pointer items-center justify-center rounded border border-solid border-[#cbd7e4] bg-white px-1.5 py-px ' +
-  'font-[Arial] text-[11px] text-[#475569] hover:bg-[#e2ecf7] ' +
-  'dark:border-[#2a3346] dark:bg-[#1e2330] dark:text-[#cbd5e1] dark:hover:bg-[#252b3b] dark:hover:text-[#f8fafc]';
+  'flex h-[26px] w-[26px] flex-none cursor-pointer items-center justify-center rounded border border-solid border-gray-300 bg-white text-gray-600 ' +
+  'shadow-sm transition hover:bg-emerald-50 hover:text-emerald-700 ' +
+  'dark:border-[#2a3346] dark:bg-[#151921] dark:text-gray-300 dark:hover:bg-[#1f2637] dark:hover:text-emerald-400';
 
-/* Register table cells (old .register-table th/td; the freeze pane keeps the borders separate). */
-const CELL = 'border border-solid border-batch-border-light align-middle';
-const HEAD_CELL =
-  CELL +
-  ' bg-[#f1f6fb] px-3.5 py-[9px] text-left text-[12px] font-bold text-[#153450] border-b-[#c9d8e8] shadow-[0_1px_0_#c9d8e8] ' +
-  'dark:border-[#2a3346] dark:bg-[#151921] dark:text-[#cbd5e1] dark:shadow-[0_1px_0_#2a3346]';
-const FILTER_CELL =
-  CELL + ' bg-white px-2 py-[5px] text-left text-[12.5px] font-bold shadow-[0_1px_0_#c9d8e8] dark:bg-[#181c25] dark:shadow-[0_1px_0_#2a3346]';
-const BODY_CELL = CELL + ' px-3.5 py-[9px] text-[12.5px]';
+/* Register table cells (the plan lists' table). The table keeps separate borders so the sticky heading keeps its lines. */
+const HEAD_CELL = 'border-0 border-b border-r border-solid border-gray-300 p-2 text-[11px] font-bold dark:border-[#2a3346]';
+const HEAD_TEXT = 'text-gray-700 dark:text-gray-200';
+const FILTER_CELL = 'border-0 border-b border-r border-solid border-gray-300 bg-white p-1 dark:border-[#2a3346] dark:bg-[#151921]';
+const BODY_CELL = 'border-0 border-b border-r border-solid border-gray-200 p-2 align-middle dark:border-[#2a3346]';
 
 /* Column search inputs (old .col-search-input). */
 const COLUMN_SEARCH =
-  'w-full rounded border border-solid border-[#ccd8e6] bg-white px-2 py-[5px] font-[Arial] text-[11.5px] font-normal text-[#192e44] outline-[#1d5ab2] ' +
-  'placeholder:text-[#8ea3bb] dark:border-[#2a3346] dark:bg-[#1e2330] dark:text-[#e2e8f0] dark:placeholder:text-[#475569] ' +
-  'dark:focus:border-[#10b981] dark:focus:shadow-[0_0_0_2px_rgba(16,185,129,0.15)] dark:focus:outline-[#10b981]';
+  'w-full rounded border border-solid border-gray-300 bg-gray-50 p-1 text-[10px] font-normal text-gray-800 outline-none ' +
+  'placeholder:text-gray-400 focus:border-emerald-500 dark:border-[#2a3346] dark:bg-[#181f2c] dark:text-gray-100 dark:placeholder:text-gray-500';
 
 export default function BatchRegister() {
   useBatchVersion();
@@ -86,6 +95,15 @@ export default function BatchRegister() {
   const pillsRef = useRef<HTMLDivElement>(null);
   const buyers = buyerPillNames();
   const scrollReset = Number(S.ui.planflowScrollReset) || 0;
+
+  // The table area: "Auto" shows as many orders as fit in it, so the page neither scrolls nor leaves an empty band.
+  const fit = useFitRows(scrollPaneRef, ROW_HEIGHT);
+  // Measured before the browser paints, so the register is cut to the fitted rows before it shows.
+  useLayoutEffect(() => {
+    if (fit) setRegisterAutoRows(fit.rows);
+  }, [fit]);
+  const auto = S.registerPageSize === 'auto';
+  const rowStyle = auto && fit ? { height: fit.rowHeight } : undefined;
 
   // selectFloor: the order list starts at the top again (old registerScrollPane.scrollTop = 0).
   useEffect(() => {
@@ -96,29 +114,31 @@ export default function BatchRegister() {
   const savedHidden = !view.showSaveAudit && 'hidden';
   const reconfirmHidden = !view.showReconfirm && 'hidden';
   const tableClass = cn(
-    'w-full table-fixed border-separate border-spacing-0',
-    view.showReconfirm ? 'min-w-[1450px]' : view.showSaveAudit && 'min-w-[1100px]'
+    'w-full border-separate border-spacing-0 whitespace-nowrap text-left',
+    view.showReconfirm ? 'min-w-[1450px]' : view.showSaveAudit ? 'min-w-[1100px]' : 'min-w-[900px]'
   );
 
   return (
-    <div id="batchPlanListView" className="min-h-0 flex-1 overflow-auto overscroll-contain print:hidden">
-      <div className={card}>
-        {/* TOP STATUS TABS & GLOBAL SEARCH */}
-        <div className="flex flex-wrap items-center justify-between gap-3.5 border-b border-solid border-batch-border-light px-[18px] py-3.5">
-          <div className="flex flex-wrap items-center gap-1.5">
+    <div id="batchPlanListView" className="flex min-h-0 flex-1 flex-col gap-3 text-[11px] print:hidden">
+      {/* TOP PART: unit tabs, status tabs & all-units search, buyer pills (stays put) */}
+      <div className="flex flex-none flex-col gap-2 rounded-sm border border-solid border-gray-200 bg-white p-2 shadow-sm dark:border-[#2a3346] dark:bg-[#151921]">
+        <UnitTabs kind="plan" variant="list" />
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {STATUS_TABS.map((tab) => {
               const active = S.activeStatusTab === tab.status;
               return (
                 <button
                   type="button"
                   key={tab.status}
-                  className={cn(statusTab(active), controlFont)}
+                  className={listStatusTab(active)}
                   data-status={tab.status}
                   id={tab.id}
                   onClick={() => selectStatusTab(tab.status)}
                 >
                   {tab.label}{' '}
-                  <span className={tabCount(active)} id={tab.countId}>
+                  <span className={listTabCount(active)} id={tab.countId}>
                     {view.counts[tab.status]}
                   </span>
                 </button>
@@ -129,7 +149,7 @@ export default function BatchRegister() {
         </div>
 
         {/* HORIZONTAL BUYER FILTER CAROUSEL */}
-        <div className="relative flex items-center gap-2 overflow-hidden border-b border-solid border-batch-border-light bg-[#f9fbfe] px-[18px] py-2.5 dark:bg-[#151921]">
+        <div className="flex items-center gap-1.5 border-0 border-t border-solid border-gray-100 pt-2 dark:border-[#2a3346]">
           <button
             type="button"
             className={CAROUSEL_BUTTON}
@@ -137,24 +157,27 @@ export default function BatchRegister() {
             title="Scroll left"
             onClick={() => pillsRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
           >
-            ◀
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <div
-            className="flex gap-1.5 overflow-x-auto scroll-smooth py-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             id="buyerPillsContainer"
             ref={pillsRef}
           >
-            {['ALL', ...buyers].map((buyer) => (
-              <button
-                type="button"
-                key={buyer}
-                className={cn(BUYER_PILL, S.activeBuyerFilter === buyer ? BUYER_PILL_ACTIVE : BUYER_PILL_IDLE)}
-                data-buyer={buyer}
-                onClick={() => selectBuyerFilter(buyer)}
-              >
-                {buyer === 'ALL' ? 'ALL BUYERS' : buyer}
-              </button>
-            ))}
+            {['ALL', ...buyers].map((buyer) => {
+              const active = S.activeBuyerFilter === buyer;
+              return (
+                <button
+                  type="button"
+                  key={buyer}
+                  className={cn(BUYER_PILL, active ? BUYER_PILL_ACTIVE : BUYER_PILL_IDLE, active || buyer === 'ALL' ? 'font-bold' : 'font-medium')}
+                  data-buyer={buyer}
+                  onClick={() => selectBuyerFilter(buyer)}
+                >
+                  {buyer === 'ALL' ? 'ALL BUYERS' : buyer}
+                </button>
+              );
+            })}
           </div>
           <button
             type="button"
@@ -163,19 +186,16 @@ export default function BatchRegister() {
             title="Scroll right"
             onClick={() => pillsRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
           >
-            ▶
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
 
-        <div
-          id="floorScopeNote"
-          className="border-b border-solid border-batch-border-light bg-[#eef6fc] px-[18px] py-2.5 text-[12px] text-[#244766] dark:bg-[rgba(16,185,129,0.07)] dark:text-[#94a3b8]"
-        >
-          {view.scopeNote}
-        </div>
+      {/* ORDER TABLE: fills the rest of the page; only its rows scroll, the pagination stays at the bottom */}
+      <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-sm border border-solid border-gray-300 bg-white shadow-sm dark:border-[#2a3346] dark:bg-[#151921]">
         {/* Saved lists include user/date audit columns; headings remain frozen (old .freeze-pane). */}
         <div
-          className="relative max-h-[calc(var(--batch-vh,1vh)*60)] w-full overflow-auto overscroll-contain print:max-h-none print:overflow-visible"
+          className="custom-scrollbar min-h-0 w-full flex-1 overflow-auto overscroll-contain"
           id="registerScrollPane"
           tabIndex={0}
           aria-label="Batch Plan orders"
@@ -183,7 +203,7 @@ export default function BatchRegister() {
         >
           <table className={tableClass}>
             <colgroup id="registerColumns">
-              <col className="w-[85px]" />
+              <col className="w-[64px]" />
               <col className={view.showSaveAudit ? 'w-[220px]' : 'w-[260px]'} />
               <col className={view.showSaveAudit ? 'w-[150px]' : 'w-[240px]'} />
               <col className={view.showSaveAudit ? 'w-[180px]' : 'w-auto'} />
@@ -200,18 +220,18 @@ export default function BatchRegister() {
                 </>
               )}
             </colgroup>
-            <thead className="sticky top-0 z-[3] bg-[#f1f6fb] dark:bg-[#151921] print:static">
+            <thead className="sticky top-0 z-20 select-none bg-gray-100 shadow-sm dark:bg-[#1f2637]">
               <tr>
-                <th className={HEAD_CELL}>Manage</th>
-                <th className={HEAD_CELL}>Order/Booking No.</th>
-                <th className={HEAD_CELL}>Booking Date</th>
-                <th className={HEAD_CELL}>Buyer</th>
-                <th id="registerSavedByHeading" className={cn(HEAD_CELL, savedHidden)}>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-center')}>Manage</th>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-left')}>Order/Booking No.</th>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-center')}>Booking Date</th>
+                <th className={cn(HEAD_CELL, 'text-left text-blue-700 dark:text-blue-400')}>Buyer</th>
+                <th id="registerSavedByHeading" className={cn(HEAD_CELL, HEAD_TEXT, 'text-left', savedHidden)}>
                   {view.savedByHeading}
                 </th>
-                <th className={cn(HEAD_CELL, savedHidden)}>Last Save</th>
-                <th className={cn(HEAD_CELL, reconfirmHidden)}>Latest YB Revised No</th>
-                <th className={cn(HEAD_CELL, reconfirmHidden)}>Confirmed BP Revised No</th>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-left', savedHidden)}>Last Save</th>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-left', reconfirmHidden)}>Latest YB Revised No</th>
+                <th className={cn(HEAD_CELL, HEAD_TEXT, 'text-left', reconfirmHidden)}>Confirmed BP Revised No</th>
               </tr>
               <tr>
                 <th className={FILTER_CELL}></th>
@@ -251,92 +271,71 @@ export default function BatchRegister() {
                 <th className={cn(FILTER_CELL, reconfirmHidden)}></th>
               </tr>
             </thead>
-            <tbody id="batchRegisterRows">
+            <tbody id="batchRegisterRows" className="text-[11px] text-gray-700 dark:text-gray-300">
               {view.rows.map((row, index) => (
                 <tr
                   key={row.number + '|' + (row.bookingFloor || '') + '|' + index}
-                  className="even:bg-batch-row-alt hover:bg-[#edf4fc] dark:hover:bg-[rgba(16,185,129,0.08)]"
+                  style={rowStyle}
+                  className="bg-white transition-colors hover:bg-emerald-50/50 dark:bg-[#151921] dark:hover:bg-emerald-950/20"
                 >
                   <td className={cn(BODY_CELL, 'text-center')}>
                     <button
                       type="button"
-                      className="inline-flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-[5px] border border-solid border-[#bfdbfe] bg-[#dbeafe] px-1.5 py-px text-[#1d4ed8] transition-all duration-150 hover:scale-[1.04] hover:border-[#1d4ed8] hover:bg-[#1d4ed8] hover:text-white dark:border-[rgba(16,185,129,0.35)] dark:bg-[rgba(16,185,129,0.15)] dark:text-[#34d399] dark:hover:border-[#10b981] dark:hover:bg-[#10b981] dark:hover:text-white"
+                      className="inline-flex cursor-pointer items-center rounded border-0 bg-emerald-100 px-3 py-1 text-emerald-700 shadow-sm transition hover:bg-emerald-600 hover:text-white"
                       data-booking={row.number}
                       data-booking-floor={row.bookingFloor}
                       title={row.title}
                       onClick={() => openRegisterBooking(row.number, row.bookingFloor)}
                     >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
+                      <Eye className="h-3.5 w-3.5" />
                     </button>
                   </td>
-                  <td className={cn(BODY_CELL, 'text-left')}>
-                    <span className="font-bold tracking-[0.3px] text-[#1d4ed8] dark:text-[#34d399]">{row.number}</span>
-                    {row.unitName && <div className="mt-1 text-[11px] text-[#64748b]">{row.unitName}</div>}
-                    {row.floorLinks && <FloorOrderLinks number={row.number} />}
+                  <td className={BODY_CELL}>
+                    {/* One line per order: the unit name and the same-order unit buttons follow the number. */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400">{row.number}</span>
+                      {row.unitName && <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{row.unitName}</span>}
+                      {row.floorLinks && <FloorOrderLinks number={row.number} />}
+                    </div>
                   </td>
-                  <td className={cn(BODY_CELL, 'text-left')}>{row.date}</td>
-                  <td className={cn(BODY_CELL, 'text-left')}>
-                    <strong>{row.buyer}</strong>
-                  </td>
+                  <td className={cn(BODY_CELL, 'text-center')}>{row.date}</td>
+                  <td className={cn(BODY_CELL, 'font-medium text-gray-800 dark:text-gray-200')}>{row.buyer}</td>
                   {view.showSaveAudit && (
                     <>
-                      <td className={cn(BODY_CELL, 'text-left')}>{row.savedBy}</td>
-                      <td className={cn(BODY_CELL, 'whitespace-nowrap text-left')} title={row.lastSaveTitle}>
+                      <td className={BODY_CELL}>{row.savedBy}</td>
+                      <td className={BODY_CELL} title={row.lastSaveTitle}>
                         {row.lastSave}
                       </td>
                     </>
                   )}
                   {view.showReconfirm && (
                     <>
-                      <td className={cn(BODY_CELL, 'text-left')}>{row.latestRevision}</td>
-                      <td className={cn(BODY_CELL, 'text-left')}>{row.confirmedRevision}</td>
+                      <td className={BODY_CELL}>{row.latestRevision}</td>
+                      <td className={BODY_CELL}>{row.confirmedRevision}</td>
                     </>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div id="tableEmptyState" className={cn(emptyState, !view.empty && 'hidden')}>
-          No matching bookings found in this list.
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3.5 border-t border-solid border-batch-border-light px-[18px] py-3.5 text-[12px] text-batch-muted">
-          <label htmlFor="registerPageSize">
-            Show{' '}
-            <select
-              id="registerPageSize"
-              className="mx-1.5 rounded border border-solid border-batch-border bg-white px-2.5 py-1.5 font-[Arial] text-[12px] text-batch-text dark:bg-[#1e2330] dark:focus:border-[#10b981] dark:focus:shadow-[0_0_0_2px_rgba(16,185,129,0.15)] dark:focus:outline-[#10b981]"
-              value={S.registerPageSize}
-              onChange={(event) => setRegisterPageSize(event.target.value)}
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="All">All</option>
-            </select>{' '}
-            orders
-          </label>
-          <span id="registerResultCount">{view.resultCount}</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className={cn(button('secondary'), controlFont)}
-              id="btnPreviousPage"
-              disabled={view.previousDisabled}
-              onClick={previousRegisterPage}
-            >
-              ◀ Previous
-            </button>
-            <span id="registerPageInfo">{view.pageInfo}</span>
-            <button type="button" className={cn(button('secondary'), controlFont)} id="btnNextPage" disabled={view.nextDisabled} onClick={nextRegisterPage}>
-              Next ▶
-            </button>
+          <div id="tableEmptyState" className={cn('px-5 py-10 text-center text-[12px] text-gray-500 dark:text-gray-400', !view.empty && 'hidden')}>
+            No matching bookings found in this list.
           </div>
         </div>
+
+        {/* The plan lists' pagination: rows per page (Auto, 10–100, All), Prev / Page X of Y / Next */}
+        <Pagination
+          currentPage={view.page}
+          totalPages={view.totalPages}
+          totalItems={view.total}
+          limit={view.pageSize}
+          onPageChange={(page) => (page < view.page ? previousRegisterPage() : nextRegisterPage())}
+          onLimitChange={(limit) => setRegisterPageSize(String(limit))}
+          autoRows={fit?.rows ?? S.registerAutoRows}
+          isAuto={auto}
+          onShowAll={() => setRegisterPageSize('All')}
+          isAll={S.registerPageSize === 'All'}
+        />
       </div>
     </div>
   );
@@ -347,36 +346,26 @@ export default function BatchRegister() {
 function RegisterSearch() {
   const [value, setValue] = useState(() => S.globalSearch);
   return (
-    <div className="flex min-w-[320px] items-stretch gap-1">
-      <div className="relative flex flex-1 items-center">
-        <svg
-          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[#2563eb] dark:text-[#34d399]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          type="text"
-          id="globalSearchInput"
-          className="w-full rounded border border-solid border-[#bfcedf] bg-white py-[7px] pl-[30px] pr-2.5 font-[Arial] text-[12px] text-[#15293d] outline-batch-primary placeholder:text-[#757575] dark:border-[#2a3346] dark:bg-[#1e2330] dark:text-[#e2e8f0] dark:placeholder:text-[#475569] dark:focus:border-[#10b981] dark:focus:shadow-[0_0_0_2px_rgba(16,185,129,0.15)] dark:focus:outline-[#10b981]"
-          placeholder="Search Booking No. / Buyer in all units..."
-          title="Searches every unit you may open; each result names its unit"
-          value={value}
-          onChange={(event) => {
-            setValue(event.target.value);
-            changeGlobalSearch(event.target.value);
-          }}
-          onKeyUp={(event) => {
-            if (event.key === 'Enter') renderBatchRegister();
-          }}
-        />
-      </div>
+    <div className="flex min-w-[260px] max-w-[440px] flex-1 items-center gap-1 rounded border border-solid border-emerald-200 bg-emerald-50/70 p-1 px-2 shadow-sm dark:border-[#2a3346] dark:bg-[#1e2330]">
+      <Search className="ml-1 h-3.5 w-3.5 flex-none text-emerald-600 dark:text-emerald-400" />
+      <input
+        type="text"
+        id="globalSearchInput"
+        className="min-w-0 flex-1 rounded border border-solid border-emerald-300 bg-white px-2 py-1 text-xs text-gray-800 outline-none placeholder:text-gray-400 focus:border-emerald-500 dark:border-[#2a3346] dark:bg-[#151921] dark:text-gray-100 dark:placeholder:text-gray-500"
+        placeholder="Search Booking No. / Buyer in all units..."
+        title="Searches every unit you may open; each result names its unit"
+        value={value}
+        onChange={(event) => {
+          setValue(event.target.value);
+          changeGlobalSearch(event.target.value);
+        }}
+        onKeyUp={(event) => {
+          if (event.key === 'Enter') renderBatchRegister();
+        }}
+      />
       <button
         type="button"
-        className="cursor-pointer rounded border-0 bg-batch-primary px-3.5 py-[7px] font-[Arial] text-[12px] font-bold text-white hover:bg-batch-primary-hover"
+        className="cursor-pointer whitespace-nowrap rounded border-0 bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow transition hover:bg-emerald-700"
         id="btnRunSearch"
         onClick={() => renderBatchRegister()}
       >
@@ -384,15 +373,16 @@ function RegisterSearch() {
       </button>
       <button
         type="button"
-        className="cursor-pointer rounded border border-solid border-[#bfcedf] bg-white px-[11px] py-[7px] font-[Arial] text-[12px] font-bold text-[#556b82] hover:bg-[#f1f5f9] hover:text-[#b91c1c] dark:border-[#2a3346] dark:bg-[#1e2330] dark:text-[#cbd5e1] dark:hover:bg-[#252b3b] dark:hover:text-[#f87171]"
+        className="inline-flex cursor-pointer items-center self-stretch rounded border-0 bg-gray-200 px-2 py-1 text-xs font-bold text-gray-700 transition hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
         id="btnClearSearch"
         title="Clear search"
+        aria-label="Clear search"
         onClick={() => {
           setValue('');
           clearGlobalSearch();
         }}
       >
-        ✕
+        <X className="h-3 w-3" />
       </button>
     </div>
   );

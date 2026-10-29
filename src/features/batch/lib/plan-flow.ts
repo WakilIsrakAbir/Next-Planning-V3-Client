@@ -6,7 +6,7 @@
    The rules are unchanged. Where the old code wrote HTML, these functions change `S` and call `notify()`;
    the components in components/plan/ render from `S`:
      S.ui.planflowRegister    the register as built by the last renderBatchRegister() (BatchRegisterView)
-     S.ui.planflowPagination  the pagination texts written by paginateRegister()
+     S.ui.planflowPagination  the pagination (texts and numbers) written by paginateRegister()
      S.ui.planflowFocus       an element to focus after a dialog closed (an element id, or the element a
                               dialog saved as its returnFocus); BatchPlanPage focuses it and clears it
      S.ui.planflowScrollReset counter: the register's scroll pane goes back to the top (old scrollTop = 0)
@@ -15,6 +15,7 @@
    Dialog contexts keep their old fields; the dialogs show `context.error` (old #...Error texts), and the
    tentative questionnaire keeps its inputs in `context.answers`. */
 import { BatchApi } from '@/features/batch/api/batch-api';
+import { pageForNewLimit } from '@/lib/use-fit-rows';
 import { BATCH_FLOORS, S, navigateTo, notify } from '@/features/batch/store/batch-store';
 import {
   canChangeData,
@@ -325,6 +326,10 @@ export interface BatchRegisterView {
   pageInfo: string;
   previousDisabled: boolean;
   nextDisabled: boolean;
+  total: number;
+  page: number;
+  totalPages: number;
+  pageSize: number;
   empty: boolean;
   rows: BatchRegisterRow[];
 }
@@ -334,6 +339,23 @@ export interface BatchRegisterPagination {
   pageInfo: string;
   previousDisabled: boolean;
   nextDisabled: boolean;
+  /** Orders in the filtered register (all pages). */
+  total: number;
+  /** The page shown (1-based) and the number of pages. */
+  page: number;
+  totalPages: number;
+  /** Rows per page in use (the fitted row count for 'auto', every order for 'All'). */
+  pageSize: number;
+}
+
+// Rows per page while 'auto' has not been measured yet (the old default page size).
+const AUTO_ROWS_FALLBACK = 10;
+
+/** Rows per register page for S.registerPageSize: 'auto' uses the rows that fit in the table area. */
+function registerPageRows(listLength: number): number {
+  if (S.registerPageSize === 'All') return Math.max(1, listLength);
+  if (S.registerPageSize === 'auto') return Math.max(1, S.registerAutoRows || AUTO_ROWS_FALLBACK);
+  return Number(S.registerPageSize);
 }
 
 // Pagination operates on the filtered register, before rendering table rows.
@@ -343,7 +365,7 @@ export function paginateRegister<T>(list: T[], filters: unknown[]): T[] {
     S.registerPage = 1;
     S.registerFilterSignature = signature;
   }
-  const size = S.registerPageSize === 'All' ? Math.max(1, list.length) : Number(S.registerPageSize);
+  const size = registerPageRows(list.length);
   S.registerTotalPages = Math.max(1, Math.ceil(list.length / size));
   S.registerPage = Math.max(1, Math.min(S.registerPage, S.registerTotalPages));
   const start = (S.registerPage - 1) * size;
@@ -353,17 +375,33 @@ export function paginateRegister<T>(list: T[], filters: unknown[]): T[] {
     pageInfo: `Page ${S.registerPage} of ${S.registerTotalPages}`,
     previousDisabled: S.registerPage === 1,
     nextDisabled: S.registerPage === S.registerTotalPages,
+    total: list.length,
+    page: S.registerPage,
+    totalPages: S.registerTotalPages,
+    pageSize: size,
   };
   S.ui.planflowPagination = pagination;
   return S.registerPageSize === 'All' ? list : list.slice(start, end);
 }
 
-/** Old #registerPageSize change listener. */
+/** Old #registerPageSize change listener ('auto' = as many rows as fit in the table area). */
 export function setRegisterPageSize(value: string): void {
-  if (!['10', '20', '50', '100', 'All'].includes(value)) return;
+  if (!['auto', '10', '20', '50', '100', 'All'].includes(value)) return;
   S.registerPageSize = value;
   S.registerPage = 1;
   renderBatchRegister();
+}
+
+/** The register measured how many rows fit in its table area (window or sidebar resized, top part changed).
+    With 'auto' the register is cut again, keeping the first visible order in view (as the plan lists do). */
+export function setRegisterAutoRows(rows: number): void {
+  if (!(rows > 0) || rows === S.registerAutoRows) return;
+  const previous = S.registerAutoRows;
+  S.registerAutoRows = rows;
+  if (S.registerPageSize !== 'auto') return;
+  if (previous) S.registerPage = pageForNewLimit(S.registerPage, previous, rows);
+  // Before the first renderBatchRegister() there is nothing to cut yet (the route builds the register).
+  if (S.ui.planflowRegister && !S.loading) renderBatchRegister();
 }
 /** Old #btnPreviousPage listener. */
 export function previousRegisterPage(): void {

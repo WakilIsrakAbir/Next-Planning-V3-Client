@@ -57,8 +57,10 @@ export default function BatchProvider({ children }: { children: React.ReactNode 
     return () => observer.disconnect();
   }, []);
 
+  // The Batch Plan register sits on the plan lists' page background (base-200), like the other plan lists.
   const className = cn(
     'flex h-full min-h-0 flex-col bg-batch-page font-batch leading-[normal] text-batch-text antialiased [page:batch-plan]',
+    'has-[#batchPlanListView]:bg-base-200',
     'dark:[color-scheme:dark] print:block print:h-auto print:bg-white print:text-black'
   );
 

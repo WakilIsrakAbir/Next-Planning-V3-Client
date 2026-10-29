@@ -1,9 +1,10 @@
 'use client';
 
 /* Batch Plan route page (/batch/plan and /batch/plan/<UNIT>; an open report adds ?order=<number>).
-   The old #batchPlanListView (register) or #reportContainer (report), the heading with the unit tabs, and the
-   page's dialogs (reportui's machine evaluation / Tall/Big / OD dialogs, Internal change, re-confirm revision,
-   tentative questionnaire, confirm checks, full view).
+   The old #batchPlanListView (register) or #reportContainer (report), and the page's dialogs (reportui's machine
+   evaluation / Tall/Big / OD dialogs, Internal change, re-confirm revision, tentative questionnaire, confirm checks,
+   full view). The report keeps the heading (eyebrow, title, badge) with the unit tabs; the register has no heading
+   and starts with its own unit tabs, like the plan lists (see BatchRegister).
    Route -> state (old BatchApi.route()): when the data is ready, and whenever the URL changes from outside
    (sidebar, browser history, a typed URL) or the data is reloaded, the unit of the URL is opened
    (routeBatchPlan -> selectFloor; without the all-orders permission /batch/plan opens the first unit the user
@@ -87,13 +88,20 @@ export default function BatchPlanPage({ unit }: { unit: string | null }) {
 
   return (
     <>
-      <BatchHeader eyebrow="Planning & Production Info" title={title} badge="Active Register">
-        <UnitTabs kind="plan" />
-      </BatchHeader>
       <Suspense fallback={null}>
         <PlanRouteSync unit={unit} />
       </Suspense>
-      {S.currentViewingNumber ? <BatchPlanReportView /> : <BatchRegister />}
+      {S.currentViewingNumber ? (
+        <>
+          <BatchHeader eyebrow="Planning & Production Info" title={title} badge="Active Register">
+            <UnitTabs kind="plan" />
+          </BatchHeader>
+          <BatchPlanReportView />
+        </>
+      ) : (
+        // Mounted once the data has loaded, so the register measures its table area at once (Auto page size).
+        !S.loading && <BatchRegister />
+      )}
       <ReportDialogs />
       <InternalChangeDialog />
       <ReconfirmRevisionDialog />
