@@ -50,7 +50,10 @@ export interface BatchState {
   /** Column filters of the register (old #colSearchOrder, #colSearchDate, #colSearchBuyer). */
   columnSearch: { order: string; date: string; buyer: string };
   activeFloor: string | null;
+  /** Rows per register page: 'auto' (as many rows as fit in the table area, see registerAutoRows), '10', '20', '50', '100' or 'All'. */
   registerPageSize: string;
+  /** Rows that fit in the register's table area (measured by the register component; null until measured). */
+  registerAutoRows: number | null;
   registerPage: number;
   registerTotalPages: number;
   registerFilterSignature: string;
@@ -139,7 +142,8 @@ export const S: BatchState = {
   globalSearch: '',
   columnSearch: { order: '', date: '', buyer: '' },
   activeFloor: null,
-  registerPageSize: '10',
+  registerPageSize: 'auto',
+  registerAutoRows: null,
   registerPage: 1,
   registerTotalPages: 1,
   registerFilterSignature: '',

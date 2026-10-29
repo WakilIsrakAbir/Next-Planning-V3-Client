@@ -66,6 +66,52 @@ export function tabCount(active: boolean): string {
   return 'inline-block rounded-[10px] px-1.5 py-px text-[11px] ' + (active ? 'bg-white/[0.22]' : 'bg-black/[0.08] dark:bg-white/[0.08]');
 }
 
+/* ---------- Plan list look (the Batch Plan register) ----------
+   The register follows the plan lists (DepartmentPlanningScreen): white / gray surfaces, a gray-100 table header and
+   emerald active states, in light and dark. Batch Card keeps statusTab / unitTab / tabCount above. */
+
+/** Status list tab of the register (the plan lists' status tabs). */
+export function listStatusTab(active: boolean): string {
+  return (
+    'flex flex-1 items-center justify-center gap-1.5 rounded-sm border border-solid px-3 py-1.5 text-center text-[10px] font-bold ' +
+    'uppercase leading-[normal] tracking-wide shadow-sm cursor-pointer transition-colors sm:flex-none sm:py-2 sm:text-[12px] 2xl:px-4 ' +
+    (active
+      ? 'border-[#313644] bg-[#313644] text-white'
+      : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-50 dark:border-[#2a3346] dark:bg-[#151921] dark:text-gray-200 dark:hover:bg-[#1f2637]')
+  );
+}
+
+/** Count inside a register status tab. */
+export function listTabCount(active: boolean): string {
+  return (
+    'inline-block min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold leading-[14px] sm:text-[11px] ' +
+    (active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600 dark:bg-[#1f2637] dark:text-gray-300')
+  );
+}
+
+/** Unit tab at the top of the register (underlined, emerald when open; 'searching' marks it lightly). */
+export function listUnitTab(state: 'idle' | 'active' | 'searching'): string {
+  return (
+    '-mb-px inline-flex items-center gap-1.5 rounded-t-sm border-0 border-b-2 border-solid px-3 py-1.5 text-[12px] font-bold ' +
+    'leading-[normal] no-underline cursor-pointer transition-colors ' +
+    (state === 'active'
+      ? 'border-emerald-600 text-emerald-700 dark:border-emerald-500 dark:text-emerald-400'
+      : state === 'searching'
+        ? 'border-emerald-300 bg-emerald-50/70 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400'
+        : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-[#3b4560] dark:hover:text-gray-200')
+  );
+}
+
+/** Count inside a register unit tab. */
+export function listUnitCount(active: boolean): string {
+  return (
+    'inline-block min-w-[18px] rounded-full px-1.5 py-px text-center text-[10px] font-bold leading-[14px] ' +
+    (active
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+      : 'bg-gray-100 text-gray-600 dark:bg-[#1f2637] dark:text-gray-400')
+  );
+}
+
 /** Status badge in the page heading (old `.badge` and `.badge-dot`). */
 export const badge = {
   base:
