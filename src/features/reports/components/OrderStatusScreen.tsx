@@ -17,6 +17,7 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import { sharedGetJson } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
 
 function parseNum(val: any): number {
   if (val === undefined || val === null || val === '' || val === '-') return 0;
@@ -25,13 +26,22 @@ function parseNum(val: any): number {
 }
 
 const cachedOrderStatus: Record<string, { orders: any[]; total: number; totalPages: number }> = {};
+// Rows per page of the last list request, so a revisit can show that cached first page before "Auto" has measured the table
+const lastListRequest = { limit: 10 };
+
+// Natural height of a list row (eye button + status badges + padding); "Auto" stretches rows slightly to fill the table area.
+const ROW_HEIGHT = 41;
 
 export default function OrderStatusScreen() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
+  // The table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fit = useFitRows(scrollRef, ROW_HEIGHT);
+  const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
 
-  const initialKey = `1_10_`;
+  const initialKey = `1_${lastListRequest.limit}_`;
   const initialCache = cachedOrderStatus[initialKey];
 
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
@@ -50,7 +60,17 @@ export default function OrderStatusScreen() {
   const latestRequestRef = useRef(0);
   const latestDetailRef = useRef(0);
 
+  // When "Auto" fits a different number of rows (window or sidebar resized), keep the first visible row in view
+  const [prevLimit, setPrevLimit] = useState(limit);
+  if (limit !== prevLimit) {
+    setPrevLimit(limit);
+    if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
+  }
+
   const fetchOrderStatus = async () => {
+    // "Auto" waits until the table area has been measured
+    if (limit === null) return;
+    lastListRequest.limit = limit;
     const key = `${page}_${limit}_${search}`;
     if (cachedOrderStatus[key]) {
       setOrders(cachedOrderStatus[key].orders);
@@ -96,6 +116,15 @@ export default function OrderStatusScreen() {
     // The typed search applies on submit (searchRun), not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, searchRun]);
+
+  const handleLimitChange = (newLimit: number | 'auto') => {
+    setLimitChoice(newLimit);
+    setPage(1);
+  };
+
+  // At most one page of rows (the previous page's rows are cut while a smaller page loads); "Auto" rows fill the table area
+  const visibleOrders = limit ? orders.slice(0, limit) : orders;
+  const rowStyle = limitChoice === 'auto' && fit ? { height: fit.rowHeight } : undefined;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,9 +230,10 @@ export default function OrderStatusScreen() {
   }
 
   return (
-    <div className="space-y-6">
+    // The page fills the content area: the header and the pagination stay put, only the table rows scroll.
+    <div className="flex h-full min-h-0 w-full flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-none flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" />
@@ -233,7 +263,7 @@ export default function OrderStatusScreen() {
       </div>
 
       {/* Orders Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden relative min-h-[360px]">
+      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
         {/* Exact Exp 3-Ring Loading Overlay */}
         {loading && (
           <LoadingSpinner
@@ -242,10 +272,11 @@ export default function OrderStatusScreen() {
           />
         )}
 
-        <div className="overflow-x-auto custom-scrollbar flex-1">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
           <table className="table table-sm w-full">
-            <thead className="bg-base-200/60 text-xs">
-              <tr>
+            {/* Sticky header: an opaque base under the same tint, so scrolled rows do not show through */}
+            <thead className="sticky top-0 z-10 bg-base-100 text-xs">
+              <tr className="bg-base-200/60">
                 <th className="text-center w-12">Action</th>
                 <th>Booking / Order No</th>
                 <th>Buyer</th>
@@ -258,15 +289,15 @@ export default function OrderStatusScreen() {
               </tr>
             </thead>
             <tbody className="text-xs">
-              {!loading && orders.length === 0 ? (
+              {!loading && visibleOrders.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="p-12 text-center text-base-content/60">
                     No orders found.
                   </td>
                 </tr>
               ) : (
-                orders.map((ord) => (
-                  <tr key={ord._id} className="hover">
+                visibleOrders.map((ord) => (
+                  <tr key={ord._id} style={rowStyle} className="hover">
                     <td className="text-center">
                       <button
                         onClick={() => openOrderDetails(ord.orderNo)}
@@ -316,12 +347,11 @@ export default function OrderStatusScreen() {
           currentPage={page}
           totalPages={totalPages}
           totalItems={total}
-          limit={limit}
+          limit={limit ?? fit?.rows ?? 10}
           onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          }}
+          onLimitChange={handleLimitChange}
+          autoRows={fit?.rows}
+          isAuto={limitChoice === 'auto'}
         />
       </div>
 

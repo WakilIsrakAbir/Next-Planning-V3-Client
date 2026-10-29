@@ -7,10 +7,16 @@ interface PaginationProps {
   currentPage: number;
   totalPages: number;
   totalItems: number;
+  /** Rows per page in use (the fitted row count while "Auto" is selected). */
   limit: number;
   onPageChange: (newPage: number) => void;
-  onLimitChange: (newLimit: number) => void;
+  /** A number of rows, or 'auto' for as many rows as fit on the screen. */
+  onLimitChange: (newLimit: number | 'auto') => void;
   limitOptions?: number[];
+  /** Rows that fit on the screen; when given, an "Auto" option is offered. */
+  autoRows?: number | null;
+  /** Whether "Auto" is the selected page size. */
+  isAuto?: boolean;
 }
 
 export function scrollToPageTop() {
@@ -49,6 +55,8 @@ export default function Pagination({
   onPageChange,
   onLimitChange,
   limitOptions = [10, 20, 50, 100],
+  autoRows,
+  isAuto = false,
 }: PaginationProps) {
   const start = totalItems === 0 ? 0 : (currentPage - 1) * limit + 1;
   const end = Math.min(currentPage * limit, totalItems);
@@ -69,7 +77,7 @@ export default function Pagination({
     scrollToPageTop();
   };
 
-  const handleLimitChange = (newLimit: number) => {
+  const handleLimitChange = (newLimit: number | 'auto') => {
     onLimitChange(newLimit);
     scrollToPageTop();
   };
@@ -84,10 +92,11 @@ export default function Pagination({
         <span>Rows per page:</span>
         <select
           id="rowsPerPage"
-          value={limit}
-          onChange={(e) => handleLimitChange(Number(e.target.value))}
+          value={isAuto ? 'auto' : limit}
+          onChange={(e) => handleLimitChange(e.target.value === 'auto' ? 'auto' : Number(e.target.value))}
           className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-emerald-400 bg-gray-50 text-gray-800 cursor-pointer text-xs dark:bg-[#1e2330] dark:text-[#e2e8f0] dark:border-[#2a3346]"
         >
+          {autoRows ? <option value="auto">Auto ({autoRows})</option> : null}
           {limitOptions.map((opt) => (
             <option key={opt} value={opt}>
               {opt}

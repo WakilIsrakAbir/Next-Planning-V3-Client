@@ -15,19 +15,35 @@ import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
+import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
 import {
   cachedPlanningOrders,
   cachedDeptBuyers,
   fetchPlanningOrders,
+  findCachedPlanningPage,
+  PREFETCH_LIMIT,
   planningListKey,
   prefetchOrderDetail,
   getSavedDeptState,
   saveDeptState,
+  type IDeptPageState,
 } from '@/features/planning/lib/planning-cache';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
 }
+
+/** The cached page for a saved list state, shown at once ("Auto" page 1 is cut from the prefetched first 30 rows). */
+function cachedListPage(dept: string, s: IDeptPageState) {
+  if (s.limit === 'auto' && s.page !== 1) return null;
+  const limit = s.limit === 'auto' ? PREFETCH_LIMIT : s.limit;
+  const query = { dept, activeTab: s.activeTab, activeBuyer: s.activeBuyer, page: s.page, limit, globalSearch: s.globalSearch };
+  const pending = { dept, activeTab: 'Pending' as const, activeBuyer: '', page: 1, limit: PREFETCH_LIMIT, globalSearch: '' };
+  return findCachedPlanningPage(query) || cachedPlanningOrders[planningListKey(pending)] || null;
+}
+
+// Natural height of a list row (eye button + padding); "Auto" stretches rows slightly to fill the table area.
+const ROW_HEIGHT = 40;
 
 export default function DepartmentPlanningScreen({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -40,10 +56,13 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   const [globalSearch, setGlobalSearch] = useState(() => savedState.globalSearch);
   const [activeBuyer, setActiveBuyer] = useState(() => savedState.activeBuyer);
   const [page, setPage] = useState(() => savedState.page);
-  const [limit, setLimit] = useState(() => savedState.limit);
+  const [limitChoice, setLimitChoice] = useState<number | 'auto'>(() => savedState.limit);
+  // The table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fit = useFitRows(scrollRef, ROW_HEIGHT);
+  const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
 
-  const initialKey = `${dept}_${savedState.activeTab}_${savedState.activeBuyer}_${savedState.page}_${savedState.limit}_${savedState.globalSearch}`;
-  const initialCache = cachedPlanningOrders[initialKey] || cachedPlanningOrders[`${dept}_Pending__1_10_`];
+  const initialCache = cachedListPage(dept, savedState);
 
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
   const [loading, setLoading] = useState(() => !initialCache);
@@ -71,15 +90,14 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     setActiveBuyer(s.activeBuyer);
     setActiveTab(s.activeTab);
     setPage(s.page);
-    setLimit(s.limit);
+    setLimitChoice(s.limit);
     setGlobalSearch(s.globalSearch);
     setColSearchOrder(s.colSearchOrder);
     setColSearchDate(s.colSearchDate);
     setColSearchBuyer(s.colSearchBuyer);
     setColSearchStatus(s.colSearchStatus);
 
-    const key = `${dept}_${s.activeTab}_${s.activeBuyer}_${s.page}_${s.limit}_${s.globalSearch}`;
-    const cached = cachedPlanningOrders[key] || cachedPlanningOrders[`${dept}_Pending__1_10_`];
+    const cached = cachedListPage(dept, s);
     if (cached) {
       setOrders(cached.orders);
       setTotalPages(cached.totalPages);
@@ -96,15 +114,24 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     }
   }
 
+  // When "Auto" fits a different number of rows (window or sidebar resized), keep the first visible row in view
+  const [prevLimit, setPrevLimit] = useState(limit);
+  if (limit !== prevLimit) {
+    setPrevLimit(limit);
+    if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
+  }
+
   // Fetch paginated department orders with SWR (Single combined call matching Exp).
   // The request is shared with the background prefetch when both ask for the same page.
   const fetchOrders = async () => {
+    // "Auto" waits until the table area has been measured
+    if (limit === null) return;
     const q = { dept, activeTab, activeBuyer, page, limit, globalSearch };
-    const key = planningListKey(q);
-    if (cachedPlanningOrders[key]) {
-      setOrders(cachedPlanningOrders[key].orders);
-      setTotalPages(cachedPlanningOrders[key].totalPages);
-      setTotalOrders(cachedPlanningOrders[key].total);
+    const cached = findCachedPlanningPage(q);
+    if (cached) {
+      setOrders(cached.orders);
+      setTotalPages(cached.totalPages);
+      setTotalOrders(cached.total);
       setLoading(false);
     } else {
       setLoading(true);
@@ -154,8 +181,8 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     saveDeptState(dept, { page: newPage });
   };
 
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit);
+  const handleLimitChange = (newLimit: number | 'auto') => {
+    setLimitChoice(newLimit);
     setPage(1);
     saveDeptState(dept, { limit: newLimit, page: 1 });
   };
@@ -221,7 +248,10 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
       return false;
     }
     return true;
-  });
+  });  // At most one page of rows (a cached larger first page is cut to the page size); "Auto" rows fill the table area
+  const visibleOrders = limit ? displayedOrders.slice(0, limit) : displayedOrders;
+  const rowStyle = limitChoice === 'auto' && fit ? { height: fit.rowHeight } : undefined;
+
 
   // Download completed list Excel matching Exp downloadCompletedList
   const downloadCompletedExcel = () => {
@@ -237,9 +267,10 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   };
 
   return (
-    <div className="space-y-3 pb-16 max-w-[1850px] mx-auto text-[11px] animate-fade-in">
+    // The page fills the content area: the top bar and the pagination stay put, only the table rows scroll.
+    <div className="flex h-full min-h-0 w-full max-w-[1850px] mx-auto flex-col gap-3 text-[11px] animate-fade-in">
       {/* Top Bar with Exact Exp Tabs and Compact Search (index.html lines 1245-1282) */}
-      <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm p-2 shadow-sm">
+      <div className="flex-none bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm p-2 shadow-sm">
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
           {/* Left: 4 Exp Status Tabs */}
           <div className="flex flex-wrap sm:flex-nowrap gap-1 sm:gap-2">
@@ -329,7 +360,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
       </div>
 
       {/* Main Table Container matching Exp dataTableContentWrapper */}
-      <div className="border border-gray-300 dark:border-[#2a3346] w-full bg-white dark:bg-[#151921] rounded-sm shadow-sm overflow-hidden min-h-[380px] relative flex flex-col">
+      <div className="border border-gray-300 dark:border-[#2a3346] w-full bg-white dark:bg-[#151921] rounded-sm shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
         {loading && orders.length === 0 && (
           <LoadingSpinner message="Processing Department Data..." />
         )}
@@ -339,7 +370,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
           </div>
         )}
 
-        <div className="flex-1 overflow-auto custom-scrollbar w-full">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar w-full">
           <table className="w-full text-left whitespace-nowrap min-w-[1000px] border-collapse">
             {/* Header matching Exp thead with 2-tier search inputs */}
             <thead className="sticky top-0 z-20 bg-gray-100 dark:bg-[#1f2637] shadow-sm select-none">
@@ -455,7 +486,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
 
             {/* Table Body */}
             <tbody className="text-gray-700 dark:text-gray-300 text-[11px] divide-y divide-gray-200 dark:divide-[#2a3346]">
-              {!loading && displayedOrders.length === 0 ? (
+              {!loading && visibleOrders.length === 0 ? (
                 <tr>
                   <td
                     colSpan={activeTab === 'All' ? 4 : 5}
@@ -465,9 +496,10 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                   </td>
                 </tr>
               ) : (
-                displayedOrders.map((o) => (
+                visibleOrders.map((o) => (
                   <tr
                     key={o._id || o.orderNo}
+                    style={rowStyle}
                     className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors bg-white dark:bg-[#151921]"
                   >
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
@@ -516,9 +548,11 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
           currentPage={page}
           totalPages={totalPages}
           totalItems={totalOrders}
-          limit={limit}
+          limit={limit ?? fit?.rows ?? 10}
           onPageChange={handlePageChange}
           onLimitChange={handleLimitChange}
+          autoRows={fit?.rows}
+          isAuto={limitChoice === 'auto'}
         />
       </div>
     </div>
