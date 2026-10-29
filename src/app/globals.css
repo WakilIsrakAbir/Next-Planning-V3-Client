@@ -13,6 +13,14 @@
   }
 }
 
+/* Screen-height steps for screens that fill the window (the dashboard): laptops use the base sizes,
+   tall: is a 1080p monitor (from 850px of window height), xtall: a 1440p monitor or 4K at 150%
+   (from 1150px), xxtall: 4K at 100-125% (from 1600px). Each step also needs a wide window, so a phone
+   held upright or a portrait monitor keeps sizes its width can hold. */
+@custom-variant tall (@media screen and (min-width: 1024px) and (min-height: 850px));
+@custom-variant xtall (@media screen and (min-width: 1280px) and (min-height: 1150px));
+@custom-variant xxtall (@media screen and (min-width: 1920px) and (min-height: 1600px));
+
 :root,
 [data-theme="light"],
 .light {
