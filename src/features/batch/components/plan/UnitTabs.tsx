@@ -7,7 +7,7 @@
    Each tab is a link to /batch/<kind>[/<UNIT>]; a plain click opens the unit at once and replaces the URL
    (old unitTabs click listener), a middle click / Ctrl+click opens it in a new tab.
    variant 'list': the first row of the Batch Plan register's top part, in the plan lists' look (listUnitTab);
-   'heading' (Batch Card, the open Batch Plan report) keeps the heading tabs. */
+   'heading' (Batch Card) keeps the heading tabs. The open Batch Plan report shows no unit tabs. */
 import React from 'react';
 import Link from 'next/link';
 import { BatchApi, selectUnitTab, unitTabCounts, unitTabFloors, unitTabHighlight, useBatchVersion } from '@/features/batch/lib';
