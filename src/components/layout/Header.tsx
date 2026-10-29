@@ -1,12 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Menu, LogOut, Clock, ShieldCheck } from 'lucide-react';
+import { Menu, Clock } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { getDhakaCountdown } from '@/lib/date-utils';
-import { IUser } from '@/types/user';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -14,50 +11,19 @@ interface HeaderProps {
 }
 
 export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [countdown, setCountdown] = useState<{ hours: number; minutes: number; seconds: number }>({
     hours: 0,
     minutes: 0,
     seconds: 0,
   });
 
+  // Countdown tick (the signed-in user and Sign Out are in the sidebar)
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        setCurrentUser(JSON.parse(stored));
-      } else {
-        const username = localStorage.getItem('username');
-        const role = localStorage.getItem('role');
-        if (username) {
-          setCurrentUser({
-            username,
-            role: (role || 'Admin') as any,
-            status: (localStorage.getItem('status') || 'active') as any,
-            permissions: JSON.parse(localStorage.getItem('permissions') || '{}'),
-          } as any);
-        }
-      }
-    } catch {}
-
-    // Countdown tick
     const updateTime = () => setCountdown(getDhakaCountdown());
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('username');
-    localStorage.removeItem('role');
-    localStorage.removeItem('permissions');
-    localStorage.removeItem('status');
-    localStorage.removeItem('sessionExpiresAt');
-    router.push('/login');
-  };
 
   const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -93,33 +59,6 @@ export default function Header({ onToggleSidebar, isSidebarOpen }: HeaderProps) 
 
         {/* Theme Switcher */}
         <ThemeToggle />
-
-        {/* User Profile */}
-        {currentUser && (
-          <div className="flex items-center gap-2 pl-2 border-l border-base-300">
-            <div className="avatar placeholder">
-              <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
-                {(currentUser.username || 'U').charAt(0).toUpperCase()}
-              </div>
-            </div>
-            <div className="hidden flex-col text-left leading-tight sm:flex">
-              <span className="text-xs font-bold">{currentUser.username || 'User'}</span>
-              <span className="text-[10px] text-base-content/60 flex items-center gap-0.5">
-                <ShieldCheck className="h-2.5 w-2.5 text-success" />
-                {currentUser.role || 'Planner'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="btn btn-ghost btn-circle btn-sm text-error hover:bg-error/10"
-          title="Sign Out"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
       </div>
     </header>
   );

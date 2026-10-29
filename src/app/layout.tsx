@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Epylion Group | PPC Next Planning V3",
+  title: "Textile Planning Solution | Next Planning V3",
   description: "Textile Planning and Production Control System",
 };
 

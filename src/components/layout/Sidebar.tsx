@@ -372,11 +372,11 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
         <div className="flex h-16 shrink-0 items-center border-b border-base-300 px-4">
           <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20 shrink-0">
-              EP
+              TP
             </div>
             <div className="min-w-0">
               <span className="font-extrabold text-sm tracking-tight text-primary block truncate">Textile Planning Solution</span>
-              <p className="text-[10px] text-base-content/60 leading-none truncate">Next Planning V3 • Epylion</p>
+              <p className="text-[10px] text-base-content/60 leading-none truncate">Next Planning V3</p>
             </div>
           </Link>
         </div>

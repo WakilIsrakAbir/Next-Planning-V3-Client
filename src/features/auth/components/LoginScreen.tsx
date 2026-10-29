@@ -84,7 +84,7 @@ export default function LoginScreen() {
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white shadow-lg shadow-emerald-600/30">
-            EP
+            TP
           </div>
           <h1 className="mt-4 text-2xl font-extrabold tracking-wide text-emerald-400">
             Textile Planning Solution

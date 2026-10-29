@@ -18,7 +18,7 @@ export default function RootPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-100">
-      <LoadingSpinner message="Loading Epylion PPC Suite..." subMessage="Please wait" overlay={false} />
+      <LoadingSpinner message="Loading Textile Planning Solution..." subMessage="Please wait" overlay={false} />
     </div>
   );
 }
