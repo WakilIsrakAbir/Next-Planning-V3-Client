@@ -32,8 +32,8 @@ export default function BatchSetupPage({ panel }: { panel: SetupPanel }) {
 
   return (
     <>
-      {/* The page area scrolls on its own; it is never printed. */}
-      <div id="setupView" className="min-h-0 flex-1 overflow-auto overscroll-contain print:!hidden">
+      {/* The page area: the panel fills it (setup-styles panel); it scrolls only on a short screen, never printed. */}
+      <div id="setupView" className="flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain print:!hidden">
         {panel === 'dyeing' && <MachineSetupPanel />}
         {panel === 'unit' && <UnitSetupPanel />}
         {panel === 'flat' && <FlatAllowancePanel />}
