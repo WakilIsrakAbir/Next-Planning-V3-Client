@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next Planning V3 Client
 
-## Getting Started
+Web app of Epylion Next Planning V3: department planning, tracking, reports, Planning & Production Info, load
+calculation, data management and the Batch Plan module. Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + daisyUI 5.
+It talks to the Next Planning V3 Server REST API.
 
-First, run the development server:
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL = the server URL, e.g. http://localhost:5000
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Script          | What it does              |
+| --------------- | ------------------------- |
+| `npm run dev`   | Development server        |
+| `npm run build` | Production build          |
+| `npm start`     | Serve the production build |
+| `npm run lint`  | ESLint                    |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> This Next.js version differs from older ones; read `node_modules/next/dist/docs/` before changing framework code
+> (see `AGENTS.md`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project structure
 
-## Learn More
+```
+src/
+  app/                    Routes only. Each page.tsx is thin and renders a feature screen.
+    (auth)/login          Sign-in
+    (dashboard)/          Signed-in area (layout with Sidebar + Header)
+      dashboard, planning/[dept]/[orderNo], plan-filter, tracking, tracking-filter, tracking-report,
+      reports/{[dept], order-status, product-info, planning-prod-info}, load-calc,
+      management/{upload, setup, users}, batch/{plan, card, report, setup}
+    globals.css           Tailwind / daisyUI setup and theme tokens
+  features/<feature>/     Everything one feature owns
+    components/           Its screens and components (<Name>Screen.tsx is what a route renders)
+    lib/                  Its helpers and logic
+  components/
+    layout/               App shell: Sidebar, Header
+    ui/                   Shared UI: spinners, pagination, theme toggle
+  lib/                    App-wide helpers: api-client, constants, data/date utils, cn()
+  types/                  Shared TypeScript types (order, user)
+docs/                     Module documentation (Batch Plan module)
+```
 
-To learn more about Next.js, take a look at the following resources:
+Features: `auth`, `dashboard`, `planning`, `filters`, `tracking`, `reports`, `planning-prod-info` (with its A4 print
+engine in `print/`), `load-calculation`, `management`, `batch`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Conventions:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Import with the `@/` alias (`@/features/...`, `@/lib/...`); routes import a feature's screen, features never import
+  from `app/`.
+- Style with Tailwind utility classes in the components. Colour tokens shared by a module live in `globals.css`
+  (`@theme`), e.g. the `batch-*` colours, which switch automatically in dark mode.
+- API calls go through `src/lib/api-client.ts` (adds the token and the server URL).
 
-## Deploy on Vercel
+## Batch Plan module
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`src/features/batch/` has its own layers (`api/`, `store/`, `lib/`, `components/`); see
+[docs/batch-module.md](docs/batch-module.md).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Vercel, from the `main` branch. Set `NEXT_PUBLIC_API_URL` to the deployed server URL.

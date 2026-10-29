@@ -1,0 +1,232 @@
+/* ==========================================================
+   PPI report: A4 landscape print engine
+   (ported from the old index.html "REPORT SCREEN & A4 LANDSCAPE PRINT ENGINE" block).
+
+   Next.js keeps a page's global stylesheet loaded after navigating away, so every rule here is scoped:
+   to the #printPagesContainer node that print-engine.ts appends to <body>, or to body.ppi-print-active,
+   which is only set while generated PPI pages exist. Printing any other screen is unaffected.
+   ========================================================== */
+
+@page ppi-a4-landscape {
+  size: A4 landscape;
+  margin: 5mm;
+}
+
+#printPagesContainer {
+  display: none;
+}
+
+/* Off-screen layout while the pages are paginated (measured at their printed size). */
+#printPagesContainer.ppi-print-measuring {
+  display: block;
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 287mm;
+  visibility: hidden;
+  z-index: -9999;
+  pointer-events: none;
+}
+
+/* ---------- Page layout (applies while measuring and when printing) ---------- */
+#printPagesContainer .print-page {
+  page: ppi-a4-landscape;
+  width: 287mm;
+  height: 199.5mm;
+  max-height: 199.5mm;
+  box-sizing: border-box;
+  padding: 4mm 5mm 3mm 5mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+  color: #000000;
+  position: relative;
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+}
+
+#printPagesContainer .print-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+#printPagesContainer .print-page-inner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#printPagesContainer .print-report-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+  border-bottom: 1.5px solid #1e40af;
+}
+
+#printPagesContainer .print-report-title-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11pt;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+#printPagesContainer .print-report-title-main svg {
+  width: 12pt;
+  height: 12pt;
+  color: #2563eb;
+}
+
+#printPagesContainer .print-report-title-booking {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #1e40af;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+#printPagesContainer .print-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5mm;
+  min-height: 0;
+}
+
+/* Compact typography & table density for single / multi page fits */
+#printPagesContainer .print-page table {
+  width: 100% !important;
+  min-width: 0 !important;
+  border-collapse: collapse !important;
+  font-size: 7.4px !important;
+  line-height: 1.15 !important;
+}
+
+#printPagesContainer .print-page th,
+#printPagesContainer .print-page td {
+  padding: 2.2px 3px !important;
+  font-size: 7.4px !important;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Badges and text spans inside cells follow the compact cell size */
+#printPagesContainer .print-page th *,
+#printPagesContainer .print-page td * {
+  font-size: inherit !important;
+}
+
+#printPagesContainer .print-page .overflow-x-auto {
+  overflow: visible !important;
+}
+
+#printPagesContainer .print-page section svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* Section banner styling preserved in print */
+#printPagesContainer .print-page .bg-\[\#1e40af\],
+#printPagesContainer .print-page .bg-\[\#0e7490\],
+#printPagesContainer .print-page .bg-\[\#b45309\] {
+  color: #ffffff !important;
+  padding: 2.5px 6px !important;
+  font-size: 8.5px !important;
+}
+
+#printPagesContainer .print-page .bg-\[\#1e40af\] span,
+#printPagesContainer .print-page .bg-\[\#0e7490\] span,
+#printPagesContainer .print-page .bg-\[\#b45309\] span {
+  font-size: 8px !important;
+}
+
+#printPagesContainer .print-page .bg-\[\#1e40af\] {
+  background-color: #1e40af !important;
+}
+
+#printPagesContainer .print-page .bg-\[\#0e7490\] {
+  background-color: #0e7490 !important;
+}
+
+#printPagesContainer .print-page .bg-\[\#b45309\] {
+  background-color: #b45309 !important;
+}
+
+/* ERP footer: 3-column grid */
+#printPagesContainer .print-footer {
+  display: grid;
+  grid-template-columns: 1.35fr 1.5fr 0.65fr;
+  align-items: center;
+  flex-shrink: 0;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 1.5mm;
+  margin-top: 1.5mm;
+  font-size: 8px;
+  color: #334155;
+  line-height: 1.25;
+}
+
+#printPagesContainer .print-footer-left {
+  text-align: left;
+  font-size: 7.5px;
+  color: #475569;
+}
+
+#printPagesContainer .print-footer-center {
+  text-align: center;
+  font-weight: 600;
+  font-size: 8px;
+  color: #1e293b;
+}
+
+#printPagesContainer .print-footer-right,
+#printPagesContainer .print-page-number {
+  text-align: right;
+  font-weight: 700;
+  font-size: 8px;
+  color: #0f172a;
+}
+
+/* ---------- Printing: only the generated pages ---------- */
+@media print {
+  :root:has(body.ppi-print-active),
+  body.ppi-print-active {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.ppi-print-active {
+    display: block !important;
+  }
+
+  /* Hide the entire interactive app; display ONLY the print pages container */
+  body.ppi-print-active > *:not(#printPagesContainer) {
+    display: none !important;
+  }
+
+  body.ppi-print-active > #printPagesContainer {
+    display: block !important;
+    position: static !important;
+    visibility: visible !important;
+    width: 287mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+}

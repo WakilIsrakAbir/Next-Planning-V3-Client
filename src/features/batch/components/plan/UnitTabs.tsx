@@ -8,7 +8,8 @@
    (old unitTabs click listener), a middle click / Ctrl+click opens it in a new tab. */
 import React from 'react';
 import Link from 'next/link';
-import { BatchApi, selectUnitTab, unitTabCounts, unitTabFloors, unitTabHighlight, useBatchVersion } from '@/features/batch/engine';
+import { BatchApi, selectUnitTab, unitTabCounts, unitTabFloors, unitTabHighlight, useBatchVersion } from '@/features/batch/lib';
+import { tabCount, unitTab } from '../ui/styles';
 
 export default function UnitTabs({ kind }: { kind: 'plan' | 'card' }) {
   useBatchVersion();
@@ -21,7 +22,11 @@ export default function UnitTabs({ kind }: { kind: 'plan' | 'card' }) {
   for (const floor of unitTabFloors(group)) tabs.push({ key: floor.key, label: floor.label, title: floor.label });
 
   return (
-    <nav className={'unit-tabs' + (tabs.length ? '' : ' hidden')} id="unitTabs" aria-label={card ? 'Batch Card units' : 'Batch Plan units'}>
+    <nav
+      className={tabs.length ? 'mt-3 flex flex-wrap gap-1.5' : 'hidden'}
+      id="unitTabs"
+      aria-label={card ? 'Batch Card units' : 'Batch Plan units'}
+    >
       {tabs.map((tab) => {
         const route = kind + (tab.key ? '/' + tab.key : '');
         const highlight = unitTabHighlight(view, tab.key);
@@ -29,7 +34,7 @@ export default function UnitTabs({ kind }: { kind: 'plan' | 'card' }) {
           <Link
             key={route}
             href={'/batch/' + route}
-            className={'unit-tab' + (highlight ? ' ' + highlight : '')}
+            className={unitTab(highlight || 'idle')}
             title={tab.title}
             replace
             scroll={false}
@@ -39,7 +44,7 @@ export default function UnitTabs({ kind }: { kind: 'plan' | 'card' }) {
               selectUnitTab(view, tab.key);
             }}
           >
-            {tab.label} <span>{counts[tab.key || ''] || 0}</span>
+            {tab.label} <span className={tabCount(highlight === 'active')}>{counts[tab.key || ''] || 0}</span>
           </Link>
         );
       })}

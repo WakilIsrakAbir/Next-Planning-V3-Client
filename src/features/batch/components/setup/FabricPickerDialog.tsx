@@ -4,6 +4,7 @@
    OK changes the Dyeing MC draft (applyFabricPicker); Save Changes on the panel saves it. Escape closes,
    Tab stays inside, a click on the backdrop closes, and the focus returns to the row's button (old behaviour). */
 import React, { useEffect, useRef } from 'react';
+import { cn } from '@/lib/cn';
 import {
   S,
   applyFabricPicker,
@@ -14,8 +15,16 @@ import {
   closeFabricPicker,
   constructionKey,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { FabricPickerState } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { FabricPickerState } from '@/features/batch/lib';
+import { field, setupButton } from './setup-styles';
+
+/* Old .fabric-picker-* and .fabric-rule-* rules. */
+const help = 'mx-0 mb-2.5 mt-0 text-[12px] leading-[1.5] text-[#475569] dark:text-[#94a3b8]';
+const choice = 'flex cursor-pointer items-center gap-[7px] text-[12px] text-[#17263b] dark:text-[#cbd5e1]';
+const checkbox = 'm-0 flex-none';
+/** Fabric column and GSM column of the heading and of each fabric row. */
+const ruleGrid = 'grid grid-cols-[minmax(0,1fr)_160px] items-center gap-3 max-[700px]:grid-cols-[minmax(0,1fr)_125px]';
 
 export default function FabricPickerDialog() {
   useBatchVersion();
@@ -69,36 +78,48 @@ function FabricPickerPanel({ state }: { state: FabricPickerState }) {
   return (
     <div
       id="fabricPickerDialog"
-      className="fabric-picker-overlay"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(17,42,70,.3)] p-4 dark:bg-[rgba(0,0,0,0.65)] print:!hidden"
       ref={overlayRef}
       onClick={(event) => {
         if (event.target === event.currentTarget) closeFabricPicker();
       }}
       onKeyDown={onKeyDown}
     >
-      <div className="fabric-picker-panel" role="dialog" aria-modal="true" aria-labelledby="fabricPickerTitle">
-        <h3 id="fabricPickerTitle">{state.title}</h3>
-        <p className="fabric-rule-help">
+      <div
+        className={
+          'flex max-h-[85vh] w-[650px] max-w-full flex-col rounded-md border border-[#b9ccdf] bg-white p-3 ' +
+          'shadow-[0_8px_30px_rgba(17,42,70,.25)] ' +
+          'dark:border-[#2a3346] dark:bg-[#181c25] dark:text-[#e2e8f0] dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)]'
+        }
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fabricPickerTitle"
+      >
+        <h3 id="fabricPickerTitle" className="mx-0 mb-3 mt-0 text-[14px] font-bold text-[#23496b] dark:text-[#f8fafc]">
+          {state.title}
+        </h3>
+        <p className={help}>
           Check a fabric to block it at every GSM. When unchecked, only that fabric’s GSM limit applies. Blank GSM adds no restriction;
           equal GSM is allowed.
         </p>
-        <p id="fabricPickerMigration" className={'fabric-rule-help' + (state.migration ? '' : ' hidden')}>
+        <p id="fabricPickerMigration" className={cn(help, !state.migration && 'hidden')}>
           {state.migration}
         </p>
         <input
           type="search"
           id="fabricPickerSearch"
-          className="setup-input"
+          className={field}
           placeholder="Search fabrics…"
           aria-label="Search fabrics"
           ref={searchRef}
           value={state.search}
           onChange={(event) => changeFabricPickerSearch(event.target.value)}
         />
-        <label className="fabric-choice fabric-select-all">
+        <label className={cn(choice, 'px-2 pb-1.5 pt-2.5')}>
           <input
             type="checkbox"
             id="fabricPickerSelectAll"
+            className={checkbox}
             ref={selectAllRef}
             checked={state.selectAllChecked}
             disabled={state.selectAllDisabled}
@@ -106,11 +127,17 @@ function FabricPickerPanel({ state }: { state: FabricPickerState }) {
           />
           (Select All Fabrics)
         </label>
-        <div className="fabric-rule-heading">
+        <div
+          className={cn(
+            ruleGrid,
+            'border border-b-0 border-batch-border bg-[#edf3f9] px-3 py-2 text-[11.5px] font-bold text-[#23496b] ' +
+              'dark:bg-[#1e2330] dark:text-[#e2e8f0]'
+          )}
+        >
           <span>
             Not Possible Fabric
             <br />
-            <small>Checked = blocked at every GSM</small>
+            <small className="text-[10.5px] font-normal leading-[1.5]">Checked = blocked at every GSM</small>
           </span>
           <span>
             Not Possible GSM
@@ -118,15 +145,16 @@ function FabricPickerPanel({ state }: { state: FabricPickerState }) {
             (Greater than)
           </span>
         </div>
-        <div id="fabricPickerChoices" className="fabric-picker-choices">
+        <div id="fabricPickerChoices" className="max-h-[280px] min-h-[80px] overflow-auto border border-batch-border px-2 py-1">
           {state.visible.length ? (
             state.visible.map((value) => {
               const key: string = constructionKey(value);
               return (
-                <div className="fabric-rule-choice" key={value}>
-                  <label className="fabric-choice">
+                <div className={cn(ruleGrid, 'border-b border-[#e7edf4] py-[5px] last:border-b-0 dark:border-[#1e2536]')} key={value}>
+                  <label className={cn(choice, 'py-1 wrap-anywhere')}>
                     <input
                       type="checkbox"
+                      className={checkbox}
                       data-fabric-choice={value}
                       checked={state.selected.has(key)}
                       onChange={(event) => changeFabricPickerChoice(value, event.target.checked)}
@@ -136,7 +164,7 @@ function FabricPickerPanel({ state }: { state: FabricPickerState }) {
                   <input
                     type="text"
                     inputMode="decimal"
-                    className="setup-input fabric-gsm-limit"
+                    className={field}
                     data-fabric-gsm={value}
                     value={state.limits.get(key) || ''}
                     placeholder="No GSM limit"
@@ -147,18 +175,20 @@ function FabricPickerPanel({ state }: { state: FabricPickerState }) {
               );
             })
           ) : (
-            <div className="fabric-picker-empty">No matching fabrics. Upload the Knitting Plan to load column C.</div>
+            <div className="px-1 py-3 text-[12px] text-[#64748b]">No matching fabrics. Upload the Knitting Plan to load column C.</div>
           )}
         </div>
-        <p id="fabricPickerError" className="fabric-rule-error" role="alert">
+        <p id="fabricPickerError" className="mx-0 mb-0 mt-1.5 text-[12px] text-[#b91c1c] dark:text-[#f87171]" role="alert">
           {state.error}
         </p>
-        <div className="fabric-picker-footer">
-          <span id="fabricPickerCount">{state.countText}</span>
-          <button type="button" className="btn" id="btnFabricPickerOK" onClick={() => applyFabricPicker()}>
+        <div className="flex items-center gap-[7px] pt-3">
+          <span id="fabricPickerCount" className="mr-auto text-[12px] text-[#64748b]">
+            {state.countText}
+          </span>
+          <button type="button" className={setupButton()} id="btnFabricPickerOK" onClick={() => applyFabricPicker()}>
             OK
           </button>
-          <button type="button" className="btn secondary" id="btnFabricPickerCancel" onClick={() => closeFabricPicker()}>
+          <button type="button" className={setupButton('secondary')} id="btnFabricPickerCancel" onClick={() => closeFabricPicker()}>
             Cancel
           </button>
         </div>

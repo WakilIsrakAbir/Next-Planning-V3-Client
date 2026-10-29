@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, LogOut, Clock, ShieldCheck } from 'lucide-react';
-import ThemeToggle from '../common/ThemeToggle';
+import ThemeToggle from '@/components/ui/ThemeToggle';
 import { getDhakaCountdown } from '@/lib/date-utils';
 import { IUser } from '@/types/user';
 
