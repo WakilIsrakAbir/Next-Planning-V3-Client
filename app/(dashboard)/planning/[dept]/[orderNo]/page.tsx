@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -8,14 +8,10 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
-  Clock,
   Layers,
-  Calendar,
-  Sparkles,
-  Info,
 } from 'lucide-react';
 import InlineSpinner from '@/components/common/InlineSpinner';
-import { getColData, _norm, _getRowMap } from '@/lib/data-utils';
+import { getColData } from '@/lib/data-utils';
 import {
   findPrecachedOrder,
   getPrecachedOrderDetail,
@@ -24,6 +20,29 @@ import {
   prefetchDropdowns,
   invalidateOrderDetailCache,
 } from '@/lib/planning-cache';
+import { markBatchDataStale } from '@/lib/batch-module';
+
+// Excel rows, saved plan items and order documents are free-form JSON shared with the old vanilla-JS app.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Loose = any;
+
+// Admin / Approver role from localStorage (`user.role`, else `role` / `userRole`), read without a setState-in-effect.
+const subscribeToNothing = () => () => {};
+function readIsAdminRole(): boolean {
+  let role = '';
+  try {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      const u = JSON.parse(stored);
+      role = u.role || '';
+    }
+  } catch {}
+  if (!role) {
+    role = localStorage.getItem('role') || localStorage.getItem('userRole') || '';
+  }
+  const r = String(role).toLowerCase();
+  return r === 'admin' || r === 'approver';
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -35,7 +54,7 @@ const DEPARTMENTS: Record<string, { name: string; label: string }> = {
   yd: { name: 'YD Plan', label: 'YD' },
 };
 
-function formatDateDisplay(d: any): string {
+function formatDateDisplay(d: Loose): string {
   if (!d || d === '-' || d === 'N/A') return '—';
   try {
     const parsed = new Date(d);
@@ -49,7 +68,7 @@ function formatDateDisplay(d: any): string {
   }
 }
 
-function formatExcelDate(val: any): string {
+function formatExcelDate(val: Loose): string {
   if (!val || val === 'N/A' || val === '-' || val === '') return '—';
   if (typeof val === 'number') {
     const d = new Date(Math.round((val - 25569) * 86400 * 1000));
@@ -68,7 +87,7 @@ function formatExcelDate(val: any): string {
   return String(val);
 }
 
-function generateItemId(itemData: any, tabId: string): string {
+function generateItemId(itemData: Loose, tabId: string): string {
   if (!itemData) return Date.now().toString();
   const currentDept = tabId.replace('_report', '').toLowerCase();
   const bNo = String(itemData.OrderNo !== undefined && itemData.OrderNo !== null ? itemData.OrderNo : 'N/A').trim();
@@ -91,26 +110,50 @@ function generateItemId(itemData: any, tabId: string): string {
     const ydb = String(itemData.YDB !== undefined && itemData.YDB !== null ? itemData.YDB : 'N/A').trim();
     return `${bNo}_${type}_${ydb}`.toLowerCase().replace(/\s+/g, '');
   } else {
-    const procName = String(
+    // data-processing.js (HEAD): ProcessName, else "Process Name", else ""; "n/a" and "-" count as empty.
+    let procName = String(
       itemData.ProcessName !== undefined && itemData.ProcessName !== null
         ? itemData.ProcessName
-        : 'N/A'
+        : itemData['Process Name'] !== undefined && itemData['Process Name'] !== null
+          ? itemData['Process Name']
+          : ''
     ).trim();
+    if (procName.toLowerCase() === 'n/a' || procName === '-') procName = '';
     return `${bNo}_${color}_${procName}`.toLowerCase().replace(/\s+/g, '');
   }
 }
 
-function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): any[] {
+// Port of the old `.resizable-table-input` CSS (index.html): one-row textarea that resizes both ways.
+const RESIZABLE_INPUT_CLS =
+  'resize min-w-[90px] min-h-[26px] h-[26px] leading-[1.25] align-middle box-border overflow-auto dark:bg-[#151921] dark:border-[#2a3346] dark:text-[#cbd5e1]';
+
+// Old setup.js buildDynamicOptions: a saved value missing from the master list is still offered (first).
+function withCurrentOption(options: string[], current: Loose): string[] {
+  const val = current !== undefined && current !== null ? String(current) : '';
+  if (val.trim() && !options.includes(val)) return [val, ...options];
+  return options;
+}
+
+// detailed-view.js (HEAD): a delivery row reads the dyeing plan matched by colour, or by an itemId containing `_<colour>_`.
+function matchesDyeColor(d: Loose, myColor: string): boolean {
+  if (!d) return false;
+  const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
+  if (c === myColor) return true;
+  if (d.itemId && String(d.itemId).toLowerCase().includes(`_${myColor}_`)) return true;
+  return false;
+}
+
+function buildMergedItems(currentOrder: Loose, currentPlan: Loose, dept: string): Loose[] {
   if (!currentOrder) return [];
   const excelItems = currentOrder[`${dept}Items`] || [];
   const savedItems = (currentPlan && currentPlan[dept]) || [];
-  const planMap = new Map<string, any>();
-  savedItems.forEach((it: any) => {
+  const planMap = new Map<string, Loose>();
+  savedItems.forEach((it: Loose) => {
     if (it.itemId) planMap.set(it.itemId, it);
   });
 
-  const merged = excelItems.map((exItem: any, idx: number) => {
-    let itemData: Record<string, any> = {};
+  const merged = excelItems.map((exItem: Loose, idx: number) => {
+    let itemData: Record<string, Loose> = {};
 
     if (dept === 'knitting' || dept === 'delivery') {
       itemData = {
@@ -120,19 +163,19 @@ function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): an
         GSM: getColData(exItem, ['GSM', 'G.S.M']),
         RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
         Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
-        Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Allowance%']),
-        YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req']),
-        AllocatedQty: getColData(exItem, ['Allocated Qty', 'AllocatedQty']),
-        YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala']),
+        Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Wastage %', 'Wastage', 'Allow %', 'Allow']),
+        YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req', 'Yarn Req.']),
+        AllocatedQty: getColData(exItem, ['Allocated Qty', 'Allocated Qty ', 'AllocatedQty', 'Alloc Qty']),
+        YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala', 'Yarn Balance']),
         GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
-        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
-        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
+        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod', 'Knit Production']),
+        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala.', 'Knit Bala', 'Knit. Bal.']),
         NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
         NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
         DeliBal: getColData(exItem, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
         RFD: getColData(exItem, ['RFD']),
-        Slowmoving: getColData(exItem, ['Slowmoving']),
-        FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+        Slowmoving: getColData(exItem, ['Slowmoving', 'Slow Moving']),
+        FFStock: getColData(exItem, ['FF Stock', 'FFStock', 'FF_Stock']),
       };
     } else if (dept === 'yd') {
       itemData = {
@@ -151,33 +194,65 @@ function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): an
         'Workable Qty.': getColData(exItem, ['Workable Qty.', 'Workable Qty', 'Workable', 'WorkableQty']),
       };
     } else {
-      // Dyeing / Finishing
+      // Dyeing / Finishing (same key set as old HEAD detailed-view.js, so saved itemData matches the old app)
       itemData = {
         OrderNo: getColData(exItem, ['BookingNo', 'OrderNo', 'EWO', 'Booking', 'Order No', 'Booking No']) || currentOrder.orderNo,
         Color: getColData(exItem, ['Color', 'Colour', 'Fab Color']),
-        FabricConstruction: getColData(exItem, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
-        GSM: getColData(exItem, ['GSM', 'G.S.M']),
-        RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
+        RequiredQtyKgs: getColData(exItem, ['RequiredQtyKgs', 'Req Qty', 'Qty', 'Order Qty']),
         Buyer: getColData(exItem, ['Buyer', 'BuyerName', 'Customer']) || currentOrder.buyer,
         Unit: getColData(exItem, ['Unit']),
         ProcessName: getColData(exItem, ['Process Name', 'ProcessName', 'Process']),
+        Allowance: getColData(exItem, ['Allowance %', 'Allowance', 'Wastage %', 'Wastage', 'Allow %', 'Allow']),
+        YarnReq: getColData(exItem, ['Yarn req.', 'YarnReq', 'Yarn Req', 'Yarn Req.']),
+        AllocatedQty: getColData(exItem, ['Allocated Qty', 'Allocated Qty ', 'AllocatedQty', 'Alloc Qty']),
+        YarnBala: getColData(exItem, ['Yarn bala.', 'YarnBala', 'Yarn Bala', 'Yarn Balance']),
         GreyReq: getColData(exItem, ['Grey Req.', 'GreyReq', 'Grey Req']),
-        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod']),
-        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala']),
-        BPQty: getColData(exItem, ['BP Qty', 'BPQty', 'BP Qty.']),
-        DyeingProd: getColData(exItem, ['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod']),
-        DyeingBala: getColData(exItem, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala']),
+        KnitProd: getColData(exItem, ['Knit Prod.', 'KnitProd', 'Knit Prod', 'Knit Production']),
+        KnitBala: getColData(exItem, ['Knit. Bala.', 'KnitBala', 'Knit Bala.', 'Knit Bala', 'Knit. Bal.']),
+        BPQty: getColData(exItem, ['BP Qty', 'BPQty', 'BP_Qty']),
+        DyeingProd: getColData(exItem, ['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod', 'Dyeing ok', 'Dyeing Production']),
+        DyeingBala: getColData(exItem, ['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala', 'Dyeing Bal.']),
         NetReceivedQtyKgs: getColData(exItem, ['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
         NetDeliveryQtyKgs: getColData(exItem, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+        DeliBal: getColData(exItem, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
         RFD: getColData(exItem, ['RFD']),
-        Slowmoving: getColData(exItem, ['Slowmoving']),
-        FFStock: getColData(exItem, ['FF Stock', 'FFStock']),
+        Slowmoving: getColData(exItem, ['Slowmoving', 'Slow Moving']),
+        FFStock: getColData(exItem, ['FF Stock', 'FFStock', 'FF_Stock']),
       };
     }
 
     const genId = generateItemId(itemData, dept);
     const itemId = exItem.itemId || genId || `item_${idx}`;
-    const saved = planMap.get(itemId) || planMap.get(genId) || savedItems[idx] || {};
+
+    // Resilient saved-item (dbItem) matching, as in old HEAD detailed-view.js:
+    // exact id -> id ignoring a trailing "_" / "_n/a" -> same Color (dyeing/finishing) -> same YDB (yd).
+    let dbItem: Loose = planMap.get(itemId) || planMap.get(genId);
+    if (!dbItem && savedItems.length > 0) {
+      const cleanId = String(itemId).replace(/(_n\/a|_)$/i, '').toLowerCase();
+      dbItem = savedItems.find(
+        (d: Loose) => d && d.itemId && String(d.itemId).toLowerCase().replace(/(_n\/a|_)$/i, '') === cleanId
+      );
+
+      if (!dbItem && (dept === 'dyeing' || dept === 'finishing')) {
+        const color = String(itemData.Color || '').trim().toLowerCase();
+        if (color) {
+          dbItem = savedItems.find(
+            (d: Loose) => d && d.itemData && String(d.itemData.Color || '').trim().toLowerCase() === color
+          );
+        }
+      }
+
+      if (!dbItem && dept === 'yd') {
+        const ydb = String(itemData.YDB || itemData['YD B'] || '').trim().toLowerCase();
+        if (ydb && ydb !== 'n/a') {
+          dbItem = savedItems.find(
+            (d: Loose) =>
+              d && d.itemData && String(d.itemData.YDB || d.itemData['YD B'] || '').trim().toLowerCase() === ydb
+          );
+        }
+      }
+    }
+    const saved = dbItem || {};
 
     if (saved && saved.itemData) {
       if (saved.itemData.Unit) itemData.Unit = saved.itemData.Unit;
@@ -187,12 +262,29 @@ function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): an
       if (saved.itemData['Workable Qty.']) itemData['Workable Qty.'] = saved.itemData['Workable Qty.'];
     }
 
+    // Unit / Process Name fall back to the order's floor / program type (old HEAD, every department).
+    if (!itemData.Unit && currentOrder.floor) itemData.Unit = currentOrder.floor;
+    if (!itemData.ProcessName && currentOrder.programType) itemData.ProcessName = currentOrder.programType;
+    if (!itemData['Process Name'] && currentOrder.programType) itemData['Process Name'] = currentOrder.programType;
+
+    // Plan dates come only from the saved item: no T&A fallback (removed in old HEAD).
+    const planType = saved.planType || exItem.planType || '';
+    const startDate = saved.startDate || saved.planStart || exItem.startDate || '';
+    const floorPlanType = saved.floorPlanType || exItem.floorPlanType || '';
+    const floorStartDate = saved.floorStartDate || exItem.floorStartDate || '';
+
+    // UI-only flag (never sent): a saved plan keeps Dyeing/Delivery editable even when the upstream type is blank.
+    const hasExistingPlan =
+      dept === 'delivery'
+        ? Boolean(floorPlanType || planType || floorStartDate || startDate)
+        : Boolean(planType || startDate);
+
     return {
       ...exItem,
       itemId,
       itemData,
-      planType: saved.planType || exItem.planType || '',
-      startDate: saved.startDate || saved.planStart || exItem.startDate || '',
+      planType,
+      startDate,
       endDate: saved.endDate || saved.planEnd || exItem.endDate || '',
       limitation: saved.limitation || exItem.limitation || '',
       remarks: saved.remarks || exItem.remarks || '',
@@ -201,22 +293,20 @@ function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): an
       yarnDate: saved.yarnDate || exItem.yarnDate || '',
       yarnOkDate: saved.yarnOkDate || exItem.yarnOkDate || '',
       matchingOptionDate: saved.matchingOptionDate || exItem.matchingOptionDate || '',
-      floorStartDate: saved.floorStartDate || exItem.floorStartDate || '',
+      floorStartDate,
       floorEndDate: saved.floorEndDate || exItem.floorEndDate || '',
-      floorPlanType: saved.floorPlanType || exItem.floorPlanType || '',
+      floorPlanType,
       barrierQty: saved.barrierQty !== undefined ? saved.barrierQty : (saved.itemData ? saved.itemData['Barrier Qty.'] : itemData['Barrier Qty.']),
       workableQty: saved.workableQty !== undefined ? saved.workableQty : (saved.itemData ? saved.itemData['Workable Qty.'] : itemData['Workable Qty.']),
+      hasExistingPlan,
     };
   });
 
   // Parity with Exp detailed-view.js lines 361-380: Delivery Floor default dates from Dyeing plan
   if (dept === 'delivery') {
-    merged.forEach((item: any) => {
+    merged.forEach((item: Loose) => {
       const myColor = String(item.itemData.Color || '').trim().toLowerCase();
-      const dItem = currentPlan?.dyeing?.find((d: any) => {
-        const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
-        return c === myColor;
-      });
+      const dItem = currentPlan?.dyeing?.find((d: Loose) => matchesDyeColor(d, myColor));
       const hasDyePlanType = Boolean(
         dItem?.planType && dItem.planType !== 'Select' && dItem.planType !== '-' && dItem.planType !== ''
       );
@@ -244,7 +334,7 @@ function buildMergedItems(currentOrder: any, currentPlan: any, dept: string): an
 
   // Parity with Exp detailed-view.js lines 472-484: YD Floor default dates from YD plan (startDate - 4 days)
   if (dept === 'yd') {
-    merged.forEach((item: any) => {
+    merged.forEach((item: Loose) => {
       if (!item.floorStartDate && item.startDate) {
         const d = new Date(item.startDate);
         d.setDate(d.getDate() - 4);
@@ -272,24 +362,26 @@ export default function OrderPlanningDetailPage() {
   const cachedDetail = getPrecachedOrderDetail(dept, orderNo);
   const precachedHeader = findPrecachedOrder(orderNo);
 
-  const [loading, setLoading] = useState<boolean>(() => !cachedDetail);
-  const [notFound, setNotFound] = useState<boolean>(false);
-  const [saving, setSaving] = useState(false);
-  const [order, setOrder] = useState<any>(() => cachedDetail?.order || precachedHeader || { orderNo });
-  const [planData, setPlanData] = useState<any>(() => cachedDetail?.planData || null);
-  const [planItems, setPlanItems] = useState<any[]>(() => {
+  const [planItems, setPlanItems] = useState<Loose[]>(() => {
     if (cachedDetail?.order) {
       return buildMergedItems(cachedDetail.order, cachedDetail.planData, dept);
     }
     return [];
   });
+  // Spinner only while no items are on screen (no cache, or a cached order without items) until the first fetch ends.
+  const [loading, setLoading] = useState<boolean>(() => planItems.length === 0);
+  const [notFound, setNotFound] = useState<boolean>(false);
+  const [saving, setSaving] = useState(false);
+  const [order, setOrder] = useState<Loose>(() => cachedDetail?.order || precachedHeader || { orderNo });
+  const [planData, setPlanData] = useState<Loose>(() => cachedDetail?.planData || null);
   const [orderStatus, setOrderStatus] = useState<string>(() => {
     if (cachedDetail?.planData?.[`${dept}Status`]) {
       return cachedDetail.planData[`${dept}Status`];
     }
     return 'On Process';
   });
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  // 1. Resolve Admin / Approver Role from localStorage (false during SSR / hydration, then the stored role)
+  const isAdmin = useSyncExternalStore(subscribeToNothing, readIsAdminRole, () => false);
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
   // Dynamic dropdown options for Dyeing / Finishing
@@ -306,23 +398,6 @@ export default function OrderPlanningDetailPage() {
 
   const deptMeta = DEPARTMENTS[dept] || { name: dept.toUpperCase(), label: dept };
 
-  // 1. Resolve Admin / Approver Role accurately from localStorage user object
-  useEffect(() => {
-    let role = '';
-    try {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        role = u.role || '';
-      }
-    } catch {}
-    if (!role) {
-      role = localStorage.getItem('role') || localStorage.getItem('userRole') || '';
-    }
-    const isUserAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'approver';
-    setIsAdmin(isUserAdmin);
-  }, []);
-
   const handleBack = () => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
@@ -336,15 +411,8 @@ export default function OrderPlanningDetailPage() {
     setTimeout(() => setToast(null), 3800);
   };
 
-  useEffect(() => {
-    fetchOrderAndDropdowns();
-  }, [dept, orderNo]);
-
   const fetchOrderAndDropdowns = async () => {
-    // Only set loading if items are not already populated from cache
-    if (planItems.length === 0) {
-      setLoading(true);
-    }
+    // `loading` starts true when no items are populated from cache; re-fetches after a save keep the table visible.
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
@@ -386,7 +454,7 @@ export default function OrderPlanningDetailPage() {
 
       // Save to client cache for 0ms subsequent returns
       setPrecachedOrderDetail(dept, orderNo, { order: currentOrder, planData: currentPlan });
-    } catch (err: any) {
+    } catch (err: Loose) {
       console.error(err);
       if (planItems.length === 0) {
         showToast(err.message || 'Error loading order details.');
@@ -396,16 +464,24 @@ export default function OrderPlanningDetailPage() {
     }
   };
 
+  useEffect(() => {
+    // Fetch-on-route-change: state is only set once the request settles.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrderAndDropdowns();
+    // Re-fetch only when the route (dept / order) changes, not on every state update the fetch closes over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dept, orderNo]);
+
   // Helper to extract upstream Knitting and Dyeing plans for cross-department checks
-  const getUpstreamPlans = (item: any) => {
+  const getUpstreamPlans = (item: Loose) => {
     const myColor = String(item.itemData?.Color || item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
     const myConst = String(item.itemData?.FabricConstruction || item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
 
-    let knitItem: any = null;
-    let dyeItem: any = null;
+    let knitItem: Loose = null;
+    let dyeItem: Loose = null;
 
     if (planData?.knitting && Array.isArray(planData.knitting)) {
-      knitItem = planData.knitting.find((k: any) => {
+      knitItem = planData.knitting.find((k: Loose) => {
         const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
         const fc = String((k.itemData && k.itemData.FabricConstruction) || k.FabricConstruction || '').trim().toLowerCase();
         if (myConst && fc) {
@@ -414,7 +490,7 @@ export default function OrderPlanningDetailPage() {
         return c === myColor;
       });
       if (!knitItem) {
-        knitItem = planData.knitting.find((k: any) => {
+        knitItem = planData.knitting.find((k: Loose) => {
           const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
           return c === myColor;
         });
@@ -422,10 +498,7 @@ export default function OrderPlanningDetailPage() {
     }
 
     if (planData?.dyeing && Array.isArray(planData.dyeing)) {
-      dyeItem = planData.dyeing.find((d: any) => {
-        const c = String((d.itemData && d.itemData.Color) || d.Color || '').trim().toLowerCase();
-        return c === myColor;
-      });
+      dyeItem = planData.dyeing.find((d: Loose) => matchesDyeColor(d, myColor));
     }
 
     const isKnitTypeSelected = Boolean(
@@ -459,7 +532,7 @@ export default function OrderPlanningDetailPage() {
   // ==========================================================
 
   // 1. isValidStartDate (Exp detailed-view.js lines 640-662)
-  const isValidStartDate = (item: any, newStart: string): boolean => {
+  const isValidStartDate = (item: Loose, newStart: string): boolean => {
     if (!newStart) return true;
     const endVal = item.endDate;
     if (newStart && endVal && new Date(newStart) > new Date(endVal)) {
@@ -488,7 +561,7 @@ export default function OrderPlanningDetailPage() {
   };
 
   // 2. isValidEndDate (Exp detailed-view.js lines 664-686)
-  const isValidEndDate = (item: any, newEnd: string): boolean => {
+  const isValidEndDate = (item: Loose, newEnd: string): boolean => {
     if (!newEnd) return true;
     const startVal = item.startDate;
     if (startVal && newEnd && new Date(startVal) > new Date(newEnd)) {
@@ -517,7 +590,7 @@ export default function OrderPlanningDetailPage() {
   };
 
   // 3. isValidPlanType (Exp detailed-view.js lines 688-728)
-  const isValidPlanType = (item: any, startVal: string, endVal: string, planTypeVal: string): boolean => {
+  const isValidPlanType = (item: Loose, startVal: string, endVal: string, planTypeVal: string): boolean => {
     if (!planTypeVal || planTypeVal === 'Select') return true;
 
     // Both Start and End are required
@@ -856,18 +929,18 @@ export default function OrderPlanningDetailPage() {
     const checkDownstreamConfirm = (itemId: string) => {
       if (!planData) return false;
       if (dept === 'dyeing' && planData.delivery) {
-        const del = planData.delivery.find((d: any) => d.itemId === itemId);
+        const del = planData.delivery.find((d: Loose) => d.itemId === itemId);
         return del && del.planType === 'Confirm';
       }
       if (dept === 'knitting' && planData.dyeing) {
-        const dye = planData.dyeing.find((d: any) => d.itemId === itemId);
+        const dye = planData.dyeing.find((d: Loose) => d.itemId === itemId);
         return dye && dye.planType === 'Confirm';
       }
       return false;
     };
 
     const savedMap = new Map();
-    ((planData && planData[dept]) || []).forEach((it: any) => {
+    ((planData && planData[dept]) || []).forEach((it: Loose) => {
       if (it.itemId) savedMap.set(it.itemId, it);
     });
 
@@ -1003,7 +1076,7 @@ export default function OrderPlanningDetailPage() {
 
     // Confirm when marking order as Completed (save-planning.js line 171)
     const prevStatus = planData?.[`${dept}Status`] || 'On Process';
-    let finalStatus = orderStatus;
+    const finalStatus = orderStatus;
     if (finalStatus === 'Completed' && prevStatus !== 'Completed') {
       if (!confirm(`Are you sure you want to mark order '${orderNo}' as Completed? It will be moved to the Completed List.`)) {
         setOrderStatus(prevStatus);
@@ -1070,9 +1143,11 @@ export default function OrderPlanningDetailPage() {
       }
 
       invalidateOrderDetailCache(orderNo);
+      // Batch Plan reads the saved units and plan dates: reload it the next time it is shown.
+      markBatchDataStale();
       showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
       fetchOrderAndDropdowns();
-    } catch (err: any) {
+    } catch (err: Loose) {
       showToast(err.message || 'Error saving planning schedule.');
     } finally {
       setSaving(false);
@@ -1938,13 +2013,22 @@ export default function OrderPlanningDetailPage() {
                   dept !== 'dyeing' ||
                   (Boolean(item.unit) && item.unit !== 'Select' && Boolean(item.processName) && item.processName !== 'Select');
 
-                const isDyeKnitLocked = dept === 'dyeing' && !isKnitTypeSelected;
-                const isDeliDyeLocked = dept === 'delivery' && !isDyeTypeSelected;
+                // Old HEAD: Dyeing / Delivery stay editable for Admin/Approver, or when this row already has a saved plan,
+                // even if the upstream (Knitting / Dyeing) plan type is blank.
+                const isDyeAllowed = isAdmin || isKnitTypeSelected || Boolean(item.hasExistingPlan);
+                const isDeliveryAllowed = isAdmin || isDyeTypeSelected || Boolean(item.hasExistingPlan);
+                const isDyeKnitLocked = dept === 'dyeing' && !isDyeAllowed;
+                const isDeliDyeLocked = dept === 'delivery' && !isDeliveryAllowed;
+                // Old detailed-view.js: Delivery Start / End / Plan Type stay locked while the Dyeing start date is blank.
+                const deliDyeStart = String(dyeItem?.startDate || dyeItem?.planStart || '').trim();
+                const isDeliDyeStartMissing = dept === 'delivery' && (!deliDyeStart || deliDyeStart === '-');
                 const isSavedConfirmed = item.planType === 'Confirm';
                 const isNonAdminLocked = isSavedConfirmed && !isAdmin;
 
                 const isDyeInputsDisabled = !isUnitProcessReady || isDyeKnitLocked || isNonAdminLocked;
-                const isDeliInputsDisabled = isDeliDyeLocked || isNonAdminLocked;
+                const isDeliInputsDisabled = isDeliDyeLocked || isNonAdminLocked || isDeliDyeStartMissing;
+                // Delivery floor inputs only follow the Dyeing-plan gate (old app never locked them for Confirm).
+                const isDeliFloorDisabled = isDeliDyeLocked;
                 const isInputsDisabled =
                   dept === 'dyeing'
                     ? isDyeInputsDisabled
@@ -1955,6 +2039,9 @@ export default function OrderPlanningDetailPage() {
                 const inputDisabledClass = isInputsDisabled
                   ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed text-gray-400'
                   : 'bg-white dark:bg-[#151921]';
+                const floorDisabledClass = isDeliFloorDisabled
+                  ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed text-gray-400'
+                  : 'bg-blue-50/70 dark:bg-blue-950/20';
 
                 const disabledTitle =
                   dept === 'dyeing' && isDyeKnitLocked
@@ -1965,7 +2052,12 @@ export default function OrderPlanningDetailPage() {
                     ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
                     : isNonAdminLocked
                     ? 'Only Admin can modify Confirmed plan'
+                    : dept === 'delivery' && isDeliDyeStartMissing
+                    ? 'Dyeing plan is missing for this item'
                     : undefined;
+                const floorDisabledTitle = isDeliFloorDisabled
+                  ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
+                  : undefined;
 
                 return (
                   <tr
@@ -2031,21 +2123,21 @@ export default function OrderPlanningDetailPage() {
                           </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
                             placeholder="Limitation"
-                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
                             placeholder="Notes"
-                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
@@ -2087,7 +2179,7 @@ export default function OrderPlanningDetailPage() {
                             className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
-                            {unitOptions.map((u) => (
+                            {withCurrentOption(unitOptions, item.unit).map((u) => (
                               <option key={u} value={u}>
                                 {u}
                               </option>
@@ -2101,7 +2193,7 @@ export default function OrderPlanningDetailPage() {
                             className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
-                            {processOptions.map((p) => (
+                            {withCurrentOption(processOptions, item.processName).map((p) => (
                               <option key={p} value={p}>
                                 {p}
                               </option>
@@ -2158,26 +2250,26 @@ export default function OrderPlanningDetailPage() {
                           </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.limitation || ''}
                             disabled={!isUnitProcessReady}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
                             placeholder="Limitation"
-                            className={`row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
-                              !isUnitProcessReady ? 'bg-gray-100 dark:bg-gray-800 opacity-60' : 'bg-white dark:bg-[#151921]'
+                            className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none ${
+                              !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white'
                             }`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.remarks || ''}
                             disabled={!isUnitProcessReady}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
                             placeholder="Notes"
-                            className={`row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none ${
-                              !isUnitProcessReady ? 'bg-gray-100 dark:bg-gray-800 opacity-60' : 'bg-white dark:bg-[#151921]'
+                            className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none ${
+                              !isUnitProcessReady ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white'
                             }`}
                           />
                         </td>
@@ -2242,21 +2334,21 @@ export default function OrderPlanningDetailPage() {
                           </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             placeholder="Limitation"
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
-                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             placeholder="Remarks"
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
-                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
@@ -2367,10 +2459,10 @@ export default function OrderPlanningDetailPage() {
                           <input
                             type="date"
                             value={item.floorStartDate || ''}
-                            disabled={isDeliInputsDisabled}
-                            title={disabledTitle}
+                            disabled={isDeliFloorDisabled}
+                            title={floorDisabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
-                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50/70 dark:bg-blue-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
@@ -2378,19 +2470,19 @@ export default function OrderPlanningDetailPage() {
                             type="date"
                             value={item.floorEndDate || ''}
                             min={item.floorStartDate || undefined}
-                            disabled={isDeliInputsDisabled}
-                            title={disabledTitle}
+                            disabled={isDeliFloorDisabled}
+                            title={floorDisabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
-                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none bg-blue-50/70 dark:bg-blue-950/20 ${inputDisabledClass}`}
+                            className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
                             value={item.floorPlanType || ''}
-                            disabled={isDeliInputsDisabled}
-                            title={disabledTitle}
+                            disabled={isDeliFloorDisabled}
+                            title={floorDisabledTitle}
                             onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
-                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${inputDisabledClass}`}
+                            className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${isDeliFloorDisabled ? floorDisabledClass : 'bg-white dark:bg-[#151921]'}`}
                           >
                             <option value="">Select</option>
                             <option value="Confirm">Confirm</option>
@@ -2432,21 +2524,21 @@ export default function OrderPlanningDetailPage() {
                           </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
                             placeholder="Limitation"
-                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
                             placeholder="Notes"
-                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
@@ -2512,7 +2604,7 @@ export default function OrderPlanningDetailPage() {
                             className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
-                            {unitOptions.map((u) => (
+                            {withCurrentOption(unitOptions, item.unit).map((u) => (
                               <option key={u} value={u}>
                                 {u}
                               </option>
@@ -2526,7 +2618,7 @@ export default function OrderPlanningDetailPage() {
                             className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
                           >
                             <option value="">Select</option>
-                            {processOptions.map((p) => (
+                            {withCurrentOption(processOptions, item.processName).map((p) => (
                               <option key={p} value={p}>
                                 {p}
                               </option>
@@ -2595,21 +2687,21 @@ export default function OrderPlanningDetailPage() {
                           </select>
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
                             placeholder="Limitation"
-                            className="row-limitation w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                          <input
-                            type="text"
+                          <textarea
+                            rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
                             placeholder="Notes"
-                            className="row-remarks w-full p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+                            className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
                           />
                         </td>
                       </>

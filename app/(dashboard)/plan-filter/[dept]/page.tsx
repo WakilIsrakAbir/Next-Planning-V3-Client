@@ -9,18 +9,72 @@ import {
   Search,
   RefreshCw,
   Building2,
+  Factory,
   FileSpreadsheet,
-  CheckCircle2,
-  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import { getColData } from '@/lib/data-utils';
+import {
+  buildUnitOptions,
+  createUnitMatcher,
+  fetchActiveMasterUnits,
+  formatUnitLabel,
+  formatUnitList,
+} from '@/lib/filter-utils';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
 }
+
+type Cell = string | number | boolean | null | undefined;
+type PfRow = Record<string, Cell>;
+type JsonObject = Record<string, unknown>;
+
+interface PlanItem {
+  itemData?: JsonObject;
+  planType?: string;
+  floorPlanType?: string;
+  startDate?: string;
+  endDate?: string;
+  floorStartDate?: string;
+  floorEndDate?: string;
+  [key: string]: unknown;
+}
+
+interface PlanDoc {
+  orderNo: string;
+  buyer?: string;
+  color?: string;
+  [key: string]: unknown;
+}
+
+interface OrderInfo {
+  orderNo?: string;
+  buyer?: string;
+  floor?: string;
+  programType?: string;
+  knitStart?: string;
+  knitEnd?: string;
+  dyeStart?: string;
+  dyeEnd?: string;
+  deliStart?: string;
+  deliEnd?: string;
+  ydStart?: string;
+  ydEnd?: string;
+  [key: string]: unknown;
+}
+
+interface PfDataset {
+  rows: PfRow[];
+  buyers: string[];
+  /** Unit filter options (only filled for departments with the Unit filter). */
+  units: string[];
+}
+
+/** Departments that get the Unit filter (legacy: Dyeing Plan Filter only). */
+const PF_UNIT_FILTER_DEPTS = new Set(['dyeing']);
 
 const PF_CONFIGS: Record<string, { title: string; cols: string[] }> = {
   knitting: {
@@ -53,12 +107,22 @@ const PF_CONFIGS: Record<string, { title: string; cols: string[] }> = {
       'Unit',
       'ProcessName',
       'RequiredQtyKgs',
+      'Allowance',
+      'YarnReq',
+      'AllocatedQty',
+      'YarnBala',
       'GreyReq',
       'KnitProd',
       'KnitBala',
       'BPQty',
       'DyeingProd',
       'DyeingBala',
+      'NetReceivedQtyKgs',
+      'NetDeliveryQtyKgs',
+      'DeliBal',
+      'RFD',
+      'Slowmoving',
+      'FFStock',
       'Plan Start Date',
       'Plan End Date',
       'Plan Type',
@@ -73,6 +137,16 @@ const PF_CONFIGS: Record<string, { title: string; cols: string[] }> = {
       'FabricConstruction',
       'GSM',
       'RequiredQtyKgs',
+      'Allowance',
+      'YarnReq',
+      'AllocatedQty',
+      'YarnBala',
+      'GreyReq',
+      'KnitProd',
+      'KnitBala',
+      'BPQty',
+      'DyeingProd',
+      'DyeingBala',
       'NetReceivedQtyKgs',
       'NetDeliveryQtyKgs',
       'DeliBal',
@@ -154,13 +228,269 @@ function parseShortDateToISO(dateStr?: string): string {
   return '';
 }
 
-const cachedPlanFilterData: Record<string, { allRows: any[]; allBuyers: string[] }> = {};
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/**
+ * Normalizes an item into the Plan Filter column names (legacy plan-filter.js
+ * column mappings, including the Unit / ProcessName fallbacks to the order's
+ * floor / programType and the DeliBal = RequiredQtyKgs - NetDeliveryQtyKgs fallback).
+ */
+function buildPfRow(
+  src: JsonObject,
+  base: {
+    orderNo: string;
+    buyer: string;
+    colorFallback?: string;
+    unitFallback?: string;
+    processFallback?: string;
+  }
+): PfRow {
+  const col = (keys: string[]): Cell => getColData(src, keys);
+
+  const row: PfRow = {
+    OrderNo: base.orderNo,
+    Buyer: base.buyer,
+    Color: col(['Color', 'Colour', 'Fab Color']) || base.colorFallback || 'N/A',
+    FabricConstruction: col(['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
+    GSM: col(['GSM', 'G.S.M']),
+    RequiredQtyKgs: col(['RequiredQtyKgs', 'Req Qty', 'Qty', 'Order Qty']),
+    Allowance: col(['Allowance %', 'Allowance', 'Wastage %', 'Wastage', 'Allow %', 'Allow']),
+    YarnReq: col(['Yarn req.', 'YarnReq', 'Yarn Req', 'Yarn Req.']),
+    AllocatedQty: col(['Allocated Qty', 'Allocated Qty ', 'AllocatedQty', 'Alloc Qty']),
+    YarnBala: col(['Yarn bala.', 'YarnBala', 'Yarn Bala', 'Yarn Balance']),
+    GreyReq: col(['Grey Req.', 'GreyReq', 'Grey Req']),
+    KnitProd: col(['Knit Prod.', 'KnitProd', 'Knit Prod', 'Knit Production']),
+    KnitBala: col(['Knit. Bala.', 'KnitBala', 'Knit Bala.', 'Knit Bala', 'Knit. Bal.']),
+    Unit: col(['Unit']) || base.unitFallback || 'N/A',
+    ProcessName: col(['Process Name', 'ProcessName', 'Process']) || base.processFallback || 'N/A',
+    BPQty: col(['BP Qty', 'BPQty', 'BP_Qty']),
+    DyeingProd: col(['Dyeing Prod.', 'DyeingProd', 'Dyeing Prod', 'Dyeing ok', 'Dyeing Production']),
+    DyeingBala: col(['Dyeing Bala.', 'DyeingBala', 'Dyeing Bala', 'Dyeing Bal.']),
+    NetReceivedQtyKgs: col(['NetReceivedQtyKgs', 'NetReceivedQty', 'ReceivedQty']),
+    NetDeliveryQtyKgs: col(['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
+    DeliBal: col(['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Delivery Balance', 'Deli. Bala.']),
+    RFD: col(['RFD']),
+    Slowmoving: col(['Slowmoving', 'Slow Moving']),
+    FFStock: col(['FFStock', 'FF Stock', 'FF_Stock']),
+    // YD fields
+    'Booking Type': col(['Booking Type', 'Type', 'YD Type']),
+    YDB: col(['YDB', 'YD B']),
+    'YD Booking Date': col(['YD Booking Date']),
+    'Barrier Qty.': col(['Barrier Qty.', 'Barrier Qty']),
+    'Workable Qty.': col(['Workable Qty.', 'Workable Qty']),
+    'YD REQ.': col(['YD REQ.', 'YD REQ', 'Requirement']),
+    DYED: col(['DYED', 'Dyed']),
+    'YD BALANCE': col(['YD BALANCE', 'YD Balance']),
+    'YD Delivered': col(['YD Delivered', 'Delivered']),
+    'YD DELIVERY BALANCE': col(['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Delivery Balance']),
+  };
+
+  if (!row.DeliBal || Number(row.DeliBal) === 0) {
+    const req = Number(row.RequiredQtyKgs) || 0;
+    const del = Number(row.NetDeliveryQtyKgs) || 0;
+    if (req > 0 && del > 0) row.DeliBal = req - del;
+  }
+
+  return row;
+}
+
+const cachedPlanFilterData: Record<string, PfDataset> = {};
+
+/**
+ * Loads (or returns the cached) Plan Filter rows, buyers and Unit options for a department.
+ * Never throws: on failure it returns an empty, uncached dataset.
+ */
+async function loadPlanFilterData(dept: string, forceRefresh = false): Promise<PfDataset> {
+  if (!forceRefresh && cachedPlanFilterData[dept]) return cachedPlanFilterData[dept];
+
+  const rows: PfRow[] = [];
+  const buyersSet = new Set<string>();
+  const hasUnitFilter = PF_UNIT_FILTER_DEPTS.has(dept);
+
+  try {
+    const token = localStorage.getItem('token');
+    const dbDeptKey = dept === 'deliveryfloor' ? 'delivery' : dept;
+
+    // Active units from the dropdown master (legacy dropdownMasterCache), fetched in parallel.
+    const masterUnitsPromise = hasUnitFilter ? fetchActiveMasterUnits() : Promise.resolve<string[]>([]);
+
+    // 1. Fetch tracking data
+    const res = await fetch(`${API_BASE}/api/orders/tracking/${dbDeptKey}?all=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return { rows: [], buyers: [], units: [] };
+
+    const data = (await res.json()) as { planDocs?: PlanDoc[]; orderMap?: Record<string, OrderInfo> };
+    const planDocs = asArray<PlanDoc>(data.planDocs);
+    const orderMap = data.orderMap || {};
+    const loadedOrderNos = new Set<string>();
+
+    planDocs.forEach((plan) => {
+      asArray<PlanItem>(plan[dbDeptKey]).forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const planType = dept === 'deliveryfloor' ? item.floorPlanType : item.planType;
+        if (planType !== 'Confirm' && planType !== 'Tentative') return;
+
+        loadedOrderNos.add(plan.orderNo);
+        const orderInfo = orderMap[plan.orderNo] || {};
+        const displayBuyer = String(orderInfo.buyer || plan.buyer || 'N/A');
+        if (displayBuyer && displayBuyer !== 'N/A') buyersSet.add(displayBuyer.trim().toUpperCase());
+
+        const sd = dept === 'deliveryfloor' ? item.floorStartDate : item.startDate;
+        const ed = dept === 'deliveryfloor' ? item.floorEndDate : item.endDate;
+
+        const row = buildPfRow(
+          { ...(item.itemData || {}), ...item },
+          {
+            orderNo: plan.orderNo,
+            buyer: displayBuyer,
+            colorFallback: plan.color,
+            unitFallback: orderInfo.floor,
+            processFallback: orderInfo.programType,
+          }
+        );
+        row['Plan Start Date'] = sd || '';
+        row['Plan End Date'] = ed || '';
+        row['Plan Type'] = planType;
+        row._start = parseShortDateToISO(sd);
+        row._end = parseShortDateToISO(ed);
+        rows.push(row);
+      });
+    });
+
+    // 2. Fetch tentative orders
+    try {
+      const tRes = await fetch(
+        `${API_BASE}/api/orders?dept=${dbDeptKey}&status=Tentative&limit=5000&populateItems=true`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (tRes.ok) {
+        const tData = (await tRes.json()) as { orders?: OrderInfo[] };
+        asArray<OrderInfo>(tData.orders).forEach((order) => {
+          const orderNo = String(order.orderNo ?? '');
+          if (loadedOrderNos.has(orderNo)) return;
+          if (order.buyer) buyersSet.add(order.buyer.trim().toUpperCase());
+
+          let sd: string | undefined = '';
+          let ed: string | undefined = '';
+          if (dept === 'knitting') { sd = order.knitStart; ed = order.knitEnd; }
+          else if (dept === 'dyeing') { sd = order.dyeStart; ed = order.dyeEnd; }
+          else if (dept === 'delivery' || dept === 'deliveryfloor') { sd = order.deliStart; ed = order.deliEnd; }
+          else if (dept === 'yd') { sd = order.ydStart; ed = order.ydEnd; }
+
+          asArray<JsonObject>(order[`${dbDeptKey}Items`]).forEach((item) => {
+            if (!item || typeof item !== 'object') return;
+            const row = buildPfRow(item, {
+              orderNo,
+              buyer: order.buyer || 'N/A',
+              unitFallback: order.floor,
+              processFallback: order.programType,
+            });
+            row['Plan Start Date'] = sd || '';
+            row['Plan End Date'] = ed || '';
+            row['Plan Type'] = 'Tentative';
+            row._start = parseShortDateToISO(sd);
+            row._end = parseShortDateToISO(ed);
+            rows.push(row);
+          });
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching tentative orders:', err);
+    }
+
+    const units = hasUnitFilter ? buildUnitOptions(rows.map((r) => r.Unit), await masterUnitsPromise) : [];
+    const dataset: PfDataset = { rows, buyers: Array.from(buyersSet).sort(), units };
+    cachedPlanFilterData[dept] = dataset;
+    return dataset;
+  } catch (err) {
+    console.error('Error fetching plan filter data:', err);
+    return { rows: [], buyers: [], units: [] };
+  }
+}
+
+function cellText(value: Cell): string {
+  return value === undefined || value === null ? '' : String(value);
+}
+
+interface UnitMultiSelectProps {
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  open: boolean;
+  onToggle: () => void;
+}
+
+/** Unit multi-select ("All Units" + one checkbox per unit), styled like the Buyer filter. */
+function UnitMultiSelect({ options, selected, onChange, open, onToggle }: UnitMultiSelectProps) {
+  const allChecked = selected.length === 0;
+
+  return (
+    <div className="relative">
+      <label className="block text-[11px] font-bold text-base-content/70 uppercase mb-1">
+        Unit Selection ({allChecked ? 'All Units' : `${selected.length} Selected`})
+      </label>
+      <button
+        type="button"
+        onClick={onToggle}
+        title={formatUnitList(selected)}
+        className="btn btn-outline btn-sm w-full justify-between font-normal text-xs"
+      >
+        <span className="truncate">{formatUnitLabel(selected)}</span>
+        <Factory className="h-4 w-4 ml-2 opacity-50 shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 max-h-64 flex flex-col gap-2">
+          <label className="flex items-center gap-2 p-1 pb-2 border-b border-base-200 cursor-pointer text-xs font-bold">
+            <input
+              type="checkbox"
+              checked={allChecked}
+              onChange={(e) => {
+                // Unchecking "All Units" with nothing else picked keeps it checked (legacy behaviour).
+                if (e.target.checked) onChange([]);
+              }}
+              className="checkbox checkbox-xs checkbox-primary"
+            />
+            All Units
+          </label>
+          <div className="overflow-y-auto max-h-40 space-y-1 custom-scrollbar">
+            {options.length === 0 ? (
+              <div className="p-1 text-xs text-base-content/50">No units found</div>
+            ) : (
+              options.map((u) => (
+                <label key={u} className="flex items-center gap-2 p-1 rounded hover:bg-base-200 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(u)}
+                    onChange={(e) =>
+                      onChange(
+                        e.target.checked
+                          ? options.filter((o) => o === u || selected.includes(o))
+                          : selected.filter((x) => x !== u)
+                      )
+                    }
+                    className="checkbox checkbox-xs checkbox-primary"
+                  />
+                  <span className="truncate">{u}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PlanFilterPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
   const config = PF_CONFIGS[dept] || PF_CONFIGS.knitting;
-  const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Plan Filter` };
+  const showUnitFilter = PF_UNIT_FILTER_DEPTS.has(dept);
 
   // Form State
   const today = new Date();
@@ -177,160 +507,53 @@ export default function PlanFilterPage({ params }: PageProps) {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Confirm' | 'Tentative'>('All');
 
   // Buyers
-  const [allBuyers, setAllBuyers] = useState<string[]>([]);
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [buyerDropdownOpen, setBuyerDropdownOpen] = useState(false);
   const [buyerSearch, setBuyerSearch] = useState('');
 
-  // Data
-  const [allRows, setAllRows] = useState<any[]>([]);
-  const [filteredRows, setFilteredRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Units (dyeing only); [] means "All Units"
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
+  const [previewUnits, setPreviewUnits] = useState<string[]>([]);
+
+  // Data (tagged with the department it was loaded for)
+  const [dataset, setDataset] = useState<(PfDataset & { dept: string }) | null>(() =>
+    cachedPlanFilterData[dept] ? { ...cachedPlanFilterData[dept], dept } : null
+  );
+  const [refreshing, setRefreshing] = useState(false);
+  const [filteredRows, setFilteredRows] = useState<PfRow[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch plan filter data
-  const fetchData = async (forceRefresh = false) => {
-    if (!forceRefresh && cachedPlanFilterData[dept]) {
-      setAllRows(cachedPlanFilterData[dept].allRows);
-      setAllBuyers(cachedPlanFilterData[dept].allBuyers);
-      setLoading(false);
-      return;
-    }
+  const current = dataset && dataset.dept === dept ? dataset : null;
+  const allRows = current ? current.rows : [];
+  const allBuyers = current ? current.buyers : [];
+  const unitOptions = current ? current.units : [];
+  const loading = refreshing || !current;
 
-    setLoading(true);
-    const rows: any[] = [];
-    const buyersSet = new Set<string>();
+  // Load plan filter data whenever the department changes (unit selection resets to All Units).
+  useEffect(() => {
+    let cancelled = false;
+    loadPlanFilterData(dept).then((data) => {
+      if (cancelled) return;
+      setDataset({ ...data, dept });
+      setSelectedUnits([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dept]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      const token = localStorage.getItem('token');
-      const dbDeptKey = dept === 'deliveryfloor' ? 'delivery' : dept;
-
-      // 1. Fetch tracking data
-      const res = await fetch(`${API_BASE}/api/orders/tracking/${dbDeptKey}?all=true`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const { planDocs = [], orderMap = {} } = data;
-        const loadedOrderNos = new Set<string>();
-
-        planDocs.forEach((plan: any) => {
-          const deptItems = plan[dbDeptKey];
-          if (deptItems && Array.isArray(deptItems)) {
-            deptItems.forEach((item: any) => {
-              const planType = dept === 'deliveryfloor' ? item.floorPlanType : item.planType;
-              if (planType === 'Confirm' || planType === 'Tentative') {
-                loadedOrderNos.add(plan.orderNo);
-                const orderInfo = orderMap[plan.orderNo] || {};
-                const displayBuyer = orderInfo.buyer || plan.buyer || 'N/A';
-                if (displayBuyer && displayBuyer !== 'N/A') buyersSet.add(displayBuyer.trim().toUpperCase());
-
-                const sd = dept === 'deliveryfloor' ? item.floorStartDate : item.startDate;
-                const ed = dept === 'deliveryfloor' ? item.floorEndDate : item.endDate;
-
-                const row: any = {
-                  OrderNo: plan.orderNo,
-                  Buyer: displayBuyer,
-                  Color: plan.color || getColData(item, ['Color', 'Colour', 'Fab Color']) || 'N/A',
-                  ...(item.itemData || {}),
-                  ...item,
-                  'Plan Start Date': sd || '',
-                  'Plan End Date': ed || '',
-                  'Plan Type': planType,
-                  _start: parseShortDateToISO(sd),
-                  _end: parseShortDateToISO(ed),
-                };
-                rows.push(row);
-              }
-            });
-          }
-        });
-
-        // 2. Fetch tentative orders
-        try {
-          const tRes = await fetch(
-            `${API_BASE}/api/orders?dept=${dbDeptKey}&status=Tentative&limit=5000&populateItems=true`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (tRes.ok) {
-            const tData = await tRes.json();
-            (tData.orders || []).forEach((order: any) => {
-              if (loadedOrderNos.has(order.orderNo)) return;
-              if (order.buyer) buyersSet.add(order.buyer.trim().toUpperCase());
-
-              const items = order[`${dbDeptKey}Items`] || [];
-              items.forEach((item: any) => {
-                let sd = '';
-                let ed = '';
-                if (dept === 'knitting') { sd = order.knitStart; ed = order.knitEnd; }
-                else if (dept === 'dyeing') { sd = order.dyeStart; ed = order.dyeEnd; }
-                else if (dept === 'delivery' || dept === 'deliveryfloor') { sd = order.deliStart; ed = order.deliEnd; }
-                else if (dept === 'yd') { sd = order.ydStart; ed = order.ydEnd; }
-
-                const row: any = {
-                  OrderNo: order.orderNo,
-                  Buyer: order.buyer || 'N/A',
-                  Color: getColData(item, ['Color', 'Colour', 'Fab Color']) || 'N/A',
-                  FabricConstruction: getColData(item, ['FabricConstruction', 'Construction', 'Fab Const', 'Fabric']),
-                  GSM: getColData(item, ['GSM', 'G.S.M']),
-                  RequiredQtyKgs: getColData(item, ['RequiredQtyKgs', 'Req Qty', 'Qty']),
-                  Allowance: getColData(item, ['Allowance']),
-                  YarnReq: getColData(item, ['YarnReq', 'Yarn Req', 'Yarn Req.']),
-                  AllocatedQty: getColData(item, ['AllocatedQty', 'Allocated Qty', 'Allocated']),
-                  YarnBala: getColData(item, ['YarnBala', 'Yarn Bala', 'Yarn Bala.']),
-                  GreyReq: getColData(item, ['Grey Req.', 'GreyReq']),
-                  KnitProd: getColData(item, ['Knit Prod.', 'KnitProd']),
-                  KnitBala: getColData(item, ['Knit. Bala.', 'KnitBala']),
-                  Unit: getColData(item, ['Unit']),
-                  ProcessName: getColData(item, ['Process Name', 'ProcessName', 'Process']),
-                  BPQty: getColData(item, ['BP Qty', 'BPQty']),
-                  DyeingProd: getColData(item, ['Dyeing Prod.', 'DyeingProd']),
-                  DyeingBala: getColData(item, ['Dyeing Bala.', 'DyeingBala']),
-                  NetReceivedQtyKgs: getColData(item, ['NetReceivedQtyKgs', 'NetReceivedQty']),
-                  NetDeliveryQtyKgs: getColData(item, ['NetDeliveryQtyKgs', 'NetDeliveryQty', 'DeliveryQty']),
-                  DeliBal: getColData(item, ['Deli. Bal.', 'Deli Bal.', 'DeliBal', 'Deli. Bala.', 'Delivery Balance']),
-                  RFD: getColData(item, ['RFD']),
-                  Slowmoving: getColData(item, ['Slowmoving']),
-                  FFStock: getColData(item, ['FFStock', 'FF Stock']),
-                  'Booking Type': getColData(item, ['Booking Type', 'Type', 'YD Type']),
-                  YDB: getColData(item, ['YDB', 'YD B']),
-                  'YD Booking Date': getColData(item, ['YD Booking Date']),
-                  'Barrier Qty.': getColData(item, ['Barrier Qty.', 'Barrier Qty']),
-                  'Workable Qty.': getColData(item, ['Workable Qty.', 'Workable Qty']),
-                  'YD REQ.': getColData(item, ['YD REQ.', 'YD REQ', 'Requirement']),
-                  DYED: getColData(item, ['DYED', 'Dyed']),
-                  'YD BALANCE': getColData(item, ['YD BALANCE', 'YD Balance']),
-                  'YD Delivered': getColData(item, ['YD Delivered', 'Delivered']),
-                  'YD DELIVERY BALANCE': getColData(item, ['YD DELIVERY BALANCE', 'YD Balance_1', 'YD Delivery Balance']),
-                  'Plan Start Date': sd || '',
-                  'Plan End Date': ed || '',
-                  'Plan Type': 'Tentative',
-                  _start: parseShortDateToISO(sd),
-                  _end: parseShortDateToISO(ed),
-                };
-                rows.push(row);
-              });
-            });
-          }
-        } catch {}
-      }
-
-      const sortedBuyers = Array.from(buyersSet).sort();
-      cachedPlanFilterData[dept] = { allRows: rows, allBuyers: sortedBuyers };
-      setAllRows(rows);
-      setAllBuyers(sortedBuyers);
-    } catch (err) {
-      console.error('Error fetching plan filter data:', err);
+      const data = await loadPlanFilterData(dept, true);
+      setDataset((prev) => (prev && prev.dept !== dept ? prev : { ...data, dept }));
+      setSelectedUnits((prev) => prev.filter((u) => data.units.includes(u)));
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    fetchData();
-  }, [dept]);
 
   // Handle Filtering
   const handlePreview = () => {
@@ -340,10 +563,12 @@ export default function PlanFilterPage({ params }: PageProps) {
     }
 
     const buyerSet = new Set(selectedBuyers.map((b) => b.trim().toUpperCase()));
+    const unitsApplied = showUnitFilter ? selectedUnits : [];
+    const matchesUnit = createUnitMatcher(unitsApplied);
 
     const filtered = allRows.filter((r) => {
-      const dt = dateType === 'start' ? r._start : r._end;
-      const bNorm = r.Buyer ? r.Buyer.trim().toUpperCase() : '';
+      const dt = cellText(dateType === 'start' ? r._start : r._end);
+      const bNorm = cellText(r.Buyer).trim().toUpperCase();
 
       // Date check
       if (!dt || dt < fromDate || dt > toDate) return false;
@@ -351,15 +576,18 @@ export default function PlanFilterPage({ params }: PageProps) {
       // Buyer check
       if (buyerSet.size > 0 && !buyerSet.has(bNorm)) return false;
 
+      // Unit check (dyeing only)
+      if (!matchesUnit(r.Unit)) return false;
+
       // Plan Type check
       if (statusFilter !== 'All' && r['Plan Type'] !== statusFilter) return false;
 
       // Search term
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
-        const oMatch = String(r.OrderNo || '').toLowerCase().includes(q);
-        const bMatch = String(r.Buyer || '').toLowerCase().includes(q);
-        const cMatch = String(r.Color || '').toLowerCase().includes(q);
+        const oMatch = cellText(r.OrderNo).toLowerCase().includes(q);
+        const bMatch = cellText(r.Buyer).toLowerCase().includes(q);
+        const cMatch = cellText(r.Color).toLowerCase().includes(q);
         if (!oMatch && !bMatch && !cMatch) return false;
       }
 
@@ -367,6 +595,7 @@ export default function PlanFilterPage({ params }: PageProps) {
     });
 
     setFilteredRows(filtered);
+    setPreviewUnits(unitsApplied);
     setPreviewOpen(true);
   };
 
@@ -379,7 +608,7 @@ export default function PlanFilterPage({ params }: PageProps) {
 
     const cols = config.cols;
     const exportData = filteredRows.map((r) => {
-      const rowObj: Record<string, any> = {};
+      const rowObj: Record<string, Cell> = {};
       cols.forEach((c) => {
         rowObj[c] = r[c] ?? '';
       });
@@ -412,7 +641,7 @@ export default function PlanFilterPage({ params }: PageProps) {
         </div>
 
         <button
-          onClick={() => fetchData(true)}
+          onClick={handleRefresh}
           disabled={loading}
           className="btn btn-outline btn-sm gap-2"
         >
@@ -466,7 +695,7 @@ export default function PlanFilterPage({ params }: PageProps) {
             </label>
             <select
               value={dateType}
-              onChange={(e) => setDateType(e.target.value as any)}
+              onChange={(e) => setDateType(e.target.value as 'start' | 'end')}
               className="select select-bordered select-sm w-full"
             >
               <option value="start">Plan Start Date</option>
@@ -481,7 +710,7 @@ export default function PlanFilterPage({ params }: PageProps) {
             </label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'All' | 'Confirm' | 'Tentative')}
               className="select select-bordered select-sm w-full"
             >
               <option value="All">All Plans (Confirm & Tentative)</option>
@@ -491,8 +720,12 @@ export default function PlanFilterPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Second Row: Buyer Filter Dropdown & Search */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-base-200">
+        {/* Second Row: Buyer Filter Dropdown, Unit Filter (dyeing) & Search */}
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 ${
+            showUnitFilter ? 'lg:grid-cols-3' : ''
+          } gap-4 pt-2 border-t border-base-200`}
+        >
           {/* Buyer Multi-select */}
           <div className="relative">
             <label className="block text-[11px] font-bold text-base-content/70 uppercase mb-1">
@@ -500,7 +733,10 @@ export default function PlanFilterPage({ params }: PageProps) {
             </label>
             <button
               type="button"
-              onClick={() => setBuyerDropdownOpen(!buyerDropdownOpen)}
+              onClick={() => {
+                setBuyerDropdownOpen(!buyerDropdownOpen);
+                setUnitDropdownOpen(false);
+              }}
               className="btn btn-outline btn-sm w-full justify-between font-normal text-xs"
             >
               <span className="truncate">
@@ -558,6 +794,20 @@ export default function PlanFilterPage({ params }: PageProps) {
             )}
           </div>
 
+          {/* Unit Multi-select (Dyeing Plan Filter only) */}
+          {showUnitFilter && (
+            <UnitMultiSelect
+              options={unitOptions}
+              selected={selectedUnits}
+              onChange={setSelectedUnits}
+              open={unitDropdownOpen}
+              onToggle={() => {
+                setUnitDropdownOpen(!unitDropdownOpen);
+                setBuyerDropdownOpen(false);
+              }}
+            />
+          )}
+
           {/* Quick Search inside preview */}
           <div>
             <label className="block text-[11px] font-bold text-base-content/70 uppercase mb-1">
@@ -606,7 +856,8 @@ export default function PlanFilterPage({ params }: PageProps) {
               </h3>
               <p className="text-xs text-base-content/60">
                 {dateType === 'start' ? 'Plan Start Date' : 'Plan End Date'}: {fromDate} to {toDate} |{' '}
-                {selectedBuyers.length === 0 ? 'All Buyers' : selectedBuyers.join(', ')} | Status: {statusFilter}
+                {selectedBuyers.length === 0 ? 'All Buyers' : selectedBuyers.join(', ')}
+                {showUnitFilter && ` | Unit: ${formatUnitList(previewUnits)}`} | Status: {statusFilter}
               </p>
             </div>
 
@@ -659,10 +910,10 @@ export default function PlanFilterPage({ params }: PageProps) {
                                   val === 'Confirm' ? 'badge-success text-white' : 'badge-warning'
                                 }`}
                               >
-                                {val}
+                                {cellText(val)}
                               </span>
                             ) : isDate ? (
-                              formatDateDisplay(val) || '—'
+                              formatDateDisplay(cellText(val)) || '—'
                             ) : (
                               val ?? '—'
                             )}

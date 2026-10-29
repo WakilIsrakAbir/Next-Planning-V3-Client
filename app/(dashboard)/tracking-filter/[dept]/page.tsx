@@ -6,20 +6,90 @@ import {
   Calendar,
   Download,
   Eye,
-  Search,
   RefreshCw,
   Building2,
-  FileSpreadsheet,
-  CheckCircle2,
-  XCircle,
+  Factory,
   TrendingUp,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import {
+  buildUnitOptions,
+  createUnitMatcher,
+  extractUnitAndProcess,
+  formatUnitLabel,
+  formatUnitList,
+} from '@/lib/filter-utils';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
+}
+
+type JsonObject = Record<string, unknown>;
+type DateField = 'planStart' | 'planEnd' | 'actualStart' | 'actualEnd';
+type TrackingResult = 'Pass' | 'Fail' | '—';
+
+interface PlanItem {
+  itemData?: JsonObject;
+  startDate?: string;
+  endDate?: string;
+  floorStartDate?: string;
+  floorEndDate?: string;
+  floorPlanType?: string;
+  [key: string]: unknown;
+}
+
+interface ActualInfo {
+  actualStart?: string;
+  actualEnd?: string;
+  failReason?: string;
+  remarks?: string;
+  relatedDept?: string;
+}
+
+interface PlanDoc {
+  orderNo: string;
+  buyer?: string;
+  unit?: string;
+  processName?: string;
+  [key: string]: unknown;
+}
+
+interface OrderInfo {
+  buyer?: string;
+  knitStart?: string;
+  knitEnd?: string;
+  dyeStart?: string;
+  dyeEnd?: string;
+  deliStart?: string;
+  deliEnd?: string;
+  [key: string]: unknown;
+}
+
+interface TrackingRow {
+  orderNo: string;
+  buyer: string;
+  unit: string;
+  processName: string;
+  planStart: string;
+  planEnd: string;
+  actualStart: string;
+  actualEnd: string;
+  failReason: string;
+  relatedDept: string;
+}
+
+interface TrackingResultRow extends TrackingRow {
+  startResult: TrackingResult;
+  endResult: TrackingResult;
+}
+
+interface TrackingDataset {
+  rows: TrackingRow[];
+  buyers: string[];
+  /** Unit filter options (only filled for Dyeing / Delivery / Delivery (Floor)). */
+  units: string[];
 }
 
 const PVATF_CONFIGS: Record<string, { title: string }> = {
@@ -30,11 +100,19 @@ const PVATF_CONFIGS: Record<string, { title: string }> = {
   deliveryfloor: { title: 'Delivery Plan (Floor) Tracking Filter' },
 };
 
+const DATE_FIELD_LABELS: Record<DateField, string> = {
+  planStart: 'Plan Start Date',
+  planEnd: 'Plan End Date',
+  actualStart: 'Actual Start Date',
+  actualEnd: 'Actual End Date',
+};
+
+/** Departments that show Unit / Process Name columns and the Unit filter. */
 function isUnitProcessDept(deptKey: string): boolean {
   return deptKey === 'dyeing' || deptKey === 'delivery' || deptKey === 'deliveryfloor';
 }
 
-function calcTrackingResult(actualDateStr?: string, planDateStr?: string): 'Pass' | 'Fail' | '—' {
+function calcTrackingResult(actualDateStr?: string, planDateStr?: string): TrackingResult {
   const hasActual = actualDateStr && String(actualDateStr).trim() !== '' && String(actualDateStr).trim() !== '-';
   const hasPlan = planDateStr && String(planDateStr).trim() !== '' && String(planDateStr).trim() !== '-';
 
@@ -54,7 +132,189 @@ function calcTrackingResult(actualDateStr?: string, planDateStr?: string): 'Pass
   return '—';
 }
 
-const cachedTrackingFilterData: Record<string, { allRows: any[]; allBuyers: string[] }> = {};
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+const cachedTrackingFilterData: Record<string, TrackingDataset> = {};
+
+/**
+ * Loads (or returns the cached) tracking rows, buyers and Unit options for a department.
+ * Never throws: on failure it returns an empty, uncached dataset.
+ */
+async function loadTrackingFilterData(dept: string, forceRefresh = false): Promise<TrackingDataset> {
+  if (!forceRefresh && cachedTrackingFilterData[dept]) return cachedTrackingFilterData[dept];
+
+  const rows: TrackingRow[] = [];
+  const buyersSet = new Set<string>();
+  const unitProcessDept = isUnitProcessDept(dept);
+
+  try {
+    const token = localStorage.getItem('token');
+    const dbDeptKey = dept === 'deliveryfloor' ? 'delivery' : dept;
+
+    const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?all=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return { rows: [], buyers: [], units: [] };
+
+    const data = (await res.json()) as { planDocs?: PlanDoc[]; orderMap?: Record<string, OrderInfo> };
+    const planDocs = asArray<PlanDoc>(data.planDocs);
+    const orderMap = data.orderMap || {};
+
+    planDocs.forEach((plan) => {
+      const deptItems = asArray<PlanItem>(plan[dbDeptKey]).filter((i) => i && typeof i === 'object');
+      let startDates: string[] = [];
+      let endDates: string[] = [];
+      let planStart = '';
+      let planEnd = '';
+
+      if (deptItems.length > 0) {
+        if (dept === 'deliveryfloor') {
+          const floorItems = deptItems.filter(
+            (i) => i.floorPlanType === 'Confirm' || i.floorPlanType === 'Tentative'
+          );
+          startDates = floorItems.map((i) => i.floorStartDate || '').filter(Boolean);
+          endDates = floorItems.map((i) => i.floorEndDate || '').filter(Boolean);
+        } else {
+          startDates = deptItems.map((i) => i.startDate || '').filter(Boolean);
+          endDates = deptItems.map((i) => i.endDate || '').filter(Boolean);
+        }
+
+        if (startDates.length > 0) { startDates.sort(); planStart = startDates[0]; }
+        if (endDates.length > 0) { endDates.sort(); planEnd = endDates[endDates.length - 1]; }
+      }
+
+      if (!planStart && !planEnd) {
+        const oInfo = orderMap[plan.orderNo] || {};
+        if (dept === 'knitting') { planStart = oInfo.knitStart || ''; planEnd = oInfo.knitEnd || ''; }
+        else if (dept === 'dyeing') { planStart = oInfo.dyeStart || ''; planEnd = oInfo.dyeEnd || ''; }
+        else if (dept === 'delivery' || dept === 'deliveryfloor') { planStart = oInfo.deliStart || ''; planEnd = oInfo.deliEnd || ''; }
+      }
+
+      const actualKey = (dept === 'deliveryfloor' ? 'delivery' : dept) + 'Actual';
+      const actual = (plan[actualKey] || null) as ActualInfo | null;
+      const actualStart = actual?.actualStart || '';
+      const actualEnd = actual?.actualEnd || '';
+      const failReason = actual ? actual.failReason || actual.remarks || '' : '';
+      const relatedDept = actual?.relatedDept || '';
+
+      const orderInfo = orderMap[plan.orderNo] || {};
+      const displayBuyer = String(orderInfo.buyer || plan.buyer || 'N/A');
+      if (displayBuyer && displayBuyer !== 'N/A') buyersSet.add(displayBuyer.trim());
+
+      // Unit & Process (Dyeing / Delivery / Delivery Floor): prefer server-computed values,
+      // otherwise derive them from the order's dyeing items (legacy extractPvatfUnitAndProcess).
+      let rowUnit = '';
+      let rowProcessName = '';
+      if (unitProcessDept) {
+        if (plan.unit || plan.processName) {
+          rowUnit = plan.unit || '';
+          rowProcessName = plan.processName || '';
+        } else {
+          const extracted = extractUnitAndProcess(plan.dyeing || []);
+          rowUnit = extracted.unit;
+          rowProcessName = extracted.processName;
+        }
+      }
+
+      rows.push({
+        orderNo: plan.orderNo,
+        buyer: displayBuyer,
+        unit: rowUnit,
+        processName: rowProcessName,
+        planStart,
+        planEnd,
+        actualStart,
+        actualEnd,
+        failReason,
+        relatedDept,
+      });
+    });
+
+    const dataset: TrackingDataset = {
+      rows,
+      buyers: Array.from(buyersSet).sort(),
+      units: unitProcessDept ? buildUnitOptions(rows.map((r) => r.unit)) : [],
+    };
+    cachedTrackingFilterData[dept] = dataset;
+    return dataset;
+  } catch (err) {
+    console.error('Failed to fetch tracking filter data:', err);
+    return { rows: [], buyers: [], units: [] };
+  }
+}
+
+interface UnitMultiSelectProps {
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  open: boolean;
+  onToggle: () => void;
+}
+
+/** Unit multi-select ("All Units" + one checkbox per unit), styled like the Buyer filter. */
+function UnitMultiSelect({ options, selected, onChange, open, onToggle }: UnitMultiSelectProps) {
+  const allChecked = selected.length === 0;
+
+  return (
+    <div className="relative">
+      <label className="block text-[11px] font-bold text-base-content/70 uppercase mb-1">
+        Unit Selection ({allChecked ? 'All Units' : `${selected.length} Selected`})
+      </label>
+      <button
+        type="button"
+        onClick={onToggle}
+        title={formatUnitList(selected)}
+        className="btn btn-outline btn-sm w-full justify-between font-normal text-xs"
+      >
+        <span className="truncate">{formatUnitLabel(selected)}</span>
+        <Factory className="h-4 w-4 ml-2 opacity-50 shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 max-h-64 flex flex-col gap-2">
+          <label className="flex items-center gap-2 p-1 pb-2 border-b border-base-200 cursor-pointer text-xs font-bold">
+            <input
+              type="checkbox"
+              checked={allChecked}
+              onChange={(e) => {
+                // Unchecking "All Units" with nothing else picked keeps it checked (legacy behaviour).
+                if (e.target.checked) onChange([]);
+              }}
+              className="checkbox checkbox-xs checkbox-primary"
+            />
+            All Units
+          </label>
+          <div className="overflow-y-auto max-h-40 space-y-1 custom-scrollbar">
+            {options.length === 0 ? (
+              <div className="p-1 text-xs text-base-content/50">No units found</div>
+            ) : (
+              options.map((u) => (
+                <label key={u} className="flex items-center gap-2 p-1 rounded hover:bg-base-200 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(u)}
+                    onChange={(e) =>
+                      onChange(
+                        e.target.checked
+                          ? options.filter((o) => o === u || selected.includes(o))
+                          : selected.filter((x) => x !== u)
+                      )
+                    }
+                    className="checkbox checkbox-xs checkbox-primary"
+                  />
+                  <span className="truncate">{u}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TrackingFilterPage({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -73,20 +333,32 @@ export default function TrackingFilterPage({ params }: PageProps) {
 
   const [fromDate, setFromDate] = useState(fmt(firstDay));
   const [toDate, setToDate] = useState(fmt(today));
-  const [dateType, setDateType] = useState<'planStart' | 'planEnd' | 'actualStart' | 'actualEnd'>('planStart');
+  const [dateType, setDateType] = useState<DateField>('planStart');
   const [resultFilter, setResultFilter] = useState<'all' | 'pass' | 'fail'>('all');
 
   // Buyers
-  const [allBuyers, setAllBuyers] = useState<string[]>([]);
   const [selectedBuyers, setSelectedBuyers] = useState<string[]>([]);
   const [buyerDropdownOpen, setBuyerDropdownOpen] = useState(false);
   const [buyerSearch, setBuyerSearch] = useState('');
 
-  // Data
-  const [allRows, setAllRows] = useState<any[]>([]);
-  const [filteredRows, setFilteredRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Units (Dyeing / Delivery / Delivery Floor); [] means "All Units"
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
+  const [previewUnits, setPreviewUnits] = useState<string[]>([]);
+
+  // Data (tagged with the department it was loaded for)
+  const [dataset, setDataset] = useState<(TrackingDataset & { dept: string }) | null>(() =>
+    cachedTrackingFilterData[dept] ? { ...cachedTrackingFilterData[dept], dept } : null
+  );
+  const [refreshing, setRefreshing] = useState(false);
+  const [filteredRows, setFilteredRows] = useState<TrackingResultRow[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  const current = dataset && dataset.dept === dept ? dataset : null;
+  const allRows = current ? current.rows : [];
+  const allBuyers = current ? current.buyers : [];
+  const unitOptions = current ? current.units : [];
+  const loading = refreshing || !current;
 
   // Summary Metrics
   const [metrics, setMetrics] = useState({
@@ -101,118 +373,29 @@ export default function TrackingFilterPage({ params }: PageProps) {
     endFailPct: '0%',
   });
 
-  const fetchData = async (forceRefresh = false) => {
-    if (!forceRefresh && cachedTrackingFilterData[dept]) {
-      setAllRows(cachedTrackingFilterData[dept].allRows);
-      setAllBuyers(cachedTrackingFilterData[dept].allBuyers);
-      setLoading(false);
-      return;
-    }
+  // Load tracking data whenever the department changes (unit selection resets to All Units).
+  useEffect(() => {
+    let cancelled = false;
+    loadTrackingFilterData(dept).then((data) => {
+      if (cancelled) return;
+      setDataset({ ...data, dept });
+      setSelectedUnits([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dept]);
 
-    setLoading(true);
-    const rows: any[] = [];
-    const buyersSet = new Set<string>();
-
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      const token = localStorage.getItem('token');
-      const dbDeptKey = dept === 'deliveryfloor' ? 'delivery' : dept;
-
-      const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?all=true`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const { planDocs = [], orderMap = {} } = data;
-
-        planDocs.forEach((plan: any) => {
-          const deptItems = plan[dbDeptKey] || [];
-          let startDates: string[] = [];
-          let endDates: string[] = [];
-          let planStart = '';
-          let planEnd = '';
-
-          if (Array.isArray(deptItems) && deptItems.length > 0) {
-            if (dept === 'deliveryfloor') {
-              const floorItems = deptItems.filter(
-                (i: any) => i.floorPlanType === 'Confirm' || i.floorPlanType === 'Tentative'
-              );
-              startDates = floorItems.map((i: any) => i.floorStartDate).filter(Boolean);
-              endDates = floorItems.map((i: any) => i.floorEndDate).filter(Boolean);
-            } else {
-              startDates = deptItems.map((i: any) => i.startDate).filter(Boolean);
-              endDates = deptItems.map((i: any) => i.endDate).filter(Boolean);
-            }
-
-            if (startDates.length > 0) { startDates.sort(); planStart = startDates[0]; }
-            if (endDates.length > 0) { endDates.sort(); planEnd = endDates[endDates.length - 1]; }
-          }
-
-          if (!planStart && !planEnd) {
-            const oInfo = orderMap[plan.orderNo] || {};
-            if (dept === 'knitting') { planStart = oInfo.knitStart || ''; planEnd = oInfo.knitEnd || ''; }
-            else if (dept === 'dyeing') { planStart = oInfo.dyeStart || ''; planEnd = oInfo.dyeEnd || ''; }
-            else if (dept === 'delivery' || dept === 'deliveryfloor') { planStart = oInfo.deliStart || ''; planEnd = oInfo.deliEnd || ''; }
-          }
-
-          const actualKey = (dept === 'deliveryfloor' ? 'delivery' : dept) + 'Actual';
-          let actualStart = '';
-          let actualEnd = '';
-          let failReason = '';
-          let relatedDept = '';
-
-          if (plan[actualKey]) {
-            actualStart = plan[actualKey].actualStart || '';
-            actualEnd = plan[actualKey].actualEnd || '';
-            failReason = plan[actualKey].failReason || plan[actualKey].remarks || '';
-            relatedDept = plan[actualKey].relatedDept || '';
-          }
-
-          const orderInfo = orderMap[plan.orderNo] || {};
-          let displayBuyer = orderInfo.buyer || plan.buyer || 'N/A';
-          if (displayBuyer && displayBuyer !== 'N/A') buyersSet.add(displayBuyer.trim());
-
-          // Unit & Process
-          let rowUnit = plan.unit || '';
-          let rowProcessName = plan.processName || '';
-          if (!rowUnit && deptItems.length > 0) {
-            const u = deptItems.map((it: any) => it.Unit || (it.itemData && it.itemData.Unit)).filter(Boolean);
-            if (u.length > 0) rowUnit = u.join('+');
-          }
-          if (!rowProcessName && deptItems.length > 0) {
-            const p = deptItems.map((it: any) => it.ProcessName || (it.itemData && it.itemData.ProcessName)).filter(Boolean);
-            if (p.length > 0) rowProcessName = p.join('+');
-          }
-
-          rows.push({
-            orderNo: plan.orderNo,
-            buyer: displayBuyer,
-            unit: rowUnit,
-            processName: rowProcessName,
-            planStart,
-            planEnd,
-            actualStart,
-            actualEnd,
-            failReason,
-            relatedDept,
-          });
-        });
-      }
-
-      const sortedBuyers = Array.from(buyersSet).sort();
-      cachedTrackingFilterData[dept] = { allRows: rows, allBuyers: sortedBuyers };
-      setAllRows(rows);
-      setAllBuyers(sortedBuyers);
-    } catch (err) {
-      console.error('Failed to fetch tracking filter data:', err);
+      const data = await loadTrackingFilterData(dept, true);
+      setDataset((prev) => (prev && prev.dept !== dept ? prev : { ...data, dept }));
+      setSelectedUnits((prev) => prev.filter((u) => data.units.includes(u)));
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    fetchData();
-  }, [dept]);
 
   const handlePreview = () => {
     if (!fromDate || !toDate) {
@@ -221,23 +404,22 @@ export default function TrackingFilterPage({ params }: PageProps) {
     }
 
     const buyerSet = new Set(selectedBuyers.map((b) => b.toLowerCase()));
+    const unitsApplied = showUnitProcess ? selectedUnits : [];
+    const matchesUnit = createUnitMatcher(unitsApplied);
 
     const filtered = allRows
       .filter((r) => {
         const d = r[dateType];
         if (!d || d < fromDate || d > toDate) return false;
         if (buyerSet.size > 0 && !buyerSet.has(String(r.buyer || '').toLowerCase())) return false;
+        if (!matchesUnit(r.unit)) return false;
         return true;
       })
-      .map((r) => {
-        const startResult = calcTrackingResult(r.actualStart, r.planStart);
-        const endResult = calcTrackingResult(r.actualEnd, r.planEnd);
-        return {
-          ...r,
-          startResult,
-          endResult,
-        };
-      })
+      .map((r): TrackingResultRow => ({
+        ...r,
+        startResult: calcTrackingResult(r.actualStart, r.planStart),
+        endResult: calcTrackingResult(r.actualEnd, r.planEnd),
+      }))
       .filter((r) => {
         if (resultFilter === 'pass') {
           return r.startResult === 'Pass' || r.endResult === 'Pass';
@@ -248,7 +430,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
         return true;
       });
 
-    // Compute Metrics
+    // Compute Metrics (percentage summary over the unit/buyer/date-filtered rows)
     const total = filtered.length;
     const startPass = filtered.filter((r) => r.startResult === 'Pass').length;
     const startFail = filtered.filter((r) => r.startResult === 'Fail').length;
@@ -270,6 +452,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
     });
 
     setFilteredRows(filtered);
+    setPreviewUnits(unitsApplied);
     setPreviewOpen(true);
   };
 
@@ -343,7 +526,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
         </div>
 
         <button
-          onClick={() => fetchData(true)}
+          onClick={handleRefresh}
           disabled={loading}
           className="btn btn-outline btn-sm gap-2"
         >
@@ -394,7 +577,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
             </label>
             <select
               value={dateType}
-              onChange={(e) => setDateType(e.target.value as any)}
+              onChange={(e) => setDateType(e.target.value as DateField)}
               className="select select-bordered select-sm w-full"
             >
               <option value="planStart">Plan Start Date</option>
@@ -410,7 +593,7 @@ export default function TrackingFilterPage({ params }: PageProps) {
             </label>
             <select
               value={resultFilter}
-              onChange={(e) => setResultFilter(e.target.value as any)}
+              onChange={(e) => setResultFilter(e.target.value as 'all' | 'pass' | 'fail')}
               className="select select-bordered select-sm w-full"
             >
               <option value="all">All Orders</option>
@@ -420,15 +603,18 @@ export default function TrackingFilterPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Buyer Selection */}
-        <div className="pt-2 border-t border-base-200">
-          <div className="relative max-w-md">
+        {/* Buyer & Unit Selection */}
+        <div className="pt-2 border-t border-base-200 flex flex-col md:flex-row gap-4">
+          <div className="relative w-full max-w-md">
             <label className="block text-[11px] font-bold text-base-content/70 uppercase mb-1">
               Buyer Selection ({selectedBuyers.length === 0 ? 'All Buyers' : `${selectedBuyers.length} Selected`})
             </label>
             <button
               type="button"
-              onClick={() => setBuyerDropdownOpen(!buyerDropdownOpen)}
+              onClick={() => {
+                setBuyerDropdownOpen(!buyerDropdownOpen);
+                setUnitDropdownOpen(false);
+              }}
               className="btn btn-outline btn-sm w-full justify-between font-normal text-xs"
             >
               <span className="truncate">
@@ -485,6 +671,22 @@ export default function TrackingFilterPage({ params }: PageProps) {
               </div>
             )}
           </div>
+
+          {/* Unit Multi-select (Dyeing / Delivery / Delivery Floor) */}
+          {showUnitProcess && (
+            <div className="w-full max-w-md">
+              <UnitMultiSelect
+                options={unitOptions}
+                selected={selectedUnits}
+                onChange={setSelectedUnits}
+                open={unitDropdownOpen}
+                onToggle={() => {
+                  setUnitDropdownOpen(!unitDropdownOpen);
+                  setBuyerDropdownOpen(false);
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Buttons */}
@@ -536,7 +738,9 @@ export default function TrackingFilterPage({ params }: PageProps) {
                   Filtered Tracking Results ({filteredRows.length} Orders)
                 </h3>
                 <p className="text-xs text-base-content/60">
-                  {dateType}: {fromDate} to {toDate} | {selectedBuyers.length === 0 ? 'All Buyers' : selectedBuyers.join(', ')}
+                  {DATE_FIELD_LABELS[dateType]}: {fromDate} to {toDate} | Buyer:{' '}
+                  {selectedBuyers.length === 0 ? 'All Buyers' : selectedBuyers.join(', ')}
+                  {showUnitProcess && ` | Unit: ${formatUnitList(previewUnits)}`}
                 </p>
               </div>
 

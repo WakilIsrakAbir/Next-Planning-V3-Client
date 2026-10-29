@@ -1,15 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { API_BASE } from '@/lib/constants';
+import { isBatchPath } from '@/lib/batch-module';
 import { prefetchOrderManagement } from '@/lib/planning-cache';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  // Batch Plan pages fill the whole content area and scroll inside their own panels (app/(dashboard)/batch).
+  const batchPage = isBatchPath(pathname);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
@@ -121,7 +125,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onToggleSidebar={handleToggleSidebar}
           isSidebarOpen={sidebarOpen}
         />
-        <main id="mainContent" className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
+        <main
+          id="mainContent"
+          className={
+            batchPage
+              ? 'flex flex-1 flex-col overflow-hidden p-0'
+              : 'flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar'
+          }
+        >
           {children}
         </main>
       </div>

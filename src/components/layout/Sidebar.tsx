@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { IUser } from '@/types/user';
 import { prefetchOrderManagement } from '@/lib/planning-cache';
+import { batchMenuRoute, requestBatchRoute } from '@/lib/batch-module';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,6 +34,15 @@ interface MenuItemDef {
   key: string;
   label: string;
   href: string;
+  /* Permission when it is not menus.<group key>.<item key>: menus.<group>.<key>, or any permission of
+     menus.<group> when key is left out (Batch Plan / Batch Card: the unit permissions are not a fixed list). */
+  perm?: { group: string; key?: string };
+  // Batch module route ('plan', 'card', 'setup/dyeing', ...): the href follows the unit opened last.
+  batchRoute?: string;
+  // The item is active for every path under this prefix (e.g. all Batch Plan unit pages).
+  activePrefix?: string;
+  // A collapsible sub-group (old project: Data Management › Setup, Report › Batch Report).
+  children?: MenuItemDef[];
 }
 
 interface MenuGroupDef {
@@ -49,7 +59,18 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
     icon: <Database className="h-4 w-4" />,
     items: [
       { key: 'view', label: 'Source File Upload', href: '/management/upload' },
-      { key: 'setup', label: 'Setup (Dropdown Master)', href: '/management/setup' },
+      {
+        key: 'setupGroup',
+        label: 'Setup',
+        href: '',
+        children: [
+          { key: 'setup', label: 'Dropdown Master Setup', href: '/management/setup' },
+          // Batch Plan module Setup pages
+          { key: 'dyeingMc', label: 'Dyeing MC', href: '/batch/setup/dyeing', batchRoute: 'setup/dyeing' },
+          { key: 'flatAllowance', label: 'Flat Allowance', href: '/batch/setup/flat', batchRoute: 'setup/flat' },
+          { key: 'unitSetup', label: 'Unit Setup', href: '/batch/setup/unit', batchRoute: 'setup/unit' },
+        ],
+      },
     ],
   },
   {
@@ -62,6 +83,24 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'dyeing', label: 'Dyeing Plan', href: '/planning/dyeing' },
       { key: 'finishing', label: 'Finishing Plan', href: '/planning/finishing' },
       { key: 'delivery', label: 'Delivery Plan', href: '/planning/delivery' },
+      // Batch Plan module: the Dyeing Plan units are tabs in the heading of the Batch page, so these
+      // items have no submenu; they open the unit used last.
+      {
+        key: 'batchPlan',
+        label: 'Batch Plan',
+        href: '/batch/plan',
+        perm: { group: 'batchPlan' },
+        batchRoute: 'plan',
+        activePrefix: '/batch/plan',
+      },
+      {
+        key: 'batchCard',
+        label: 'Batch Card',
+        href: '/batch/card',
+        perm: { group: 'batchCard' },
+        batchRoute: 'card',
+        activePrefix: '/batch/card',
+      },
     ],
   },
   {
@@ -77,6 +116,34 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'orderStatus', label: 'Order Status', href: '/reports/order-status' },
       { key: 'productInfo', label: 'Product Info', href: '/reports/product-info' },
       { key: 'planningProdInfo', label: 'Planning & Production Info', href: '/reports/planning-prod-info' },
+      {
+        key: 'batchReportGroup',
+        label: 'Batch Report',
+        href: '',
+        children: [
+          {
+            key: 'dyeableBatch',
+            label: 'Dyeable Batch',
+            href: '/batch/report/detail',
+            perm: { group: 'batchReport', key: 'dyeableBatch' },
+            batchRoute: 'report/detail',
+          },
+          {
+            key: 'dyeableSummary',
+            label: 'Dyeable Batch Summary',
+            href: '/batch/report/summary',
+            perm: { group: 'batchReport', key: 'dyeableSummary' },
+            batchRoute: 'report/summary',
+          },
+          {
+            key: 'dailyConfirm',
+            label: 'Daily Confirm Batch Plan',
+            href: '/batch/report/daily',
+            perm: { group: 'batchReport', key: 'dailyConfirm' },
+            batchRoute: 'report/daily',
+          },
+        ],
+      },
     ],
   },
   {
@@ -199,24 +266,59 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   };
 
   /**
-   * Check if a specific menu item is allowed for the logged in user
+   * Check if a specific menu item is allowed for the logged in user.
+   * A sub-group is shown when at least one of its items is allowed.
    */
-  const isMenuItemAllowed = (groupKey: string, itemKey: string): boolean => {
+  const isMenuItemAllowed = (groupKey: string, item: MenuItemDef): boolean => {
     if (!currentUser) return false;
+    if (item.children) return item.children.some((child) => isMenuItemAllowed(groupKey, child));
     if (currentUser.role === 'Admin') return true;
 
     const userMenus = (currentUser.permissions as any)?.menus;
     if (!userMenus) return false;
 
-    // Check direct menu permission
-    if (userMenus[groupKey] && userMenus[groupKey][itemKey] === true) {
-      return true;
+    const menu = userMenus[item.perm?.group || groupKey];
+    if (!menu) return false;
+    // Any permission of the group (Batch Plan / Batch Card: All Orders or any unit).
+    if (item.perm && item.perm.key === undefined) {
+      return Object.values(menu).some((value) => value === true);
     }
+    // Direct menu permission
+    return menu[item.perm?.key || item.key] === true;
+  };
 
-    return false;
+  // Batch Plan / Batch Card open the unit used last (kept in this browser), as in the old project.
+  // The sidebar renders only on the client (after the session check), so localStorage is readable here.
+  const batchHrefs: Record<string, string> = useMemo(
+    () => ({ plan: '/batch/' + batchMenuRoute('plan'), card: '/batch/' + batchMenuRoute('card') }),
+    // The last unit changes while the user moves between Batch pages, and permissions with the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pathname, currentUser]
+  );
+
+  const itemHref = (item: MenuItemDef): string =>
+    item.batchRoute === 'plan' || item.batchRoute === 'card' ? batchHrefs[item.batchRoute] : item.href;
+
+  const handleItemClick = (item: MenuItemDef) => {
+    handleNavClick();
+    // A click on the Batch page that is already open re-opens it there (BatchModuleHost).
+    if (item.batchRoute) requestBatchRoute(itemHref(item).replace(/^\/batch\//, ''));
+  };
+
+  const isEntryActive = (item: MenuItemDef): boolean => {
+    if (item.children) return item.children.some((child) => isEntryActive(child));
+    if (item.activePrefix) return pathname === item.activePrefix || pathname.startsWith(item.activePrefix + '/');
+    return isItemActive(item.href);
+  };
+
+  // Collapsible sub-groups (Data Management › Setup, Report › Batch Report)
+  const [openSubGroups, setOpenSubGroups] = useState<Record<string, boolean>>({});
+  const toggleSubGroup = (key: string) => {
+    setOpenSubGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const isItemActive = (href: string): boolean => {
+    if (!href) return false;
     const [path, queryStr] = href.split('?');
     if (path === '/dashboard') return pathname === '/dashboard';
 
@@ -238,12 +340,15 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   // Automatically expand the section that contains the active route on pathname change
   useEffect(() => {
     for (const group of SIDEBAR_MENU_GROUPS) {
-      const hasActive = group.items.some((item) => isItemActive(item.href));
+      const hasActive = group.items.some((item) => isEntryActive(item));
       if (hasActive) {
         setOpenSections((prev) => ({ ...prev, [group.key]: true }));
+        const activeSub = group.items.find((item) => item.children && isEntryActive(item));
+        if (activeSub) setOpenSubGroups((prev) => ({ ...prev, [group.key + '.' + activeSub.key]: true }));
         break;
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   return (
@@ -329,14 +434,35 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
           {SIDEBAR_MENU_GROUPS.map((group) => {
             // Filter allowed items for this user
             const allowedItems = group.items.filter((item) =>
-              isMenuItemAllowed(group.key, item.key)
+              isMenuItemAllowed(group.key, item)
             );
 
             // Hide entire group if user has no allowed items in this category
             if (allowedItems.length === 0) return null;
 
             const isExpanded = openSections[group.key] ?? false;
-            const hasActiveChild = allowedItems.some((item) => isItemActive(item.href));
+            const hasActiveChild = allowedItems.some((item) => isEntryActive(item));
+
+            const renderLink = (item: MenuItemDef) => {
+              const active = isEntryActive(item);
+              return (
+                <Link
+                  key={item.key}
+                  href={itemHref(item)}
+                  onClick={() => handleItemClick(item)}
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] transition-all truncate border-l-[3px] ${
+                    active
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black border-emerald-500 shadow-xs'
+                      : 'border-transparent text-base-content/70 hover:text-base-content hover:bg-base-200 font-medium'
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  {active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-1.5 animate-pulse" />
+                  )}
+                </Link>
+              );
+            };
 
             return (
               <div
@@ -373,24 +499,35 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                 {isExpanded && (
                   <div className="pl-4 pr-1 py-1 space-y-0.5 border-l-2 border-base-300 ml-4 my-1">
                     {allowedItems.map((item) => {
-                      const active = isItemActive(item.href);
+                      if (!item.children) return renderLink(item);
 
+                      // Sub-group: Data Management › Setup, Report › Batch Report
+                      const subKey = group.key + '.' + item.key;
+                      const subOpen = openSubGroups[subKey] ?? false;
+                      const subActive = isEntryActive(item);
+                      const allowedChildren = item.children.filter((child) => isMenuItemAllowed(group.key, child));
                       return (
-                        <Link
-                          key={item.key}
-                          href={item.href}
-                          onClick={handleNavClick}
-                          className={`flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] transition-all truncate border-l-[3px] ${
-                            active
-                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black border-emerald-500 shadow-xs'
-                              : 'border-transparent text-base-content/70 hover:text-base-content hover:bg-base-200 font-medium'
-                          }`}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          {active && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-1.5 animate-pulse" />
+                        <div key={item.key}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSubGroup(subKey)}
+                            className={`flex w-full items-center justify-between px-3 py-1.5 rounded-md text-[11px] transition-all border-l-[3px] border-transparent hover:bg-base-200 ${
+                              subActive ? 'text-emerald-600 dark:text-emerald-400 font-black' : 'text-base-content/70 hover:text-base-content font-medium'
+                            }`}
+                          >
+                            <span className="truncate">{item.label}</span>
+                            {subOpen ? (
+                              <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 opacity-60 shrink-0" />
+                            )}
+                          </button>
+                          {subOpen && (
+                            <div className="pl-3 py-0.5 space-y-0.5 border-l-2 border-base-300 ml-3 my-0.5">
+                              {allowedChildren.map((child) => renderLink(child))}
+                            </div>
                           )}
-                        </Link>
+                        </div>
                       );
                     })}
                   </div>

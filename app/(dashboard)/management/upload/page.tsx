@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import { batchCanUploadBP, markBatchDataStale } from '@/lib/batch-module';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
@@ -26,6 +27,9 @@ export default function FileUploadPage() {
   const [loading, setLoading] = useState(() => !cachedUploadedFiles);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Batch Plan module: BP Data upload (permission actions.uploadBP; the server checks it too).
+  // The dashboard renders pages only on the client (after the session check), so localStorage is readable here.
+  const [canUploadBP] = useState(() => batchCanUploadBP());
 
   const fetchFiles = async () => {
     if (!cachedUploadedFiles) setLoading(true);
@@ -81,11 +85,19 @@ export default function FileUploadPage() {
         body: formData,
       });
 
-      const data = await res.json();
+      // The server's message is shown as it is (e.g. a BP Data column that is missing).
+      let data: { message?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
       if (!res.ok) {
-        throw new Error(data.message || 'File upload failed.');
+        throw new Error((data && data.message) || 'Upload error');
       }
 
+      // New source data: the Batch Plan page reloads it the next time it is shown.
+      markBatchDataStale();
       setToastMessage(`File "${selectedFile.name}" successfully uploaded and parsed!`);
       setSelectedFile(null);
       setTimeout(() => setToastMessage(null), 3000);
@@ -108,6 +120,7 @@ export default function FileUploadPage() {
       });
 
       if (res.ok) {
+        markBatchDataStale();
         setToastMessage(`File deleted successfully.`);
         setTimeout(() => setToastMessage(null), 3000);
         fetchFiles();
@@ -163,6 +176,7 @@ export default function FileUploadPage() {
                 <option value="Finishing">Finishing Production</option>
                 <option value="Delivery">Delivery & Dispatch</option>
                 <option value="YD">Yarn Dyeing (YD)</option>
+                {canUploadBP && <option value="BP">BP Data (Batch Plan)</option>}
               </select>
             </div>
 

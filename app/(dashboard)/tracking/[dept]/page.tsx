@@ -4,17 +4,12 @@ import React, { useState, useEffect, use } from 'react';
 import {
   Activity,
   Search,
-  Filter,
   Download,
-  Calendar,
-  Clock,
   CheckCircle,
   AlertCircle,
   Save,
-  X,
-  RefreshCw,
 } from 'lucide-react';
-import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import ExpPagination from '@/components/common/ExpPagination';
@@ -23,6 +18,10 @@ import InlineSpinner from '@/components/common/InlineSpinner';
 interface PageProps {
   params: Promise<{ dept: string }>;
 }
+
+// Port of the old `.resizable-table-input` CSS (index.html): one-row textarea that resizes both ways.
+const RESIZABLE_INPUT_CLS =
+  'resize min-w-[90px] min-h-[26px] h-[26px] leading-[1.25] align-middle box-border overflow-auto dark:bg-[#151921] dark:border-[#2a3346] dark:text-[#cbd5e1]';
 
 function calcTrackingBadge(actualDateStr?: string, planDateStr?: string) {
   const hasActual = actualDateStr && String(actualDateStr).trim() !== '' && String(actualDateStr).trim() !== '-';
@@ -44,21 +43,42 @@ function calcTrackingBadge(actualDateStr?: string, planDateStr?: string) {
   return '—';
 }
 
+// Editable actual-tracking fields per order (saved as `actualData`).
+interface TrackingEdit {
+  actualStart: string;
+  actualEnd: string;
+  failReason: string;
+  relatedDept: string;
+}
+
+// One row of /api/orders/tracking/:dept.
+interface TrackingOrder {
+  orderNo: string;
+  buyer?: string;
+  extProd?: string | number | null;
+  extBal?: string | number | null;
+  planStart?: string;
+  planEnd?: string;
+  actualStart?: string;
+  actualEnd?: string;
+  failReason?: string;
+  relatedDept?: string;
+}
+
 const cachedTrackingOrders: Record<
   string,
   {
-    orders: any[];
+    orders: TrackingOrder[];
     total: number;
     totalPages: number;
     buyers: string[];
-    initialEdits: Record<string, any>;
+    initialEdits: Record<string, TrackingEdit>;
   }
 > = {};
 
 export default function TrackingPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
-  const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Tracking` };
 
   const [activeTab, setActiveTab] = useState<'Pending' | 'Complete'>('Pending');
   const [search, setSearch] = useState('');
@@ -73,12 +93,12 @@ export default function TrackingPage({ params }: PageProps) {
   const initialKey = `${dept}_Pending__1_10_`;
   const initialCache = cachedTrackingOrders[initialKey];
 
-  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [orders, setOrders] = useState<TrackingOrder[]>(() => initialCache?.orders || []);
   const [loading, setLoading] = useState(() => !initialCache);
   const [availableBuyers, setAvailableBuyers] = useState<string[]>(() => initialCache?.buyers || []);
   const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
   const [total, setTotal] = useState(() => initialCache?.total || 0);
-  const [editedRows, setEditedRows] = useState<Record<string, any>>(() => initialCache?.initialEdits || {});
+  const [editedRows, setEditedRows] = useState<Record<string, TrackingEdit>>(() => initialCache?.initialEdits || {});
   const [saveLoading, setSaveLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -126,14 +146,14 @@ export default function TrackingPage({ params }: PageProps) {
 
       if (res.ok) {
         const data = await res.json();
-        const ords = data.orders || [];
+        const ords: TrackingOrder[] = data.orders || [];
         const tTotal = data.total || 0;
         const tPages = data.totalPages || 1;
         const buyersList = data.buyers || [];
 
         // Initialize editedRows with existing data
-        const initialEdits: Record<string, any> = {};
-        ords.forEach((o: any) => {
+        const initialEdits: Record<string, TrackingEdit> = {};
+        ords.forEach((o) => {
           initialEdits[o.orderNo] = {
             actualStart: o.actualStart || '',
             actualEnd: o.actualEnd || '',
@@ -178,10 +198,14 @@ export default function TrackingPage({ params }: PageProps) {
   };
 
   useEffect(() => {
+    // Cache-first fetch whenever the tab / buyer / page changes (applies a cached page immediately).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTracking();
+    // Text / date filters are applied explicitly via "Apply"; only these keys trigger a refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dept, activeTab, selectedBuyer, page, limit]);
 
-  const handleRowChange = (orderNo: string, field: string, value: string) => {
+  const handleRowChange = (orderNo: string, field: keyof TrackingEdit, value: string) => {
     setEditedRows((prev) => {
       const current = prev[orderNo] || { actualStart: '', actualEnd: '', failReason: '', relatedDept: '' };
       const updated = { ...current, [field]: value };
@@ -208,7 +232,6 @@ export default function TrackingPage({ params }: PageProps) {
     setSaveLoading(true);
     const actualKey = (dept === 'deliveryfloor' ? 'delivery' : dept) + 'Actual';
     let successCount = 0;
-    let failCount = 0;
 
     try {
       const token = localStorage.getItem('token');
@@ -239,9 +262,8 @@ export default function TrackingPage({ params }: PageProps) {
             }),
           });
           if (res.ok) successCount++;
-          else failCount++;
         } catch {
-          failCount++;
+          // A failed order is simply not counted as saved.
         }
       }
 
@@ -570,23 +592,23 @@ export default function TrackingPage({ params }: PageProps) {
 
                       {/* Fail Reason */}
                       <td>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={1}
                           value={rowEdit.failReason}
                           placeholder="Delay reason..."
                           onChange={(e) => handleRowChange(ord.orderNo, 'failReason', e.target.value)}
-                          className="input input-bordered input-xs w-full"
+                          className={`textarea textarea-xs w-full px-2 py-1 ${RESIZABLE_INPUT_CLS}`}
                         />
                       </td>
 
                       {/* Related Dept. */}
                       <td>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={1}
                           value={rowEdit.relatedDept}
                           placeholder="Attributed dept..."
                           onChange={(e) => handleRowChange(ord.orderNo, 'relatedDept', e.target.value)}
-                          className="input input-bordered input-xs w-full"
+                          className={`textarea textarea-xs w-full px-2 py-1 ${RESIZABLE_INPUT_CLS}`}
                         />
                       </td>
                     </tr>

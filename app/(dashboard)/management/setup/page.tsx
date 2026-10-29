@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sliders, Plus, Edit2, Trash2, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
+import { markBatchDataStale } from '@/lib/batch-module';
 import ExpLoadingSpinner from '@/components/common/ExpLoadingSpinner';
 import InlineSpinner from '@/components/common/InlineSpinner';
 
@@ -31,6 +32,10 @@ export default function SetupPage() {
       });
       if (res.ok) {
         const data = await res.json();
+        // Batch Plan's Unit Setup offers these units: reload the Batch page the next time it is shown,
+        // but only when the unit list really changed (not for Process changes or failed actions).
+        const unitsBefore = cachedDropdowns ? JSON.stringify(cachedDropdowns.units) : null;
+        if (unitsBefore !== null && unitsBefore !== JSON.stringify(data.units || [])) markBatchDataStale();
         cachedDropdowns = {
           units: data.units || [],
           processes: data.processes || [],
