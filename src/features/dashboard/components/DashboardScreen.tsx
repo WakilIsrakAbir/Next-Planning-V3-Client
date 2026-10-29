@@ -2,6 +2,7 @@
 
 import React from 'react';
 import InteractivePlayground from './InteractivePlayground';
+import PlanSummary from './PlanSummary';
 
 export default function DashboardScreen() {
   return (
@@ -23,8 +24,10 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      {/* Animated Relaxing Dashboard Widget matching exp index.html & dashboard-animation.js */}
-      <InteractivePlayground />
+      {/* Planning overview (read only) on the animated background of the old dashboard widget */}
+      <InteractivePlayground>
+        <PlanSummary />
+      </InteractivePlayground>
     </div>
   );
 }

@@ -105,7 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-base-100">
-        <LoadingSpinner message="Verifying Session..." subMessage="Epylion PPC Suite V3" overlay={false} />
+        <LoadingSpinner message="Verifying Session..." subMessage="Textile Planning Solution" overlay={false} />
       </div>
     );
   }

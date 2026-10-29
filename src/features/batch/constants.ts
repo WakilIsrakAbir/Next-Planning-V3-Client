@@ -12,7 +12,7 @@ function batchSignedInUser(): string {
 }
 
 export const APP_SETTINGS = {
-  companyName: 'Epyllion Fabrics Limited',
+  companyName: 'Textile Planning Solution',
   // The signed-in user is read when it is used (the module can load before the session is known).
   get uploadedBy(): string {
     return batchSignedInUser();
@@ -1012,11 +1012,8 @@ export const MACHINE_SETUP_FIELDS = [
   ['loading', 'Loading']
 ];
 
-export const FLOOR_FACTORY_NAMES = {
-  EFL: 'Epyllion Fabrics Limited',
-  EKL: 'Epyllion Knitex Limited',
-  PLUVIA: 'Epyllion Knitex Limited-Pluvia'
-};
+/** Unit-specific headings of the Batch Plan report and batch cards; every unit now prints the company name. */
+export const FLOOR_FACTORY_NAMES: Record<string, string> = {};
 
 export const CONFIRMED_HEADER_FIELDS = ['displayNumber','displayConfirmedBy','number','buyer','team','date','eventDay','style','pmc','merchant','unit','brush','peach','heatset','knitStart','knitEnd','dyeStart','dyeEnd','deliveryStart','deliveryEnd','knittingPlan','dyeingPlan','deliveryPlan','lastRevised','batchDate','revisedBatch','instructions','fabric','batches','recipe'];
 

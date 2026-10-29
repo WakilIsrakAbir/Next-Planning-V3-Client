@@ -1,6 +1,6 @@
 # Next Planning V3 Client
 
-Web app of Epylion Next Planning V3: department planning, tracking, reports, Planning & Production Info, load
+Web app of Next Planning V3 (Textile Planning Solution): department planning, tracking, reports, Planning & Production Info, load
 calculation, data management and the Batch Plan module. Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + daisyUI 5.
 It talks to the Next Planning V3 Server REST API.
 

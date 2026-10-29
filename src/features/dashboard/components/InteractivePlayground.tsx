@@ -17,7 +17,7 @@ interface Particle {
   wobbleAmount: number;
 }
 
-export default function InteractivePlayground() {
+export default function InteractivePlayground({ children }: { children?: React.ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -181,76 +181,8 @@ export default function InteractivePlayground() {
     >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }} />
 
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 p-6 pointer-events-none select-none my-auto">
-        <div id="dashboardAnimIcon" className="mb-5 animate-breathe">
-          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-            <circle cx="60" cy="60" r="54" stroke="url(#dashGrad1)" strokeWidth="2.5" fill="none" opacity="0.6">
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 60 60"
-                to="360 60 60"
-                dur="20s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="60" cy="60" r="40" stroke="url(#dashGrad2)" strokeWidth="2" fill="none" opacity="0.5" strokeDasharray="6 8">
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="360 60 60"
-                to="0 60 60"
-                dur="15s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="60" cy="60" r="26" stroke="url(#dashGrad1)" strokeWidth="1.5" fill="none" opacity="0.4" strokeDasharray="3 5">
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 60 60"
-                to="360 60 60"
-                dur="10s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="60" cy="60" r="14" stroke="url(#dashGrad3)" strokeWidth="1" fill="none" opacity="0.35" strokeDasharray="2 3">
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="360 60 60"
-                to="0 60 60"
-                dur="8s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="60" cy="60" r="7" fill="url(#dashGrad2)" opacity="0.7">
-              <animate attributeName="r" values="5;9;5" dur="3s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.5;0.9;0.5" dur="3s" repeatCount="indefinite" />
-            </circle>
-            <defs>
-              <linearGradient id="dashGrad1" x1="0" y1="0" x2="120" y2="120">
-                <stop offset="0%" stopColor="#4f46e5" />
-                <stop offset="100%" stopColor="#0891b2" />
-              </linearGradient>
-              <linearGradient id="dashGrad2" x1="0" y1="120" x2="120" y2="0">
-                <stop offset="0%" stopColor="#7c3aed" />
-                <stop offset="100%" stopColor="#10b981" />
-              </linearGradient>
-              <linearGradient id="dashGrad3" x1="0" y1="0" x2="120" y2="0">
-                <stop offset="0%" stopColor="#ec4899" />
-                <stop offset="100%" stopColor="#f59e0b" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <p className="text-gray-700 dark:text-gray-200 text-base font-semibold tracking-wide animate-fadeInUp">
-          Your Planning Dashboard Is Ready!
-        </p>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 animate-fadeInUp">
-          Navigate the sidebar to start planning
-        </p>
-      </div>
+      {/* Foreground content (the planning overview) over the animated background */}
+      <div className="relative z-10 flex flex-1 items-center justify-center p-4 sm:p-6">{children}</div>
     </div>
   );
 }
