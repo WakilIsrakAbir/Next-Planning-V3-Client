@@ -737,12 +737,11 @@ export function unitBuyerKey(value: unknown): string {
 export function unitForBuyer(buyer: unknown): string {
   return getUnitSetup().find((row) => !row.hidden && unitBuyerKey(row.buyer) === unitBuyerKey(buyer))?.unit || '';
 }
+/* The Unit Setup rows: the buyers of the latest uploaded files (GET /api/batch/state `buyers`). Saved defaults of
+   buyers that are not in those files stay saved (Save Changes keeps them), so such a buyer gets its unit back
+   when a later upload has it again; they are not listed. */
 export function unitSetupBuyerList(): { key: string; buyer: string }[] {
   const rows = new Map<string, { key: string; buyer: string }>();
-  for (const row of getUnitSetup()) {
-    const key = unitBuyerKey(row.buyer);
-    if (key && !rows.has(key)) rows.set(key, { key, buyer: String(row.buyer).trim() });
-  }
   for (const name of S.unitSetupBuyerNames) {
     const key = unitBuyerKey(name);
     if (key && !rows.has(key)) rows.set(key, { key, buyer: String(name).trim() });

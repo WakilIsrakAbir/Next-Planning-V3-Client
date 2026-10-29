@@ -1,7 +1,8 @@
 'use client';
 
-/* Unit Setup panel (old #unitSetupPanel, renderUnitSetup): one row per buyer with its default unit, chosen from
-   the ACTIVE units of Dropdown Master Setup. Changes stay in S.unitSetupDraft until Save Changes. */
+/* Unit Setup panel (old #unitSetupPanel, renderUnitSetup): one row per buyer of the latest uploaded files with
+   its default unit, chosen from the ACTIVE units of Dropdown Master Setup. Changes stay in S.unitSetupDraft
+   until Save Changes. */
 import React from 'react';
 import { cn } from '@/lib/cn';
 import {
@@ -41,7 +42,7 @@ export default function UnitSetupPanel() {
         <div>
           <h2 className={toolbarTitle}>Unit Setup</h2>
           <p className={note}>
-            Every buyer in the uploaded orders. Choose a default unit from the active units in Dropdown Master Setup, then Save Changes.
+            Every buyer in the latest uploaded files. Choose a default unit from the active units in Dropdown Master Setup, then Save Changes.
           </p>
         </div>
         {/* Save needs the Unit Setup permission (the old page hid it with body.perm-no-unit). */}
