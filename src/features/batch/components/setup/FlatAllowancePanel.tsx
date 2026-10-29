@@ -3,6 +3,7 @@
 /* Flat Allowance panel (old #flatAllowanceSetupPanel, renderFlatAllowance): the editable rule table.
    Edits change S.flatAllowanceDraft until Save Changes. */
 import React from 'react';
+import { cn } from '@/lib/cn';
 import {
   BatchApi,
   S,
@@ -13,8 +14,7 @@ import {
   useBatchVersion,
 } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
-import { card } from '../ui/styles';
-import { actions, field, note, setupButton, statusBar, table, tablePane, td, th, thead, toolbar, toolbarTitle, tr } from './setup-styles';
+import { actions, field, note, panel, setupButton, statusBar, table, tablePane, td, th, thead, toolbar, toolbarTitle, tr } from './setup-styles';
 
 const FLAT_FIELDS: [string, string][] = [
   ['dyeingType', 'Dyeing Type'],
@@ -32,7 +32,7 @@ export default function FlatAllowancePanel() {
   const canEdit = BatchApi.has('menus.dataManagement.flatAllowance');
 
   return (
-    <div id="flatAllowanceSetupPanel" className={card}>
+    <div id="flatAllowanceSetupPanel" className={panel}>
       <div className={toolbar}>
         <div>
           <h2 className={toolbarTitle}>Flat Allowance</h2>
@@ -67,7 +67,7 @@ export default function FlatAllowancePanel() {
         {rules.length + ' rules · ' + (S.flatAllowanceDirty ? 'Unsaved changes' : 'Saved')}
       </div>
       <div className={tablePane}>
-        <table className={table}>
+        <table className={cn(table, 'min-w-140')}>
           <thead className={thead}>
             <tr>
               <th className={th}>Dyeing Type</th>

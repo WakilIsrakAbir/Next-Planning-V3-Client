@@ -2,8 +2,12 @@
    Fabric dialog: the old setup-toolbar, setup-status-bar, setup-table, freeze-pane, setup-input and
    component-note rules. Built on the shared Batch classes of ../ui/styles. */
 import { cn } from '@/lib/cn';
-import { button, input, tableWrap } from '../ui/styles';
+import { button, card, input, tableWrap } from '../ui/styles';
 import type { ButtonVariant } from '../ui/styles';
+
+/** A Setup panel: fills the page down to its bottom padding, and its table scrolls inside (tablePane). On a short
+    screen it keeps a minimum height and the page scrolls. */
+export const panel = cn(card, 'flex min-h-[360px] flex-1 flex-col');
 
 /** A Batch button. The old page left the button font on the browser default (Arial). */
 export function setupButton(variant: ButtonVariant = 'primary'): string {
@@ -27,14 +31,12 @@ export const actions = 'flex flex-wrap gap-2';
 export const statusBar =
   'flex flex-wrap items-center justify-between gap-3.5 bg-[#f8fbfe] px-[22px] py-2.5 text-[12px] text-batch-muted dark:bg-[#151921]';
 
-/** Scroller with the frozen table heading (old `.table-wrap.freeze-pane`). */
-export const tablePane = cn(
-  tableWrap,
-  'relative max-h-[calc(var(--batch-vh,1vh)*60)] overflow-auto overscroll-contain print:max-h-none'
-);
+/** Scroller with the frozen table heading (old `.table-wrap.freeze-pane`): the rest of the panel's height. */
+export const tablePane = cn(tableWrap, 'relative min-h-0 flex-1 overflow-auto overscroll-contain');
 
-/** The editable table (old `.setup-table` inside `.freeze-pane`). */
-export const table = 'w-full min-w-[1240px] table-fixed border-separate border-spacing-0';
+/** The editable table (old `.setup-table` inside `.freeze-pane`): as wide as the panel, so there is no horizontal
+    scrollbar; each panel sets the min width below which it scrolls sideways instead of squeezing its fields. */
+export const table = 'w-full table-fixed border-separate border-spacing-0';
 
 /** Frozen table heading (old `.freeze-pane thead`). */
 export const thead = 'sticky top-0 z-[3] bg-[#f1f6fb] dark:bg-[#151921] print:static';

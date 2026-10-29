@@ -17,10 +17,14 @@ import {
   useBatchVersion,
 } from '@/features/batch/lib';
 import type { Row } from '@/features/batch/lib';
-import { card, input } from '../ui/styles';
-import { actions, field, setupButton, statusBar, table, tablePane, td, th, thead, toolbar, toolbarTitle, tr } from './setup-styles';
+import { input } from '../ui/styles';
+import { actions, field, panel, setupButton, statusBar, table, tablePane, td, th, thead, toolbar, toolbarTitle, tr } from './setup-styles';
 
-const COLUMN_WIDTHS = [100, 95, 130, 160, 75, 100, 105, 330, 100];
+/* Column widths at the table's narrowest width (their sum, the table's min width): sized for the longest values
+   (EFL-EXT, Atmospheric, Thies-I-Master), so the table fits the page without a horizontal scrollbar from a
+   1280 px wide window. On a wider page every column grows in proportion. */
+const COLUMN_WIDTHS = [95, 75, 105, 120, 60, 70, 80, 225, 70];
+const TABLE_MIN_WIDTH = COLUMN_WIDTHS.reduce((sum, width) => sum + width, 0);
 
 export default function MachineSetupPanel() {
   useBatchVersion();
@@ -51,7 +55,7 @@ export default function MachineSetupPanel() {
   };
 
   return (
-    <div className={card} id="dyeingMCSetupPanel">
+    <div className={panel} id="dyeingMCSetupPanel">
       <div className={toolbar}>
         <div>
           <h2 className={toolbarTitle}>Dyeing Machine Setup</h2>
@@ -79,10 +83,10 @@ export default function MachineSetupPanel() {
         </strong>
       </div>
       <div className={tablePane} tabIndex={0} aria-label="Dyeing machine setup">
-        <table className={table}>
+        <table className={table} style={{ minWidth: TABLE_MIN_WIDTH }}>
           <colgroup>
             {COLUMN_WIDTHS.map((width, index) => (
-              <col key={index} style={{ width }} />
+              <col key={index} style={{ width: (width / TABLE_MIN_WIDTH) * 100 + '%' }} />
             ))}
           </colgroup>
           <thead className={thead}>

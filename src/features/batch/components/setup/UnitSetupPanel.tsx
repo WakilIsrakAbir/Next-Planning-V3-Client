@@ -15,10 +15,10 @@ import {
   unitSetupTableView,
   useBatchVersion,
 } from '@/features/batch/lib';
-import { card } from '../ui/styles';
 import {
   field,
   note,
+  panel,
   plainField,
   setupButton,
   statusBar,
@@ -37,7 +37,7 @@ export default function UnitSetupPanel() {
   const view = unitSetupTableView();
 
   return (
-    <div id="unitSetupPanel" className={card}>
+    <div id="unitSetupPanel" className={panel}>
       <div className={toolbar}>
         <div>
           <h2 className={toolbarTitle}>Unit Setup</h2>
@@ -74,7 +74,7 @@ export default function UnitSetupPanel() {
         {view.status}
       </p>
       <div className={tablePane}>
-        <table className={table}>
+        <table className={cn(table, 'min-w-105')}>
           <thead className={thead}>
             <tr>
               <th className={th}>Buyer</th>
