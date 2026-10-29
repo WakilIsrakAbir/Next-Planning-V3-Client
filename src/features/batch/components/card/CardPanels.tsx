@@ -19,8 +19,8 @@ import {
   setCardSearch,
   setCardStatus,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { CardGenerateAction, CardOrderView, CardPreviewView, CardRegisterView } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { CardGenerateAction, CardOrderView, CardPreviewView, CardRegisterView } from '@/features/batch/lib';
 import BatchCardSheet from './BatchCardSheet';
 
 const STATUS_TABS: { status: 'Pending' | 'Partial' | 'Completed' | 'Revision'; label: string; countId: string }[] = [

@@ -13,8 +13,8 @@ import {
   openDailyConfirmFilters,
   printDailyConfirmReport,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 
 /** Old esc(value) without the HTML escaping (React escapes text). */
 const text = (value: unknown): string => String(value ?? '');

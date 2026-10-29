@@ -6,7 +6,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
-import { batchCanOpenRoute, batchRouteInfo } from '@/lib/batch-module';
+import { batchCanOpenRoute, batchRouteInfo } from '@/features/batch/lib/batch-navigation';
 
 export default function BatchRouteGuard({ route, children }: { route: string; children: React.ReactNode }) {
   // The dashboard renders pages only on the client (after the session check), so localStorage is readable.

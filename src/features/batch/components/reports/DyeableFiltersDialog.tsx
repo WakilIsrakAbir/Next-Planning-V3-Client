@@ -15,8 +15,8 @@ import {
   previewDyeableReport,
   toggleDyeableChoice,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { DyeableFilterKey, DyeableSelection, Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { DyeableFilterKey, DyeableSelection, Row } from '@/features/batch/lib';
 
 const FIELDS: { key: DyeableFilterKey; label: string }[] = [
   { key: 'knit', label: 'Knit Status' },

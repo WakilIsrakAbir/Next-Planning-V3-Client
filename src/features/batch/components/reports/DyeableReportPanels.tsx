@@ -25,8 +25,8 @@ import {
   printDyeableSummary,
   productionSum,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { DyeableSummaryCell, Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { DyeableSummaryCell, Row } from '@/features/batch/lib';
 import KnittingBadge from '@/features/batch/components/plan/report/KnittingBadge';
 
 /** Old esc(value) without the HTML escaping (React escapes text). */

@@ -4,7 +4,7 @@
    Reference, and Additional Process correct?" Yes continues with the confirmation. Escape, No and a click on
    the backdrop close it; Tab moves between the two buttons. */
 import React, { useEffect, useRef } from 'react';
-import { S, closeConfirmChecks, proceedConfirmChecks, useBatchVersion } from '@/features/batch/engine';
+import { S, closeConfirmChecks, proceedConfirmChecks, useBatchVersion } from '@/features/batch/lib';
 
 export default function ConfirmChecksDialog() {
   useBatchVersion();

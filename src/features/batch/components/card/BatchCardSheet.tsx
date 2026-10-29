@@ -3,8 +3,8 @@
 /* The printable Batch Process Card of a generated card (old batchCardHtml(card)). It draws only the card's
    saved snapshot, so a card always prints as it was generated. Print styles: body.printing-batch-card. */
 import React from 'react';
-import { compareComponentSizes, componentSize, floorLabel, kgText, lastSaveDisplay } from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+import { compareComponentSizes, componentSize, floorLabel, kgText, lastSaveDisplay } from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 
 type ComponentSizeValue = Parameters<typeof compareComponentSizes>[0];
 

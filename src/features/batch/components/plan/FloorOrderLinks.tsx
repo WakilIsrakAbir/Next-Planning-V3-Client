@@ -5,7 +5,7 @@
    `floor` defaults to the open unit (S.activeFloor); `report` gives the report heading's look
    ("Same order on:"). */
 import React from 'react';
-import { S, floorLabel, floorOrderLinks, handleFloorOrderJump, useBatchVersion } from '@/features/batch/engine';
+import { S, floorLabel, floorOrderLinks, handleFloorOrderJump, useBatchVersion } from '@/features/batch/lib';
 
 export default function FloorOrderLinks({ number, floor, report = false }: { number: string; floor?: string | null; report?: boolean }) {
   useBatchVersion();

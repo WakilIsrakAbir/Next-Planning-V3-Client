@@ -7,10 +7,10 @@
    The rule runs again after a data reload and when the sidebar re-opens this page (BATCH_NAVIGATE_EVENT).
    The panel shown follows S.dyeableReportMode, as the old renderDyeableReport did. */
 import React, { useEffect, useRef } from 'react';
-import { BATCH_NAVIGATE_EVENT } from '@/lib/batch-module';
-import BatchHeader from '../shell/BatchHeader';
-import { S, showReportRoute, useBatchVersion } from '@/features/batch/engine';
-import type { BatchReportKind } from '@/features/batch/engine';
+import { BATCH_NAVIGATE_EVENT } from '@/features/batch/lib/batch-navigation';
+import BatchHeader from '@/features/batch/components/shell/BatchHeader';
+import { S, showReportRoute, useBatchVersion } from '@/features/batch/lib';
+import type { BatchReportKind } from '@/features/batch/lib';
 import DailyConfirmPanel from './DailyConfirmPanel';
 import { DyeableReportEmpty, DyeableReportPanel, DyeableSummaryPanel } from './DyeableReportPanels';
 import DyeableFiltersDialog from './DyeableFiltersDialog';

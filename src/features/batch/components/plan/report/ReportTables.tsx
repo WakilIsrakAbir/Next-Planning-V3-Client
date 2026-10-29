@@ -16,7 +16,7 @@ import {
   type ReportBodyComponentTable,
   type ReportBodyField,
   type Row,
-} from '@/features/batch/engine';
+} from '@/features/batch/lib';
 import KnittingBadge from './KnittingBadge';
 import { BatchTallBigSelect } from './ReportControls';
 import { GeneralInput, InstructionInput, ReportRowActions, RowInput } from './RowEditing';

@@ -12,7 +12,7 @@ import {
   setReportRowValue,
   useBatchVersion,
   type Row,
-} from '@/features/batch/engine';
+} from '@/features/batch/lib';
 
 const TALL_BIG_TYPES = ['No', 'Tall', 'Big'];
 

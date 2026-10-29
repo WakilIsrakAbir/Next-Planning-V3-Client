@@ -18,7 +18,7 @@ import {
   type ReportBodyOdControl,
   type ReportBodyTallBigControl,
   type Row,
-} from '@/features/batch/engine';
+} from '@/features/batch/lib';
 import { text } from './reportShared';
 
 const OD_MODES = ['Regular', 'As Suggested', 'Need Declaration'];

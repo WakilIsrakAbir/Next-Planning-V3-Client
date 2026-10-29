@@ -14,8 +14,8 @@ import {
   closeFabricPicker,
   constructionKey,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { FabricPickerState } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { FabricPickerState } from '@/features/batch/lib';
 
 export default function FabricPickerDialog() {
   useBatchVersion();

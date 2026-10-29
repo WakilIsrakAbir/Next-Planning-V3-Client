@@ -13,8 +13,8 @@ import {
   openFabricPicker,
   saveMachineSetup,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 
 const COLUMN_WIDTHS = [100, 95, 130, 160, 75, 100, 105, 330, 100];
 

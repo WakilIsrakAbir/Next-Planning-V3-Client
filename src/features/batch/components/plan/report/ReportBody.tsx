@@ -18,8 +18,8 @@ import {
   type ReportBodyNotice,
   type ReportBodyView,
   type Row,
-} from '@/features/batch/engine';
-import FloorOrderLinks from '../FloorOrderLinks';
+} from '@/features/batch/lib';
+import FloorOrderLinks from '@/features/batch/components/plan/FloorOrderLinks';
 import { CcDyeingModeControl, OdControl, TallBigControl, TallBigDeclarationControl } from './ReportControls';
 import { ColourBatchEditableTable, ComponentEditableTable, EditableInstructionTable, FabricInfoEditableTable, GeneralInfoSection } from './ReportTables';
 import { AddRowButton } from './RowEditing';

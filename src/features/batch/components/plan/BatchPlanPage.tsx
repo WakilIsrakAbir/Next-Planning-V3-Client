@@ -11,7 +11,7 @@
    jump, search result, open report, Back to List), the URL is replaced to follow it. */
 import React, { Suspense, useEffect, useLayoutEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { BATCH_NAVIGATE_EVENT, rememberBatchRoute } from '@/lib/batch-module';
+import { BATCH_NAVIGATE_EVENT, rememberBatchRoute } from '@/features/batch/lib/batch-navigation';
 import {
   S,
   batchPlanUrl,
@@ -22,8 +22,8 @@ import {
   syncBatchPlanRoute,
   takePendingBatchPlanUrl,
   useBatchVersion,
-} from '@/features/batch/engine';
-import BatchHeader from '../shell/BatchHeader';
+} from '@/features/batch/lib';
+import BatchHeader from '@/features/batch/components/shell/BatchHeader';
 import UnitTabs from './UnitTabs';
 import BatchRegister from './BatchRegister';
 import BatchPlanReportView from './BatchPlanReportView';
@@ -32,7 +32,7 @@ import ReconfirmRevisionDialog from './ReconfirmRevisionDialog';
 import TentativeQuestionnaire from './TentativeQuestionnaire';
 import ConfirmChecksDialog from './ConfirmChecksDialog';
 import BatchPlanPreviewDialog from './BatchPlanPreviewDialog';
-import ReportDialogs from './report/ReportDialogs';
+import ReportDialogs from '@/features/batch/components/plan/report/ReportDialogs';
 
 // Mounted Batch Plan pages: a new unit in the URL mounts the page again, which is not leaving it.
 let mountedPlanPages = 0;

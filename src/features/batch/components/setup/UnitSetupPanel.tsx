@@ -11,7 +11,7 @@ import {
   unitSetupOptions,
   unitSetupTableView,
   useBatchVersion,
-} from '@/features/batch/engine';
+} from '@/features/batch/lib';
 
 export default function UnitSetupPanel() {
   useBatchVersion();

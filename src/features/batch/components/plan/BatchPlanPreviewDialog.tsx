@@ -15,8 +15,8 @@ import {
   printBatchPlan,
   useBatchVersion,
   zoomBatchPlanPreview,
-} from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 import { trapTab } from './dialogKeys';
 
 export default function BatchPlanPreviewDialog() {

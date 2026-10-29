@@ -4,8 +4,8 @@
    staged edits of the confirmed plan and keeps the revision; No discards them and returns to the Confirm List.
    Escape and a click on the backdrop close it (not while a save runs); Tab stays inside. */
 import React, { useEffect, useRef } from 'react';
-import { S, closeInternalChangeDialog, floorLabel, submitInternalChange, useBatchVersion } from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+import { S, closeInternalChangeDialog, floorLabel, submitInternalChange, useBatchVersion } from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 import { trapTab } from './dialogKeys';
 
 export default function InternalChangeDialog() {

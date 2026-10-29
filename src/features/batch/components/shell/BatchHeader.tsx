@@ -3,7 +3,7 @@
 /* Page heading of every Batch page (old <header class="top-header">): eyebrow, title, optional unit tabs
    (Batch Plan and Batch Card pass <UnitTabs/>) and the status badge. */
 import React from 'react';
-import { S, useBatchVersion } from '../../engine';
+import { S, useBatchVersion } from '@/features/batch/lib';
 
 export default function BatchHeader({
   eyebrow,

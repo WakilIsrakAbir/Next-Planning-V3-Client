@@ -4,9 +4,9 @@
    (Dyeing MC, Flat Allowance, Unit Setup) and the Not Possible Fabric dialog. The route gives the panel;
    selectSetupPanel(panel) keeps S.activeSetupPanel in step and builds the panel's draft (old renderSetupPanels). */
 import React, { useEffect } from 'react';
-import BatchHeader from '../shell/BatchHeader';
-import { S, closeFabricPicker, selectSetupPanel, useBatchVersion } from '@/features/batch/engine';
-import type { SetupPanel } from '@/features/batch/engine';
+import BatchHeader from '@/features/batch/components/shell/BatchHeader';
+import { S, closeFabricPicker, selectSetupPanel, useBatchVersion } from '@/features/batch/lib';
+import type { SetupPanel } from '@/features/batch/lib';
 import MachineSetupPanel from './MachineSetupPanel';
 import FlatAllowancePanel from './FlatAllowancePanel';
 import UnitSetupPanel from './UnitSetupPanel';

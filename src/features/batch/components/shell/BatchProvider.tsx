@@ -7,8 +7,8 @@
    reloaded when another page changed it (upload, plan save, Dropdown Master unit change). */
 import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { clearBatchDataStale, isBatchDataStale } from '@/lib/batch-module';
-import { BatchApi, S, initializeStorage, permissionClasses, setBatchNavigator, useBatchVersion } from '../../engine';
+import { clearBatchDataStale, isBatchDataStale } from '@/features/batch/lib/batch-navigation';
+import { BatchApi, S, initializeStorage, permissionClasses, setBatchNavigator, useBatchVersion } from '@/features/batch/lib';
 
 let loadStarted = false;
 

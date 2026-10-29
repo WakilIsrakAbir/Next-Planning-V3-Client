@@ -10,8 +10,8 @@ import {
   insertFlatAllowanceRow,
   saveFlatAllowance,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 
 const FLAT_FIELDS: [string, string][] = [
   ['dyeingType', 'Dyeing Type'],

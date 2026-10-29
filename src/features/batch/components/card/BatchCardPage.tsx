@@ -6,10 +6,10 @@
    URL follows), then selectCardFloor(unit) opens that unit's register. It runs again after a data reload and
    when the sidebar re-opens this page (BATCH_NAVIGATE_EVENT), as the old route() did. */
 import React, { useEffect, useRef } from 'react';
-import { BATCH_NAVIGATE_EVENT, rememberBatchRoute } from '@/lib/batch-module';
-import BatchHeader from '../shell/BatchHeader';
+import { BATCH_NAVIGATE_EVENT, rememberBatchRoute } from '@/features/batch/lib/batch-navigation';
+import BatchHeader from '@/features/batch/components/shell/BatchHeader';
 import UnitTabs from '@/features/batch/components/plan/UnitTabs';
-import { S, showCardRoute, useBatchVersion } from '@/features/batch/engine';
+import { S, showCardRoute, useBatchVersion } from '@/features/batch/lib';
 import { CardOrderPanel, CardPreviewPanel, CardRegisterPanel } from './CardPanels';
 
 export default function BatchCardPage({ unit }: { unit: string | null }) {

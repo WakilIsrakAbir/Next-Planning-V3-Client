@@ -8,7 +8,7 @@
    (old unitTabs click listener), a middle click / Ctrl+click opens it in a new tab. */
 import React from 'react';
 import Link from 'next/link';
-import { BatchApi, selectUnitTab, unitTabCounts, unitTabFloors, unitTabHighlight, useBatchVersion } from '@/features/batch/engine';
+import { BatchApi, selectUnitTab, unitTabCounts, unitTabFloors, unitTabHighlight, useBatchVersion } from '@/features/batch/lib';
 
 export default function UnitTabs({ kind }: { kind: 'plan' | 'card' }) {
   useBatchVersion();

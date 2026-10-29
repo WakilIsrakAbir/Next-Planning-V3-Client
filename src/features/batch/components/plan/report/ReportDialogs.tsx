@@ -35,7 +35,7 @@ import {
   useBatchVersion,
   type ComponentSize,
   type Row,
-} from '@/features/batch/engine';
+} from '@/features/batch/lib';
 import { ReportTable, text, trapDialogTab, useReportFocus } from './reportShared';
 
 export default function ReportDialogs() {

@@ -21,8 +21,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import { IUser } from '@/types/user';
-import { prefetchOrderManagement } from '@/lib/planning-cache';
-import { batchMenuRoute, requestBatchRoute } from '@/lib/batch-module';
+import { prefetchOrderManagement } from '@/features/planning/lib/planning-cache';
+import { batchMenuRoute, requestBatchRoute } from '@/features/batch/lib/batch-navigation';
 
 interface SidebarProps {
   isOpen: boolean;

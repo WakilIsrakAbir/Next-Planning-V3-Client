@@ -12,8 +12,8 @@ import {
   floorLabel,
   saveTentativeQuestionnaire,
   useBatchVersion,
-} from '@/features/batch/engine';
-import type { Row } from '@/features/batch/engine';
+} from '@/features/batch/lib';
+import type { Row } from '@/features/batch/lib';
 import { trapTab } from './dialogKeys';
 
 const QUESTIONS = [

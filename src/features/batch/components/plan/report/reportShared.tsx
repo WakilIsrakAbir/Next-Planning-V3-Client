@@ -2,7 +2,7 @@
 
 /* Helpers shared by the report body and its dialogs. */
 import React, { useEffect, useRef } from 'react';
-import { S } from '@/features/batch/engine';
+import { S } from '@/features/batch/lib';
 
 /** Text of a value as the old esc(value) showed it. */
 export function text(value: unknown): string {

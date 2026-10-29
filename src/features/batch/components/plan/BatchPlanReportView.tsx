@@ -17,8 +17,8 @@ import {
   reportBookingStatus,
   updateBookingStatus,
   useBatchVersion,
-} from '@/features/batch/engine';
-import ReportBody from './report/ReportBody';
+} from '@/features/batch/lib';
+import ReportBody from '@/features/batch/components/plan/report/ReportBody';
 
 export default function BatchPlanReportView() {
   useBatchVersion();
