@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Layers,
   Search,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { apiClient } from '@/lib/api-client';
+import { sharedRequest } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 
@@ -138,6 +139,9 @@ const cachedProductInfo = {
   details: new Map<string, any>(),
 };
 
+// Typing pause before the search box text is sent (Enter searches immediately)
+const SEARCH_DEBOUNCE_MS = 350;
+
 export default function ProductInfoScreen() {
   const initialCacheKey = '1_10_';
   const initialCache = cachedProductInfo.data.get(initialCacheKey);
@@ -145,6 +149,8 @@ export default function ProductInfoScreen() {
   const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
   const [loading, setLoading] = useState(() => !initialCache);
   const [search, setSearch] = useState('');
+  // Search text actually requested: follows `search` after a typing pause, or at once on Enter
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(() => initialCache?.totalPages || 1);
@@ -156,8 +162,22 @@ export default function ProductInfoScreen() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [activeTab, setActiveTab] = useState<'breakdown' | 'matrix'>('breakdown');
 
+  // Only the newest list / detail request may update the screen (responses can arrive out of order)
+  const latestRequestRef = useRef(0);
+  const latestDetailRef = useRef(0);
+
+  // Debounced search: one request after the user stops typing instead of one per keystroke
+  useEffect(() => {
+    if (search === appliedSearch) return;
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(search);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search, appliedSearch]);
+
   const fetchOrders = async (bypassCache = false) => {
-    const cacheKey = `${page}_${limit}_${search.trim().toLowerCase()}`;
+    const cacheKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}`;
     if (!bypassCache) {
       const cached = cachedProductInfo.data.get(cacheKey);
       if (cached) {
@@ -172,33 +192,45 @@ export default function ProductInfoScreen() {
       setLoading(true);
     }
 
+    const requestId = ++latestRequestRef.current;
     try {
-      const res = await apiClient<{
-        orders: any[];
-        total: number;
-        totalPages: number;
-      }>(`/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+      const endpoint = `/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(appliedSearch)}`;
+      const res = await sharedRequest(
+        endpoint,
+        () =>
+          apiClient<{
+            orders: any[];
+            total: number;
+            totalPages: number;
+          }>(endpoint),
+        bypassCache
+      );
       const result = {
         orders: res.orders || [],
         total: res.total || 0,
         totalPages: res.totalPages || 1,
       };
       cachedProductInfo.data.set(cacheKey, result);
+      // A newer request (page / search change) owns the table now
+      if (requestId !== latestRequestRef.current) return;
       setOrders(result.orders);
       setTotalCount(result.total);
       setTotalPages(result.totalPages);
     } catch (err) {
       console.error('Failed to fetch product info orders:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchOrders();
-  }, [page, limit, search]);
+    // Refetch only when the page or the applied (debounced / Enter) search changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, appliedSearch]);
 
   const toggleExpand = async (orderNo: string) => {
+    const requestId = ++latestDetailRef.current;
     if (expandedOrder === orderNo) {
       setExpandedOrder(null);
       setOrderDetails(null);
@@ -220,11 +252,13 @@ export default function ProductInfoScreen() {
       if (order) {
         cachedProductInfo.details.set(orderNo, order);
       }
+      // Another row was expanded / collapsed meanwhile: do not show this order's specs there
+      if (requestId !== latestDetailRef.current) return;
       setOrderDetails(order);
     } catch (err) {
       console.error('Failed to load order specs:', err);
     } finally {
-      setLoadingDetails(false);
+      if (requestId === latestDetailRef.current) setLoadingDetails(false);
     }
   };
 
@@ -458,9 +492,12 @@ export default function ProductInfoScreen() {
               type="text"
               placeholder="Search by order or buyer..."
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setAppliedSearch(search);
+                  setPage(1);
+                }
               }}
               className="input input-bordered input-sm w-full pl-9"
             />

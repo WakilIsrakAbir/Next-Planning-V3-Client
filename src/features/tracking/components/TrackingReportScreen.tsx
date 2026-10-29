@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { API_BASE, DEPARTMENTS } from '@/lib/constants';
+import { sharedGetJson } from '@/lib/shared-request';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 
 interface PageProps {
@@ -56,25 +57,18 @@ export default function TrackingReportScreen({ params }: PageProps) {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?all=true`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // The paginated tracking endpoint filtered by Pending / Complete returns the matching `total`
+      // (same actualEnd rule as counting the full list), so one row per status is enough.
+      const countUrl = (status: 'Pending' | 'Complete') =>
+        `${API_BASE}/api/orders/tracking/${dept}?status=${status}&page=1&limit=1`;
+      const [pendingRes, completeRes] = await Promise.all([
+        sharedGetJson<{ total?: number }>(countUrl('Pending'), bypassCache),
+        sharedGetJson<{ total?: number }>(countUrl('Complete'), bypassCache),
+      ]);
 
-      if (res.ok) {
-        const data = await res.json();
-        const { planDocs = [] } = data;
-        const actualKey = (dept === 'deliveryfloor' ? 'delivery' : dept) + 'Actual';
-
-        let pCount = 0;
-        let cCount = 0;
-
-        planDocs.forEach((doc: any) => {
-          const act = doc[actualKey];
-          const hasActualEnd = act && act.actualEnd && act.actualEnd.trim() !== '' && act.actualEnd !== '-';
-          if (hasActualEnd) cCount++;
-          else pCount++;
-        });
+      if (pendingRes && completeRes) {
+        const pCount = pendingRes.total || 0;
+        const cCount = completeRes.total || 0;
 
         cachedTrackingCounts.set(dept, { pending: pCount, complete: cCount });
         setPendingCount(pCount);

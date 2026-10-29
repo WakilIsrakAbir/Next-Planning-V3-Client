@@ -1,4 +1,5 @@
 import { API_BASE } from '@/lib/constants';
+import { sharedRequest, whenBrowserIdle, whenRequestsSettled } from '@/lib/shared-request';
 import { PlanStatus } from '@/types/order';
 
 export interface IDeptPageState {
@@ -74,7 +75,88 @@ export const cachedOrderDetails: Map<string, ICachedOrderDetail> = new Map();
 export let cachedDropdownOptions: { units: string[]; processes: string[] } | null = null;
 
 let isPrefetching = false;
-const inFlightOrderDetail = new Set<string>();
+
+// Background prefetch waits this long after it is requested, so the screen being opened sends its own requests first.
+const PREFETCH_START_DELAY_MS = 800;
+
+// One department list page request (the same query shape the department screen keeps in state).
+export interface IPlanningListQuery {
+  dept: string;
+  activeTab: PlanStatus | 'All';
+  activeBuyer: string;
+  page: number;
+  limit: number;
+  globalSearch: string;
+}
+
+/** Cache key of a department list page in `cachedPlanningOrders` (shared by the screen and the prefetch). */
+export function planningListKey(q: IPlanningListQuery): string {
+  return `${q.dept}_${q.activeTab}_${q.activeBuyer}_${q.page}_${q.limit}_${q.globalSearch}`;
+}
+
+/**
+ * Fetches one department list page and stores it in `cachedPlanningOrders` / `cachedDeptBuyers`.
+ * Shared while in flight: the background prefetch and the screen never send the same page request twice.
+ * Resolves `null` for a non-OK response.
+ */
+export function fetchPlanningOrders(q: IPlanningListQuery): Promise<ICachedPlanningData | null> {
+  const query = new URLSearchParams({
+    dept: q.dept,
+    status: q.activeTab === 'All' ? 'Completed' : q.activeTab,
+    buyer: q.activeBuyer,
+    page: String(q.page),
+    limit: String(q.limit),
+    search: q.globalSearch,
+  });
+  const url = `${API_BASE}/api/orders?${query.toString()}`;
+
+  return sharedRequest(url, async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const entry: ICachedPlanningData = {
+      orders: data.orders || [],
+      totalPages: data.totalPages || 1,
+      total: data.total || 0,
+      buyers: data.buyers || [],
+    };
+    cachedPlanningOrders[planningListKey(q)] = entry;
+    if (entry.buyers && entry.buyers.length > 0) {
+      cachedDeptBuyers[q.dept] = entry.buyers;
+    }
+    return entry;
+  });
+}
+
+// Result of GET /api/orders/:orderNo (status kept so the detail screen can show "Order Not Found").
+export interface IOrderDetailResponse {
+  ok: boolean;
+  status: number;
+  data: Partial<Pick<ICachedOrderDetail, 'order' | 'planData'>> | null;
+}
+
+/**
+ * Fetches one order's detail. Shared while in flight, so a hover prefetch followed by a click sends one request.
+ * `fresh` starts a new request (used after saving).
+ */
+export function fetchOrderDetail(dept: string, orderNo: string, fresh = false): Promise<IOrderDetailResponse> {
+  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`;
+  return sharedRequest(
+    url,
+    async () => {
+      const token = localStorage.getItem('token');
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
+    },
+    fresh
+  );
+}
 
 /**
  * Searches across all cached order lists to find an existing order header by orderNo.
@@ -141,49 +223,46 @@ export async function prefetchDropdowns(): Promise<{ units: string[]; processes:
   if (typeof window === 'undefined') return null;
 
   try {
-    const token = localStorage.getItem('token');
-    const headers = { Authorization: `Bearer ${token}` };
-    const res = await fetch(`${API_BASE}/api/dropdowns`, { headers });
-    if (res.ok) {
+    const url = `${API_BASE}/api/dropdowns`;
+    return await sharedRequest(url, async () => {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await fetch(url, { headers });
+      if (!res.ok) return null;
       const data = await res.json();
       const units = data.units && data.units.length > 0 ? data.units.map((u: any) => u.name) : ['EFL', 'EKL', 'Ext', 'Outside'];
       const processes = data.processes && data.processes.length > 0 ? data.processes.map((p: any) => p.name) : ['Solid', 'Dyeing Wash', 'HTR', 'Pluvia', 'SB', 'WH', 'DF'];
       cachedDropdownOptions = { units, processes };
       return cachedDropdownOptions;
-    }
+    });
   } catch {}
   return null;
 }
 
 /**
  * High-speed background prefetch on hover over the Eye button or Order link.
- * Guarantees that by the time user clicks, data is already in memory (0ms load).
+ * Guarantees that by the time user clicks, data is already in memory (0ms load);
+ * a click while it is still running joins this request instead of sending another one.
  */
 export async function prefetchOrderDetail(dept: string, orderNo: string): Promise<void> {
   if (!orderNo || typeof window === 'undefined') return;
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
-  if (cachedOrderDetails.has(key) || inFlightOrderDetail.has(key)) return;
+  if (cachedOrderDetails.has(key)) return;
 
   const token = localStorage.getItem('token');
   if (!token) return;
 
-  inFlightOrderDetail.add(key);
   try {
-    const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
+    const res = await fetchOrderDetail(dept, orderNo);
+    if (res.ok && res.data) {
       cachedOrderDetails.set(key, {
-        order: data.order,
-        planData: data.planData,
+        order: res.data.order,
+        planData: res.data.planData,
         timestamp: Date.now(),
       });
     }
   } catch {
     // Non-fatal prefetch failure
-  } finally {
-    inFlightOrderDetail.delete(key);
   }
 }
 
@@ -191,6 +270,8 @@ export async function prefetchOrderDetail(dept: string, orderNo: string): Promis
  * Background pre-fetching engine for all 5 Order Management departments:
  * Pre-caches Page 1 (Pending orders) so when user clicks any department,
  * the page renders in 0ms without waiting for network or showing blank spinners.
+ * It starts only after the open screen's own requests have settled and the browser is idle,
+ * and a department screen loading the same page shares the request (no duplicate).
  */
 export async function prefetchOrderManagement(): Promise<void> {
   if (isPrefetching) return;
@@ -201,37 +282,27 @@ export async function prefetchOrderManagement(): Promise<void> {
 
   isPrefetching = true;
   const depts = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'];
+  let started = false;
 
   try {
     for (const dept of depts) {
-      const key = `${dept}_Pending__1_10_`;
-      if (!cachedPlanningOrders[key]) {
-        try {
-          const res = await fetch(`${API_BASE}/api/orders?dept=${dept}&status=Pending&page=1&limit=10`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const ords = data.orders || [];
-            const tPages = data.totalPages || 1;
-            const total = data.total || 0;
-            const buyers = data.buyers || [];
+      const q: IPlanningListQuery = { dept, activeTab: 'Pending', activeBuyer: '', page: 1, limit: 10, globalSearch: '' };
+      if (cachedPlanningOrders[planningListKey(q)]) continue;
 
-            cachedPlanningOrders[key] = {
-              orders: ords,
-              totalPages: tPages,
-              total,
-              buyers,
-            };
-
-            if (buyers.length > 0) {
-              cachedDeptBuyers[dept] = buyers;
-            }
-          }
-        } catch {}
-        // Small delay to keep network light
-        await new Promise((r) => setTimeout(r, 60));
+      if (!started) {
+        await new Promise((r) => setTimeout(r, PREFETCH_START_DELAY_MS));
+        started = true;
       }
+      // Never compete with what the user is waiting for
+      await whenRequestsSettled();
+      await whenBrowserIdle();
+      if (cachedPlanningOrders[planningListKey(q)] || !localStorage.getItem('token')) continue;
+
+      try {
+        await fetchPlanningOrders(q);
+      } catch {}
+      // Small delay to keep network light
+      await new Promise((r) => setTimeout(r, 60));
     }
   } finally {
     isPrefetching = false;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import {
   Activity,
   Search,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import { sharedGetJson } from '@/lib/shared-request';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import InlineSpinner from '@/components/ui/InlineSpinner';
@@ -76,6 +77,22 @@ const cachedTrackingOrders: Record<
   }
 > = {};
 
+// Cache key of one tracking list page (the same format when reading and storing).
+function trackingCacheKey(
+  dept: string,
+  tab: string,
+  buyer: string,
+  page: number,
+  limit: number,
+  search: string,
+  sMin: string,
+  sMax: string,
+  eMin: string,
+  eMax: string
+): string {
+  return `${dept}_${tab}_${buyer}_${page}_${limit}_${search}_${sMin}_${sMax}_${eMin}_${eMax}`;
+}
+
 export default function TrackingScreen({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
@@ -90,7 +107,7 @@ export default function TrackingScreen({ params }: PageProps) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const initialKey = `${dept}_Pending__1_10_`;
+  const initialKey = trackingCacheKey(dept, 'Pending', '', 1, 10, '', '', '', '', '');
   const initialCache = cachedTrackingOrders[initialKey];
 
   const [orders, setOrders] = useState<TrackingOrder[]>(() => initialCache?.orders || []);
@@ -101,19 +118,14 @@ export default function TrackingScreen({ params }: PageProps) {
   const [editedRows, setEditedRows] = useState<Record<string, TrackingEdit>>(() => initialCache?.initialEdits || {});
   const [saveLoading, setSaveLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Bumped by Search / Apply Filter / Clear so the fetch effect runs exactly once for them (also when already on page 1)
+  const [searchRun, setSearchRun] = useState(0);
+  // Only the newest list request may update the table (responses can arrive out of order)
+  const latestRequestRef = useRef(0);
 
-  const fetchTracking = async (overrideFilters?: {
-    startMin?: string;
-    startMax?: string;
-    endMin?: string;
-    endMax?: string;
-  }) => {
-    const sMin = overrideFilters?.startMin !== undefined ? overrideFilters.startMin : startMin;
-    const sMax = overrideFilters?.startMax !== undefined ? overrideFilters.startMax : startMax;
-    const eMin = overrideFilters?.endMin !== undefined ? overrideFilters.endMin : endMin;
-    const eMax = overrideFilters?.endMax !== undefined ? overrideFilters.endMax : endMax;
-
-    const key = `${dept}_${activeTab}_${selectedBuyer}_${page}_${limit}_${search}_${sMin}_${sMax}_${eMin}_${eMax}`;
+  // `fresh` skips joining an identical request still in flight (refresh right after saving).
+  const fetchTracking = async (fresh = false) => {
+    const key = trackingCacheKey(dept, activeTab, selectedBuyer, page, limit, search, startMin, startMax, endMin, endMax);
     if (cachedTrackingOrders[key]) {
       const c = cachedTrackingOrders[key];
       setOrders(c.orders);
@@ -126,26 +138,25 @@ export default function TrackingScreen({ params }: PageProps) {
       setLoading(true);
     }
 
+    const requestId = ++latestRequestRef.current;
     try {
-      const token = localStorage.getItem('token');
       const query = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         buyer: selectedBuyer,
         search,
         status: activeTab,
-        startMin: sMin,
-        startMax: sMax,
-        endMin: eMin,
-        endMax: eMax,
+        startMin,
+        startMax,
+        endMin,
+        endMax,
       });
 
-      const res = await fetch(`${API_BASE}/api/orders/tracking/${dept}?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
+      const data = await sharedGetJson<{ orders?: TrackingOrder[]; total?: number; totalPages?: number; buyers?: string[] }>(
+        `${API_BASE}/api/orders/tracking/${dept}?${query.toString()}`,
+        fresh
+      );
+      if (data) {
         const ords: TrackingOrder[] = data.orders || [];
         const tTotal = data.total || 0;
         const tPages = data.totalPages || 1;
@@ -170,6 +181,9 @@ export default function TrackingScreen({ params }: PageProps) {
           initialEdits,
         };
 
+        // A newer request (tab / page / search change) owns the table now
+        if (requestId !== latestRequestRef.current) return;
+
         setOrders(ords);
         setTotal(tTotal);
         setTotalPages(tPages);
@@ -179,13 +193,18 @@ export default function TrackingScreen({ params }: PageProps) {
     } catch (err) {
       console.error('Failed to fetch tracking data:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   };
 
-  const handleApplyFilter = () => {
+  // Search / Apply / Clear: back to page 1 and one request with the current filters (via the effect below)
+  const runSearch = () => {
     setPage(1);
-    fetchTracking();
+    setSearchRun((n) => n + 1);
+  };
+
+  const handleApplyFilter = () => {
+    runSearch();
   };
 
   const handleClearFilter = () => {
@@ -193,17 +212,16 @@ export default function TrackingScreen({ params }: PageProps) {
     setStartMax('');
     setEndMin('');
     setEndMax('');
-    setPage(1);
-    fetchTracking({ startMin: '', startMax: '', endMin: '', endMax: '' });
+    runSearch();
   };
 
   useEffect(() => {
     // Cache-first fetch whenever the tab / buyer / page changes (applies a cached page immediately).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTracking();
-    // Text / date filters are applied explicitly via "Apply"; only these keys trigger a refetch.
+    // Text / date filters are applied explicitly via "Apply" / "Search" (searchRun); only these keys trigger a refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dept, activeTab, selectedBuyer, page, limit]);
+  }, [dept, activeTab, selectedBuyer, page, limit, searchRun]);
 
   const handleRowChange = (orderNo: string, field: keyof TrackingEdit, value: string) => {
     setEditedRows((prev) => {
@@ -269,7 +287,7 @@ export default function TrackingScreen({ params }: PageProps) {
 
       setToastMessage(`Saved ${successCount} order(s) successfully!`);
       setTimeout(() => setToastMessage(null), 3000);
-      fetchTracking();
+      fetchTracking(true);
     } catch (err) {
       console.error('Batch save error:', err);
     } finally {
@@ -378,17 +396,13 @@ export default function TrackingScreen({ params }: PageProps) {
               className="input input-bordered input-sm w-48 sm:w-64 pl-8 text-xs"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  setPage(1);
-                  fetchTracking();
+                  runSearch();
                 }
               }}
             />
           </div>
           <button
-            onClick={() => {
-              setPage(1);
-              fetchTracking();
-            }}
+            onClick={runSearch}
             className="btn btn-primary btn-sm font-bold text-xs"
           >
             Search
