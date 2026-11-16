@@ -7,6 +7,7 @@ export interface IUserPermissions {
       upload?: boolean;
       setup?: boolean;
       view?: boolean;
+      atlasMonitor?: boolean;
       dyeingMc?: boolean;
       flatAllowance?: boolean;
       unitSetup?: boolean;

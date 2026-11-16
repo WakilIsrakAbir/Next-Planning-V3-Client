@@ -59,6 +59,8 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
     icon: <Database className="h-4 w-4" />,
     items: [
       { key: 'view', label: 'Source File Upload', href: '/management/upload' },
+      // Database health and the backup download (permission menus.dataManagement.atlasMonitor)
+      { key: 'atlasMonitor', label: 'Atlas Monitor', href: '/management/atlas-monitor' },
       {
         key: 'setupGroup',
         label: 'Setup',
