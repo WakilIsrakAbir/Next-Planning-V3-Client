@@ -229,7 +229,6 @@ export const ACTION_GROUPS: PermissionGroup[] = [
       ['uploadDelivery', 'Upload Delivery Data'],
       ['uploadBP', 'Upload BP Data'],
       ['deleteFiles', 'Delete Uploaded Files'],
-      ['wipeSystem', 'Wipe System Data'],
     ],
   },
   {
@@ -342,6 +341,9 @@ export const DOWNLOAD_GROUPS: PermissionGroup[] = [
     ],
   },
 ];
+
+// "Wipe System & Files" was removed from both apps (16 Nov 2026); its permission is dropped on save.
+const REMOVED_ACTION_KEYS = ['wipeSystem'];
 
 // Permission keys added with the Batch Plan module. A user saved before they existed gets them only
 // when an Admin ticks them in the permission builder, never from the role template.
@@ -591,6 +593,11 @@ function normalizePermissions(raw: unknown, role: string | undefined, groups: Me
   });
   BATCH_PERMISSION_KEYS.downloads.forEach((key) => {
     if (!hasOwnKey(raw.downloads, key)) normalized.downloads[key] = false;
+  });
+  // The one exception to "nothing stored is dropped": permissions of features that were removed,
+  // so the next save of this user clears them.
+  REMOVED_ACTION_KEYS.forEach((key) => {
+    delete normalized.actions[key];
   });
 
   // Menu groups and top-level keys this page does not know are kept as stored (never counted or shown).
