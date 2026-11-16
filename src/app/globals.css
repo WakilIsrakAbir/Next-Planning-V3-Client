@@ -226,3 +226,146 @@ body {
     display: none !important;
   }
 }
+
+/* Atlas Monitor (Data Management > Atlas Monitor) charts. Categorical slots 1-4 are a validated palette
+   (adjacent colour-blind separation and normal-vision floors pass on the white card and on the dark card
+   #181c25); status colours are only for the storage meter, always with an icon and a label. */
+.am-root,
+.am-tip {
+  --am-card: #ffffff;
+  --am-ink: #0b0b0b;
+  --am-ink2: #52514e;
+  --am-muted: #6f6d68;
+  --am-grid: #e1e0d9;
+  --am-axis: #c3c2b7;
+  --am-border: rgba(11, 11, 11, 0.1);
+  --am-s1: #2a78d6;
+  --am-s2: #eb6834;
+  --am-s3: #1baf7a;
+  --am-s4: #eda100;
+  --am-on-s1: #ffffff;
+  --am-on-s2: #ffffff;
+  --am-on-s3: #ffffff;
+  --am-on-s4: #0b0b0b;
+  --am-wash: rgba(42, 120, 214, 0.1);
+  --am-track: #cde2fb;
+  --am-good: #0ca30c;
+  --am-warn: #fab219;
+  --am-crit: #d03b3b;
+}
+@media screen {
+  :where([data-theme="dark"], .dark) .am-root,
+  :where([data-theme="dark"], .dark) .am-tip {
+    --am-card: #181c25;
+    --am-ink: #f0efec;
+    --am-ink2: #c3c2b7;
+    --am-muted: #98968f;
+    --am-grid: #262d3b;
+    --am-axis: #3a4253;
+    --am-border: rgba(255, 255, 255, 0.1);
+    --am-s1: #3987e5;
+    --am-s2: #d95926;
+    --am-s3: #199e70;
+    --am-s4: #c98500;
+    --am-on-s4: #ffffff;
+    --am-wash: rgba(57, 135, 229, 0.14);
+    --am-track: #184f95;
+  }
+}
+.am-root svg text {
+  font-family: inherit;
+}
+.am-root .am-chart:focus {
+  outline: 2px solid var(--am-s1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.am-root .am-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--am-border);
+  color: var(--am-ink2);
+  background: transparent;
+  cursor: pointer;
+}
+.am-root .am-toggle[aria-pressed="true"] {
+  background: var(--am-track);
+  color: var(--am-ink);
+}
+.am-root .am-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--am-s1);
+  border: 1px solid var(--am-s1);
+  cursor: pointer;
+}
+.am-root .am-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.am-root table.am-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.am-root table.am-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--am-muted);
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--am-grid);
+  white-space: nowrap;
+}
+.am-root table.am-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--am-grid);
+  white-space: nowrap;
+}
+.am-root table.am-table .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.am-tip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--am-card);
+  color: var(--am-ink);
+  border: 1px solid var(--am-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  max-width: 260px;
+}
+.am-tip .am-tip-v {
+  font-weight: 700;
+  font-size: 13px;
+}
+.am-tip .am-tip-l {
+  color: var(--am-ink2);
+}
+.am-tip .am-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.am-tip .am-key {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
