@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   UploadCloud,
-  FileSpreadsheet,
   Download,
   Trash2,
   AlertTriangle,
@@ -12,46 +11,104 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
-import { batchCanUploadBP, markBatchDataStale } from '@/features/batch/lib/batch-navigation';
+import { batchCanUploadBP, batchHasAction, markBatchDataStale } from '@/features/batch/lib/batch-navigation';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 
+/*
+ * The list shows only the uploads whose stored copy is kept: the newest uploads of each category
+ * (GET /api/files/all?scope=recent). Older copies are removed by the server after each successful upload;
+ * their upload records stay as history and no planning data is ever touched.
+ */
+interface UploadRecord {
+  _id: string;
+  originalName: string;
+  savedName: string;
+  uploadedBy: string;
+  role: string;
+  category: string;
+  size?: number;
+  createdAt: string;
+  parseStatus?: 'ok' | 'failed';
+  parseError?: string;
+  inUse: boolean;
+}
+interface RecentFiles {
+  keepPerCategory: number;
+  files: UploadRecord[];
+  history: Record<string, { uploads: number; withoutCopy: number }>;
+}
+
+const CATEGORY_ORDER = ['General', 'YD', 'Knitting', 'Dyeing', 'Finishing', 'Delivery', 'BP'];
+const CATEGORY_LABEL: Record<string, string> = {
+  General: 'General Information & Planning',
+  YD: 'Yarn Dyeing (YD)',
+  Knitting: 'Knitting Production',
+  Dyeing: 'Dyeing Production',
+  Finishing: 'Finishing Production',
+  Delivery: 'Delivery & Dispatch',
+  BP: 'BP Data (Batch Plan)',
+};
+
 // Module-level cache for instant tab loading
-let cachedUploadedFiles: any[] | null = null;
+let cachedRecentFiles: RecentFiles | null = null;
 
 export default function FileUploadScreen() {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null);
   const [category, setCategory] = useState('General');
   const [uploading, setUploading] = useState(false);
-  const [files, setFiles] = useState<any[]>(() => cachedUploadedFiles || []);
-  const [loading, setLoading] = useState(() => !cachedUploadedFiles);
+  const [recent, setRecent] = useState<RecentFiles | null>(() => cachedRecentFiles);
+  const [loading, setLoading] = useState(() => !cachedRecentFiles);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Batch Plan module: BP Data upload (permission actions.uploadBP; the server checks it too).
   // The dashboard renders pages only on the client (after the session check), so localStorage is readable here.
   const [canUploadBP] = useState(() => batchCanUploadBP());
+  // Removing a stored copy: Admin or actions.deleteFiles (the server checks it too).
+  const [canDelete] = useState(() => batchHasAction('deleteFiles'));
 
-  const fetchFiles = async () => {
-    if (!cachedUploadedFiles) setLoading(true);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // The stored copies (null when the list could not be loaded).
+  const requestRecent = async (): Promise<RecentFiles | null> => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/files/all`, {
+      const res = await fetch(`${API_BASE}/api/files/all?scope=recent`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        cachedUploadedFiles = data;
-        setFiles(data);
-      }
+      return res.ok ? ((await res.json()) as RecentFiles) : null;
     } catch (err) {
       console.error('Failed to load file list:', err);
-    } finally {
-      setLoading(false);
+      return null;
     }
   };
 
+  // Reload after an upload or a removed copy.
+  const fetchFiles = async () => {
+    const data = await requestRecent();
+    if (data) {
+      cachedRecentFiles = data;
+      setRecent(data);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    fetchFiles();
+    let live = true;
+    requestRecent().then((data) => {
+      if (!live) return;
+      if (data) {
+        cachedRecentFiles = data;
+        setRecent(data);
+      }
+      setLoading(false);
+    });
+    return () => {
+      live = false;
+    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,42 +155,79 @@ export default function FileUploadScreen() {
 
       // New source data: the Batch Plan page reloads it the next time it is shown.
       markBatchDataStale();
-      setToastMessage(`File "${selectedFile.name}" successfully uploaded and parsed!`);
+      showToast(`File "${selectedFile.name}" successfully uploaded and parsed!`);
       setSelectedFile(null);
-      setTimeout(() => setToastMessage(null), 3000);
       fetchFiles();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Server error during upload.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Server error during upload.');
+      fetchFiles(); // a file that could not be read is listed as failed
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDeleteFile = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete file record "${name}" from GridFS?`)) return;
+  const handleDeleteFile = async (file: UploadRecord) => {
+    if (
+      !confirm(
+        `Remove the stored copy of "${file.originalName}" (${formatDateDisplay(file.createdAt)})?\n\nThe upload history and all planning data stay.`
+      )
+    )
+      return;
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/files/${id}`, {
+      const res = await fetch(`${API_BASE}/api/files/${file._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-
+      let data: { message?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
       if (res.ok) {
-        markBatchDataStale();
-        setToastMessage(`File deleted successfully.`);
-        setTimeout(() => setToastMessage(null), 3000);
+        showToast((data && data.message) || 'The stored copy was removed.');
         fetchFiles();
+      } else {
+        setErrorMessage((data && data.message) || 'Could not remove the file copy.');
       }
     } catch (err) {
       console.error('Failed to delete file:', err);
     }
   };
 
-  const downloadFile = (filename: string) => {
-    const token = localStorage.getItem('token');
-    window.open(`${API_BASE}/api/files/download/${filename}?token=${token}`, '_blank');
+  // Download with the token in a header (not in the URL, where it would end up in history and logs).
+  const downloadFile = async (file: UploadRecord) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/files/download/${encodeURIComponent(file.savedName)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('The stored copy could not be downloaded.');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Download failed.');
+    }
   };
+
+  const files = recent?.files || [];
+  const history = recent?.history || {};
+  const keep = recent?.keepPerCategory || 3;
+  const categories = CATEGORY_ORDER.filter((c) => files.some((f) => (f.category || 'General') === c));
+  files.forEach((f) => {
+    const c = f.category || 'General';
+    if (!categories.includes(c)) categories.push(c);
+  });
+  const olderWithoutCopy = Object.values(history).reduce((a, h) => a + (h.withoutCopy || 0), 0);
+  const totalUploads = Object.values(history).reduce((a, h) => a + (h.uploads || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -219,11 +313,11 @@ export default function FileUploadScreen() {
         </form>
       </div>
 
-      {/* File Archives Table */}
+      {/* Recent uploads: the stored copies */}
       <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-base-300 font-bold text-sm flex items-center justify-between">
-          <span>GridFS Upload Archives</span>
-          <span className="text-xs text-base-content/60 font-normal">Total {files.length} files cataloged</span>
+        <div className="p-4 border-b border-base-300 font-bold text-sm flex flex-wrap items-center justify-between gap-2">
+          <span>Recent Uploads (latest {keep} per category)</span>
+          <span className="text-xs text-base-content/60 font-normal">{files.length} stored copies</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -231,7 +325,7 @@ export default function FileUploadScreen() {
             <thead className="bg-base-200/60 text-xs">
               <tr>
                 <th>Original File Name</th>
-                <th>Category</th>
+                <th>Status</th>
                 <th>Uploaded By</th>
                 <th>Uploaded At</th>
                 <th>File Size</th>
@@ -252,40 +346,79 @@ export default function FileUploadScreen() {
                   </td>
                 </tr>
               ) : (
-                files.map((file) => (
-                  <tr key={file._id} className="hover">
-                    <td className="font-semibold flex items-center gap-2">
-                      <File className="w-4 h-4 text-primary" />
-                      {file.originalName}
-                    </td>
-                    <td>
-                      <span className="badge badge-outline badge-sm font-bold">{file.category}</span>
-                    </td>
-                    <td>{file.uploadedBy} ({file.role})</td>
-                    <td>{formatDateDisplay(file.createdAt)}</td>
-                    <td>{((file.size || 0) / 1024).toFixed(1)} KB</td>
-                    <td className="text-right flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => downloadFile(file.savedName)}
-                        className="btn btn-ghost btn-xs text-primary"
-                        title="Download Raw Excel"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFile(file._id, file.originalName)}
-                        className="btn btn-ghost btn-xs text-error"
-                        title="Delete from GridFS"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
+                categories.map((cat) => (
+                  <React.Fragment key={cat}>
+                    <tr className="bg-base-200/40">
+                      <td colSpan={6} className="font-bold text-[11px] uppercase tracking-wide text-base-content/70">
+                        {CATEGORY_LABEL[cat] || cat}
+                        {history[cat] && (
+                          <span className="font-normal normal-case tracking-normal text-base-content/50">
+                            {' '}
+                            · {history[cat].uploads.toLocaleString('en-US')} uploads in total
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    {files
+                      .filter((f) => (f.category || 'General') === cat)
+                      .map((file) => (
+                        <tr key={file._id} className="hover">
+                          <td className="font-semibold">
+                            <span className="flex items-center gap-2">
+                              <File className="w-4 h-4 text-primary shrink-0" />
+                              {file.originalName}
+                            </span>
+                          </td>
+                          <td>
+                            {file.parseStatus === 'failed' ? (
+                              <span className="badge badge-error badge-sm font-bold" title={file.parseError || ''}>
+                                Could not be read
+                              </span>
+                            ) : file.inUse ? (
+                              <span className="badge badge-success badge-sm font-bold">In use</span>
+                            ) : (
+                              <span className="badge badge-ghost badge-sm font-bold">Backup copy</span>
+                            )}
+                          </td>
+                          <td>
+                            {file.uploadedBy} ({file.role})
+                          </td>
+                          <td>{formatDateDisplay(file.createdAt)}</td>
+                          <td>{((file.size || 0) / 1024).toFixed(1)} KB</td>
+                          <td className="text-right">
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => downloadFile(file)}
+                                className="btn btn-ghost btn-xs text-primary"
+                                title="Download Raw Excel"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                              {canDelete && !file.inUse && (
+                                <button
+                                  onClick={() => handleDeleteFile(file)}
+                                  className="btn btn-ghost btn-xs text-error"
+                                  title="Remove this stored copy (the history and planning data stay)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </React.Fragment>
                 ))
               )}
             </tbody>
           </table>
         </div>
+        {olderWithoutCopy > 0 && (
+          <div className="px-4 py-3 border-t border-base-300 text-[11px] text-base-content/60">
+            {olderWithoutCopy.toLocaleString('en-US')} older uploads (of {totalUploads.toLocaleString('en-US')}) are kept in the upload history; their
+            stored file copies were removed to save database space. Their data is still in the plans.
+          </div>
+        )}
       </div>
     </div>
   );
