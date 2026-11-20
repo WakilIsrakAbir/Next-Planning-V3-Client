@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import {
   FileSpreadsheet,
   Download,
@@ -34,6 +34,24 @@ interface ReportOrder {
   [key: string]: unknown;
 }
 
+// "Preview Table" / "Hide Table" button of a report card
+function PreviewToggleButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full sm:w-auto px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
+      title={open ? 'Hide Table' : 'Preview Table Data'}
+    >
+      {open ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      <span>{open ? 'Hide Table' : 'Preview Table'}</span>
+    </button>
+  );
+}
+
+type PreviewKind = 'updated' | 'pending';
+const EMPTY_PREVIEWS: Record<PreviewKind, ReportOrder[] | null> = { updated: null, pending: null };
+const NOT_LOADING: Record<PreviewKind, boolean> = { updated: false, pending: false };
+
 export default function DepartmentReportScreen({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
@@ -51,11 +69,12 @@ export default function DepartmentReportScreen({ params }: PageProps) {
   const hasPendingData = pendingCount > 0;
   const hasData = hasUpdatedData || hasPendingData;
 
-  // Lazy table data (only loaded if user requests inspection/preview)
-  const [showDetailedTable, setShowDetailedTable] = useState(false);
-  const [tableLoading, setTableLoading] = useState(false);
-  const [orders, setOrders] = useState<ReportOrder[]>([]);
-  const [, setPlanMap] = useState<Record<string, unknown>>({});
+  // Lazy preview tables (only loaded if the user asks): Updated (Confirm / Tentative) or Pending orders.
+  // Each is loaded once per department; the table shows the one that is open.
+  const [previewKind, setPreviewKind] = useState<PreviewKind | null>(null);
+  const [previewOrders, setPreviewOrders] = useState<Record<PreviewKind, ReportOrder[] | null>>(EMPTY_PREVIEWS);
+  const [previewLoading, setPreviewLoading] = useState<Record<PreviewKind, boolean>>(NOT_LOADING);
+  const currentDept = useRef(dept);
   const [downloading, setDownloading] = useState(false);
   const [downloadingPending, setDownloadingPending] = useState(false);
   const [search, setSearch] = useState('');
@@ -66,10 +85,11 @@ export default function DepartmentReportScreen({ params }: PageProps) {
     let isMounted = true;
 
     const checkDataExists = async () => {
+      currentDept.current = dept;
       setChecking(true);
-      setShowDetailedTable(false);
-      setOrders([]);
-      setPlanMap({});
+      setPreviewKind(null);
+      setPreviewOrders(EMPTY_PREVIEWS);
+      setPreviewLoading(NOT_LOADING);
       setConfirmCount(0);
       setTentativeCount(0);
       setPendingCount(0);
@@ -130,35 +150,38 @@ export default function DepartmentReportScreen({ params }: PageProps) {
     };
   }, [dept]);
 
-  // 2. Lazy load full table data on demand
-  const handleToggleTable = async () => {
-    if (showDetailedTable) {
-      setShowDetailedTable(false);
+  // 2. Lazy load a preview table on demand (the same button hides it again)
+  const handleTogglePreview = async (kind: PreviewKind) => {
+    if (previewKind === kind) {
+      setPreviewKind(null);
       return;
     }
 
-    if (orders.length > 0) {
-      setShowDetailedTable(true);
-      return;
-    }
+    setPreviewKind(kind);
+    setBuyer('');
+    setSearch('');
+    if (previewOrders[kind] || previewLoading[kind]) return;
 
-    setTableLoading(true);
-    setShowDetailedTable(true);
+    const requestDept = dept;
+    setPreviewLoading((prev) => ({ ...prev, [kind]: true }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/orders/report/${dept}`, {
+      const query = kind === 'pending' ? '?pendingOnly=true' : '';
+      const res = await fetch(`${API_BASE}/api/orders/report/${dept}${query}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.ok) {
+      // A late answer for a department the user already left is dropped
+      if (res.ok && currentDept.current === requestDept) {
         const data = await res.json();
-        setOrders(data.orders || []);
-        setPlanMap(data.planMap || {});
+        setPreviewOrders((prev) => ({ ...prev, [kind]: data.orders || [] }));
       }
     } catch (err) {
       console.error('Failed to load detailed report data:', err);
     } finally {
-      setTableLoading(false);
+      if (currentDept.current === requestDept) {
+        setPreviewLoading((prev) => ({ ...prev, [kind]: false }));
+      }
     }
   };
 
@@ -201,6 +224,9 @@ export default function DepartmentReportScreen({ params }: PageProps) {
   const downloadExcel = () => downloadReportFile('report-download', 'Updated', setDownloading);
   const downloadPendingExcel = () => downloadReportFile('pending-download', 'Pending', setDownloadingPending);
 
+  const isPendingPreview = previewKind === 'pending';
+  const tableLoading = previewKind ? previewLoading[previewKind] : false;
+  const orders = (previewKind && previewOrders[previewKind]) || [];
   const filteredOrders = orders.filter((o) => {
     if (buyer && o.buyer !== buyer) return false;
     if (search && !String(o.orderNo || '').toLowerCase().includes(search.toLowerCase())) return false;
@@ -233,6 +259,43 @@ export default function DepartmentReportScreen({ params }: PageProps) {
           </div>
         ) : (
           <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6 w-full max-w-[1040px]">
+            {/* Pending orders alone (orders not yet planned as Confirm or Tentative) */}
+            {hasPendingData && (
+              <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-amber-500 hover:-translate-y-1 transition-transform">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
+                  <Hourglass className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
+                  Pending Report
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
+                  Extract only <strong className="text-gray-700 dark:text-gray-200">Pending</strong> orders (not yet
+                  planned as Confirm or Tentative). All buyers will be combined into a{' '}
+                  <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
+                </p>
+
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold rounded-full text-xs">
+                    Pending: {pendingCount}
+                  </span>
+                </div>
+
+                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                  <button
+                    onClick={downloadPendingExcel}
+                    disabled={downloadingPending}
+                    className="flex-1 w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-md shadow-amber-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    {downloadingPending ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
+                    <span>Download Pending Data</span>
+                  </button>
+
+                  <PreviewToggleButton open={previewKind === 'pending'} onClick={() => handleTogglePreview('pending')} />
+                </div>
+              </div>
+            )}
+
             {hasUpdatedData && (
               <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-emerald-600 hover:-translate-y-1 transition-transform">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
@@ -265,7 +328,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
                   <button
                     onClick={downloadExcel}
                     disabled={downloading}
@@ -275,49 +338,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                     <span>Download {dept.toUpperCase()} Data</span>
                   </button>
 
-                  <button
-                    onClick={handleToggleTable}
-                    className="w-full sm:w-auto px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
-                    title={showDetailedTable ? 'Hide Table' : 'Preview Table Data'}
-                  >
-                    {showDetailedTable ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span>{showDetailedTable ? 'Hide Table' : 'Preview Table'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Pending orders alone (orders not yet planned as Confirm or Tentative) */}
-            {hasPendingData && (
-              <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-amber-500 hover:-translate-y-1 transition-transform">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
-                  <Hourglass className="h-8 w-8 sm:h-10 sm:w-10" />
-                </div>
-
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
-                  Pending Report
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
-                  Extract only <strong className="text-gray-700 dark:text-gray-200">Pending</strong> orders (not yet
-                  planned as Confirm or Tentative). All buyers will be combined into a{' '}
-                  <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
-                </p>
-
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold rounded-full text-xs">
-                    Pending: {pendingCount}
-                  </span>
-                </div>
-
-                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
-                  <button
-                    onClick={downloadPendingExcel}
-                    disabled={downloadingPending}
-                    className="flex-1 w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-md shadow-amber-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
-                  >
-                    {downloadingPending ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
-                    <span>Download Pending Data</span>
-                  </button>
+                  <PreviewToggleButton open={previewKind === 'updated'} onClick={() => handleTogglePreview('updated')} />
                 </div>
               </div>
             )}
@@ -325,12 +346,22 @@ export default function DepartmentReportScreen({ params }: PageProps) {
         )}
       </div>
 
-      {/* Detailed Confirmed & Tentative Orders Table (Lazy Loaded on Demand) */}
-      {showDetailedTable && (
+      {/* Detailed Orders Table of the open preview: Updated (Confirm & Tentative) or Pending (Lazy Loaded on Demand) */}
+      {previewKind && (
         <div className="card bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] shadow-sm rounded-sm overflow-hidden animate-fade-in">
           {/* Sub Header & Controls */}
           <div className="bg-gray-100 dark:bg-[#1f2637] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 dark:border-[#2a3346]">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded text-xs font-bold ${
+                  isPendingPreview
+                    ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
+                    : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                }`}
+              >
+                {isPendingPreview ? 'Pending Report' : 'Updated Report'}
+                {!tableLoading && ` · ${filteredOrders.length} order${filteredOrders.length === 1 ? '' : 's'}`}
+              </span>
               <Filter className="h-4 w-4 text-gray-500" />
               <select
                 value={buyer}
@@ -365,9 +396,11 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                 <Printer className="h-3.5 w-3.5" /> Print
               </button>
               <button
-                onClick={downloadExcel}
-                disabled={downloading}
-                className="px-4 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                onClick={isPendingPreview ? downloadPendingExcel : downloadExcel}
+                disabled={isPendingPreview ? downloadingPending : downloading}
+                className={`px-4 py-1.5 text-white rounded text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 ${
+                  isPendingPreview ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
               >
                 <Download className="h-3.5 w-3.5" /> Excel Export
               </button>
@@ -378,11 +411,18 @@ export default function DepartmentReportScreen({ params }: PageProps) {
           <div className="overflow-x-auto custom-scrollbar">
             {tableLoading ? (
               <div className="p-12">
-                <LoadingSpinner message={`Generating ${dept.toUpperCase()} consolidated report...`} overlay={false} />
+                <LoadingSpinner
+                  message={
+                    isPendingPreview
+                      ? `Loading ${dept.toUpperCase()} pending orders...`
+                      : `Generating ${dept.toUpperCase()} consolidated report...`
+                  }
+                  overlay={false}
+                />
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
-                No Confirmed or Tentative data matching filter for {dept.toUpperCase()}.
+                No {isPendingPreview ? 'Pending' : 'Confirmed or Tentative'} data matching filter for {dept.toUpperCase()}.
               </div>
             ) : (
               <table className="w-full text-left whitespace-nowrap min-w-[900px] border-collapse">
@@ -428,7 +468,9 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                                 ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300'
                                 : planStatus === 'Tentative'
                                 ? 'bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300'
-                                : 'bg-gray-100 text-gray-700'
+                                : planStatus === 'Pending'
+                                ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
+                                : 'bg-gray-100 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300'
                             }`}
                           >
                             {planStatus}
