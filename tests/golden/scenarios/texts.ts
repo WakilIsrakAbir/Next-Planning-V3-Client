@@ -1,0 +1,40 @@
+// Messages of today's OrderPlanningScreen.tsx, copied verbatim (used only by the scenario expectations).
+export const T = {
+  // field-change checks
+  startAfterEnd: 'Start Date cannot be greater than End Date!',
+  knitBlank: 'Cannot set Dyeing plan because Knitting plan is blank!',
+  dyeStartBeforeKnit: 'Dyeing Start Date cannot be less than Knitting Start Date!',
+  dyeEndBeforeKnit: 'Dyeing End Date cannot be less than Knitting End Date!',
+  datesRequired: 'Start and End dates are required to set Plan Type.',
+  yarnForConfirm: "Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!",
+  knitTentative: 'Cannot confirm Dyeing when Knitting is Tentative.',
+  finalConfNo: "Cannot confirm Dyeing because Final Confirmation is 'No'.",
+  dyeTentativeOrBlank: 'Cannot confirm Delivery when Dyeing is Tentative or blank.',
+  // save checks
+  noItems: 'No fabric items to save! Please upload department data first.',
+  adminOnlyConfirm: 'Save failed: Only Admin can change a Confirmed plan!',
+  nextConfirmed: (dept: string) => `Save failed: Cannot change ${dept} because the next department is already Confirmed!`,
+  endBeforeStart: 'Save failed: End date cant be less than start date.',
+  typeWithoutDates: 'Save failed: Plan Type selected without Start and End dates.',
+  saveYarnForConfirm: "Save failed: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!",
+  saveStartBeforeYarn: 'Save failed: Knitting Planning Start Date cannot be less than Yarn Date!',
+  saveKnitTypeMandatory: 'Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!',
+  saveDyeStartBeforeKnit: 'Save failed: Dyeing Start Date cannot be before Knitting Start Date!',
+  saveDyeEndBeforeKnit: 'Save failed: Dyeing End Date cannot be before Knitting End Date!',
+  saveDyeTypeMandatory: 'Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!',
+  saveDyeMissing: 'Save failed: Cannot input Delivery. Dyeing plan is missing!',
+  saveDeliStartBeforeDye: 'Save failed: Delivery Start Date cannot be before Dyeing Start Date!',
+  saveDeliEndBeforeDye: 'Save failed: Delivery End Date cannot be before Dyeing End Date!',
+  completedConfirm: (orderNo: string) =>
+    `Are you sure you want to mark order '${orderNo}' as Completed? It will be moved to the Completed List.`,
+  saved: (orderNo: string) => `Planning schedule successfully saved for Order #${orderNo}!`,
+  saveFailedDefault: 'Failed to save planning schedule.',
+  loadFailed: (orderNo: string) => `Failed to load order #${orderNo}`,
+  // row lock tooltips
+  knitTypeMandatory: 'Knitting Plan type selection is mandatory to input Dyeing plan',
+  unitProcessFirst: 'Unit & Process Name must be selected before planning',
+  dyeTypeMandatory: 'Dyeing Plan type selection is mandatory to input Delivery plan',
+  adminOnly: 'Only Admin can modify Confirmed plan',
+  dyeMissing: 'Dyeing plan is missing for this item',
+  rowOneHint: '⚡ Changing Row 1 Yarn Date auto-fills all items',
+};

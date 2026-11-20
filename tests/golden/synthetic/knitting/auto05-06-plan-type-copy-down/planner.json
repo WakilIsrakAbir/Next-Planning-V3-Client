@@ -1,0 +1,194 @@
+{
+  "scenario": "knitting/auto05-06-plan-type-copy-down/planner",
+  "fixture": "knit-basic",
+  "dept": "knitting",
+  "role": "planner",
+  "orderNo": "SYN-K1",
+  "rules": ["AUTO-05","AUTO-06","AUTO-02","CHG-06","GATE-05","CAS-01"],
+  "note": "A non-admin who picks Confirm on row 0 locks it at once; clearing the row-0 Yarn Date is the way back.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-K1 Knitting Plan",
+        "general": {
+          "EWO No.": "SYN-K1",
+          "Booking No.": "SYN-K1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "knitting",
+          "head": [
+            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Knitting Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-K1?dept=knitting","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-K1 Knitting Plan",
+        "general": {
+          "EWO No.": "SYN-K1",
+          "Booking No.": "SYN-K1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1000",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-K1."
+        },
+        "section": {"header":"Department Fabric Items 3 Row 1 changes auto-fill all items below","footer":"Total 3 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "knitting",
+          "head": [
+            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red","S/J","160",null,null,null,null,null,null,"520","100","420","525","250","275","5"],
+              "fields": {
+                "yarnDate": {"value":"2026-10-01","disabled":false,"title":"⚡ Changing Row 1 Yarn Date auto-fills all items"},
+                "startDate": {"value":"2026-10-05","disabled":false,"title":null,"min":"2026-10-01"},
+                "endDate": {"value":"2026-10-15","disabled":false,"title":null,"min":"2026-10-05"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"L-red","disabled":false,"title":null},
+                "remarks": {"value":"R-red","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue","S/J","180",null,null,null,null,null,null,"320","100","220","315","150","165","5"],
+              "fields": {
+                "yarnDate": {"value":"2026-10-01","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-06","disabled":true,"title":"Only Admin can modify Confirmed plan","min":"2026-10-01","greyed":true},
+                "endDate": {"value":"2026-10-16","disabled":true,"title":"Only Admin can modify Confirmed plan","min":"2026-10-06","greyed":true},
+                "planType": {"value":"Confirm","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green","Rib","200",null,null,null,null,null,null,"220","100","120","210","100","110","5"],
+              "fields": {
+                "yarnDate": {"value":"","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-09","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":0,"field":"planType","value":"Confirm"},
+      "events": {"toasts":["error: Start and End dates are required to set Plan Type."]},
+      "changes": {"toast":"error: Start and End dates are required to set Plan Type.","table.rows[0].fields.startDate.disabled":true,"table.rows[0].fields.startDate.title":"Only Admin can modify Confirmed plan","table.rows[0].fields.startDate.greyed":true,"table.rows[0].fields.endDate.disabled":true,"table.rows[0].fields.endDate.title":"Only Admin can modify Confirmed plan","table.rows[0].fields.endDate.greyed":true,"table.rows[0].fields.planType.value":"Confirm","table.rows[0].fields.planType.disabled":true,"table.rows[0].fields.planType.title":"Only Admin can modify Confirmed plan","table.rows[0].fields.planType.greyed":true}
+    },
+    {
+      "n": 3,
+      "step": {"do":"set","row":0,"field":"yarnDate","value":""},
+      "events": {"toasts":["error: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!"]},
+      "changes": {"toast":"error: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!","table.rows[0].fields.yarnDate.value":"","table.rows[0].fields.startDate.disabled":false,"table.rows[0].fields.startDate.title":null,"table.rows[0].fields.endDate.disabled":false,"table.rows[0].fields.endDate.title":null,"table.rows[0].fields.planType.value":"","table.rows[0].fields.planType.disabled":false,"table.rows[0].fields.planType.title":null,"table.rows[1].fields.yarnDate.value":"","table.rows[1].fields.startDate.disabled":false,"table.rows[1].fields.startDate.title":null,"table.rows[1].fields.endDate.disabled":false,"table.rows[1].fields.endDate.title":null,"table.rows[1].fields.planType.value":"","table.rows[1].fields.planType.disabled":false,"table.rows[1].fields.planType.title":null,"table.rows[0].fields.startDate.min":"<removed>","table.rows[0].fields.startDate.greyed":"<removed>","table.rows[0].fields.endDate.greyed":"<removed>","table.rows[0].fields.planType.greyed":"<removed>","table.rows[1].fields.startDate.min":"<removed>","table.rows[1].fields.startDate.greyed":"<removed>","table.rows[1].fields.endDate.greyed":"<removed>","table.rows[1].fields.planType.greyed":"<removed>"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"set","row":2,"field":"startDate","value":"2026-10-04"},
+      "changes": {"toast":null,"table.rows[2].fields.startDate.value":"2026-10-04","table.rows[2].fields.endDate.min":"2026-10-04"}
+    },
+    {
+      "n": 5,
+      "step": {"do":"set","row":2,"field":"planType","value":"Tentative"},
+      "changes": {"table.rows[2].fields.planType.value":"Tentative"}
+    },
+    {
+      "n": 6,
+      "step": {"do":"set","row":2,"field":"endDate","value":""},
+      "events": {"toasts":["error: Start and End dates are required to set Plan Type."]},
+      "changes": {"toast":"error: Start and End dates are required to set Plan Type.","table.rows[2].fields.endDate.value":"","table.rows[2].fields.planType.value":""}
+    }
+  ]
+}

@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# golden master: real-data fixtures and recordings from the local test database (never commit)
+/tests/golden/local/
 
 # next.js
 /.next/

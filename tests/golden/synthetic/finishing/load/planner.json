@@ -1,0 +1,207 @@
+{
+  "scenario": "finishing/load/planner",
+  "fixture": "fin-basic",
+  "dept": "finishing",
+  "role": "planner",
+  "orderNo": "SYN-F1",
+  "rules": ["GATE-05","GATE-06","GATE-08","AUTO-09","MATCH-02"],
+  "note": "No Finishing input is ever disabled, not even a Confirm row for a non-admin.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-F1 Finishing Plan",
+        "general": {
+          "EWO No.": "SYN-F1",
+          "Booking No.": "SYN-F1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "finishing",
+          "head": [
+            ["OrderNo","Color","RequiredQtyKgs","Buyer","Unit","Process Name","Grey Req.","Knit Prod.","Knit. Bala.","BP Qty","Dyeing Prod.","Dyeing Bala.","NetReceivedQtyKgs","NetDeliveryQtyKgs","RFD","Slowmoving","FF Stock","Finishing Planning","Plan Type","Finishing Limitation","Remarks"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Finishing Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-F1?dept=finishing","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-F1 Finishing Plan",
+        "general": {
+          "EWO No.": "SYN-F1",
+          "Booking No.": "SYN-F1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "Floor-2",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1100",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-F1."
+        },
+        "section": {"header":"Department Fabric Items 4 Row 1 changes auto-fill all items below","footer":"Total 4 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "finishing",
+          "head": [
+            ["OrderNo","Color","RequiredQtyKgs","Buyer","Unit","Process Name","Grey Req.","Knit Prod.","Knit. Bala.","BP Qty","Dyeing Prod.","Dyeing Bala.","NetReceivedQtyKgs","NetDeliveryQtyKgs","RFD","Slowmoving","FF Stock","Finishing Planning","Plan Type","Finishing Limitation","Remarks"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["SYN-F1","Red","500","Buyer North",null,null,"520","500","20","470","60","440","0","0","0","0","0",null,null,null,null,null],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-11-01","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-11-01"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["SYN-F1","Blue","300","Buyer North",null,null,"320","300","20","270","60","240","0","0","0","0","0",null,null,null,null,null],
+              "fields": {
+                "unit": {
+                  "value": "Floor-2",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Floor-2","EFL","EKL","Ext","Outside","Unit-X"]
+                },
+                "processName": {
+                  "value": "Prog-A",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Prog-A","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["SYN-F1","Green","200","Buyer North",null,null,"220","200","20","170","60","140","0","0","0","0","0",null,null,null,null,null],
+              "fields": {
+                "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "HTR",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-11-02","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-03","disabled":false,"title":null,"min":"2026-11-02"},
+                "planType": {"value":"Confirm","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["SYN-F1","Red","100","Buyer North",null,null,"120","100","20","70","60","40","0","0","0","0","0",null,null,null,null,null],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-11-01","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-11-01"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    }
+  ]
+}

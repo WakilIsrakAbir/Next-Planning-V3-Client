@@ -1,0 +1,263 @@
+{
+  "scenario": "delivery/floor-copy-down-and-save04/planner",
+  "fixture": "deli-basic",
+  "dept": "delivery",
+  "role": "planner",
+  "orderNo": "SYN-L1",
+  "rules": ["CAS-01","SAVE-04","GATE-08"],
+  "note": "Row-0 Floor values are copied into every row (locked rows too); a Floor Confirm has no rule; Floor End before Floor Start is refused only at save.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-L1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-L1",
+          "Booking No.": "SYN-L1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-L1?dept=delivery","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-L1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-L1",
+          "Booking No.": "SYN-L1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1570",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-L1."
+        },
+        "section": {"header":"Department Fabric Items 8 Row 1 changes auto-fill all items below","footer":"Total 8 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-26","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-26"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"DLV-red","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue","S/J","180",null,null,null,null,null,null,null,null,"17-Oct-2026","26-Oct-2026","Tentative","06-Oct-2026","16-Oct-2026","300","250","200","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-24","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-02","disabled":false,"title":null,"min":"2026-10-24"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green","Rib","200",null,null,null,null,null,null,null,null,"18-Oct-2026","—","-","—","—","200","150","100","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "floorEndDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "floorPlanType": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["White","Rib","200",null,null,null,null,null,null,null,null,"—","—","-","—","—","150","100","50","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "floorEndDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "floorPlanType": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "4",
+              "text": ["Grey","Pique","220",null,null,null,null,null,null,null,null,"—","—","Tentative","—","—","90","40","-10","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "5",
+              "text": ["Navy","S/J","160",null,null,null,null,null,null,null,null,"20-Oct-2026","29-Oct-2026","Confirm","—","—","120","70","20","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-27","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-27"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-27","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
+                "endDate": {"value":"2026-11-06","disabled":true,"title":"Only Admin can modify Confirmed plan","min":"2026-10-27","greyed":true},
+                "planType": {"value":"Confirm","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "6",
+              "text": ["Red","Rib","200",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","09-Oct-2026","19-Oct-2026","110","60","10","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "7",
+              "text": ["Red","Pique","220",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","100","50","0","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":0,"field":"floorStartDate","value":"2026-10-22"},
+      "changes": {"table.rows[0].fields.floorStartDate.value":"2026-10-22","table.rows[0].fields.floorEndDate.min":"2026-10-22","table.rows[1].fields.floorStartDate.value":"2026-10-22","table.rows[1].fields.floorEndDate.min":"2026-10-22","table.rows[2].fields.floorStartDate.value":"2026-10-22","table.rows[2].fields.floorEndDate.min":"2026-10-22","table.rows[3].fields.floorStartDate.value":"2026-10-22","table.rows[3].fields.floorEndDate.min":"2026-10-22","table.rows[4].fields.floorStartDate.value":"2026-10-22","table.rows[4].fields.floorEndDate.min":"2026-10-22","table.rows[5].fields.floorStartDate.value":"2026-10-22","table.rows[5].fields.floorEndDate.min":"2026-10-22","table.rows[6].fields.floorStartDate.value":"2026-10-22","table.rows[6].fields.floorEndDate.min":"2026-10-22","table.rows[7].fields.floorStartDate.value":"2026-10-22","table.rows[7].fields.floorEndDate.min":"2026-10-22"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"set","row":0,"field":"floorPlanType","value":"Confirm"},
+      "changes": {"table.rows[0].fields.floorPlanType.value":"Confirm","table.rows[1].fields.floorPlanType.value":"Confirm","table.rows[2].fields.floorPlanType.value":"Confirm","table.rows[3].fields.floorPlanType.value":"Confirm","table.rows[4].fields.floorPlanType.value":"Confirm","table.rows[5].fields.floorPlanType.value":"Confirm","table.rows[6].fields.floorPlanType.value":"Confirm","table.rows[7].fields.floorPlanType.value":"Confirm"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"set","row":1,"field":"floorEndDate","value":"2026-10-20"},
+      "changes": {"table.rows[1].fields.floorEndDate.value":"2026-10-20"}
+    },
+    {
+      "n": 5,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: End date cant be less than start date."]},
+      "changes": {"toast":"error: Save failed: End date cant be less than start date."}
+    }
+  ]
+}

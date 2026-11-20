@@ -1,0 +1,47 @@
+{
+  "about": "YD without a saved Knitting plan: the 'Knit Plan' columns fall back to the General Knit T&A (an 'N/A' end shows as blank).",
+  "orderNo": "SYN-Y2",
+  "orders": [
+    {
+      "_id": "a00000000000000000000023",
+      "orderNo": "SYN-Y2",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-Y2.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "N/A",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [],
+      "ydItems": [
+        {"Booking Type":"Solid","YD Booking Date":46270,"Buyer":"Buyer North","Booking No.":"SYN-Y2","YDB":"YDB-101","YD T&A\nStart":"2026-10-03","YD T&A\nEnd":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD DELIVERY REQ.":120,"YD DELIVERED":30,"YD DELIVERY BALANCE":90}
+      ],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": []
+}

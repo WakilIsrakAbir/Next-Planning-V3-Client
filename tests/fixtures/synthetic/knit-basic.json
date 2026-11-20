@@ -1,0 +1,102 @@
+{
+  "about": "Knitting: row 0 saved Tentative (unlocked for everyone, drives the Row-1 copy-down), row 1 saved Confirm (locked for non-admins), row 2 an end date without start or plan type. General card: Excel-serial booking date, 'N/A' last ship date, empty Order Qty (server fallback: sum of the item quantities).",
+  "orderNo": "SYN-K1",
+  "orders": [
+    {
+      "_id": "a00000000000000000000001",
+      "orderNo": "SYN-K1",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-K1.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [
+        {"OrderNo":"SYN-K1","Color":"Red","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance %":5,"Yarn req.":525,"Allocated Qty ":250,"Yarn bala.":275,"Grey Req.":520,"Knit Prod.":100,"Knit. Bala.":420,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0,"Deli. Bala.":500},
+        {"OrderNo":"SYN-K1","Color":"Blue","FabricConstruction":"S/J","GSM":180,"RequiredQtyKgs":300,"Buyer":"Buyer North","Allowance %":5,"Yarn req.":315,"Allocated Qty ":150,"Yarn bala.":165,"Grey Req.":320,"Knit Prod.":100,"Knit. Bala.":220,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0,"Deli. Bala.":300},
+        {"OrderNo":"SYN-K1","Color":"Green","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":200,"Buyer":"Buyer North","Allowance %":5,"Yarn req.":210,"Allocated Qty ":100,"Yarn bala.":110,"Grey Req.":220,"Knit Prod.":100,"Knit. Bala.":120,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0,"Deli. Bala.":200}
+      ],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [],
+      "ydItems": [],
+      "knittingPlanStatus": "Tentative",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000002",
+      "orderNo": "SYN-K1",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-k1_red_s/j_160",
+          "itemData": {"OrderNo":"SYN-K1","Color":"Red","FabricConstruction":"S/J","GSM":160},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Tentative",
+          "limitation": "L-red",
+          "remarks": "R-red",
+          "yarnDate": "2026-10-01"
+        },
+        {
+          "itemId": "syn-k1_blue_s/j_180",
+          "itemData": {"OrderNo":"SYN-K1","Color":"Blue","FabricConstruction":"S/J","GSM":180},
+          "startDate": "2026-10-06",
+          "endDate": "2026-10-16",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": "",
+          "yarnDate": "2026-10-01"
+        },
+        {
+          "itemId": "syn-k1_green_rib_200",
+          "itemData": {"OrderNo":"SYN-K1","Color":"Green","FabricConstruction":"Rib","GSM":200},
+          "startDate": "",
+          "endDate": "2026-10-09",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "dyeing": [],
+      "finishing": [],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

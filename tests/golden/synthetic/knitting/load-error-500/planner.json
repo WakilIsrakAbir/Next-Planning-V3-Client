@@ -1,0 +1,130 @@
+{
+  "scenario": "knitting/load-error-500/planner",
+  "fixture": "knit-basic",
+  "dept": "knitting",
+  "role": "planner",
+  "orderNo": "SYN-K1",
+  "rules": [],
+  "note": "A failed detail request (not 404) with no rows on screen shows the load-error toast and the empty table.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load","replyDetail":{"status":500,"json":{"message":"Server error"}}},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-K1 Knitting Plan",
+        "general": {
+          "EWO No.": "SYN-K1",
+          "Booking No.": "SYN-K1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "knitting",
+          "head": [
+            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Knitting Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "toasts": ["error: Failed to load order #SYN-K1"],
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-K1?dept=knitting","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": "error: Failed to load order #SYN-K1",
+        "header": "Order Planning: SYN-K1 Knitting Plan",
+        "general": {
+          "EWO No.": "SYN-K1",
+          "Booking No.": "SYN-K1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "knitting",
+          "head": [
+            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "No Knitting Plan fabric items found for Order # SYN-K1 ."
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    }
+  ]
+}

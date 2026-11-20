@@ -1,0 +1,433 @@
+{
+  "scenario": "delivery/save11-12-then-saved/admin",
+  "fixture": "deli-basic",
+  "dept": "delivery",
+  "role": "admin",
+  "orderNo": "SYN-L1",
+  "rules": ["SAVE-11","SAVE-12","AUTO-07","SAVE-16","SAVE-17"],
+  "note": "Admin types Floor dates where the Dyeing type is blank (SAVE-11) or the Dyeing dates are missing (SAVE-12); the final save stores the Floor defaults nobody touched.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-L1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-L1",
+          "Booking No.": "SYN-L1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-L1?dept=delivery","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-L1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-L1",
+          "Booking No.": "SYN-L1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1570",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-L1."
+        },
+        "section": {"header":"Department Fabric Items 8 Row 1 changes auto-fill all items below","footer":"Total 8 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-26","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-26"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"DLV-red","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue","S/J","180",null,null,null,null,null,null,null,null,"17-Oct-2026","26-Oct-2026","Tentative","06-Oct-2026","16-Oct-2026","300","250","200","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-24","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-02","disabled":false,"title":null,"min":"2026-10-24"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green","Rib","200",null,null,null,null,null,null,null,null,"18-Oct-2026","—","-","—","—","200","150","100","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["White","Rib","200",null,null,null,null,null,null,null,null,"—","—","-","—","—","150","100","50","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "4",
+              "text": ["Grey","Pique","220",null,null,null,null,null,null,null,null,"—","—","Tentative","—","—","90","40","-10","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "5",
+              "text": ["Navy","S/J","160",null,null,null,null,null,null,null,null,"20-Oct-2026","29-Oct-2026","Confirm","—","—","120","70","20","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-27","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-27"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-27","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-06","disabled":false,"title":null,"min":"2026-10-27"},
+                "planType": {"value":"Confirm","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "6",
+              "text": ["Red","Rib","200",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","09-Oct-2026","19-Oct-2026","110","60","10","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "7",
+              "text": ["Red","Pique","220",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","100","50","0","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":2,"field":"floorStartDate","value":"2026-10-25"},
+      "changes": {"table.rows[2].fields.floorStartDate.value":"2026-10-25","table.rows[2].fields.floorEndDate.min":"2026-10-25"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!"]},
+      "changes": {"toast":"error: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"set","row":2,"field":"floorStartDate","value":""},
+      "changes": {"toast":null,"table.rows[2].fields.floorStartDate.value":"","table.rows[2].fields.floorEndDate.min":"<removed>"}
+    },
+    {
+      "n": 5,
+      "step": {"do":"set","row":4,"field":"floorStartDate","value":"2026-10-25"},
+      "changes": {"table.rows[4].fields.floorStartDate.value":"2026-10-25","table.rows[4].fields.floorEndDate.min":"2026-10-25"}
+    },
+    {
+      "n": 6,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Cannot input Delivery. Dyeing plan is missing!"]},
+      "changes": {"toast":"error: Save failed: Cannot input Delivery. Dyeing plan is missing!"}
+    },
+    {
+      "n": 7,
+      "step": {"do":"set","row":4,"field":"floorStartDate","value":""},
+      "changes": {"toast":null,"table.rows[4].fields.floorStartDate.value":"","table.rows[4].fields.floorEndDate.min":"<removed>"}
+    },
+    {
+      "n": 8,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-L1!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-L1",
+              "department": "delivery",
+              "fabricItems": [
+                {
+                  "itemId": "syn-l1_red_s/j_160",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Red","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":520,"KnitProd":500,"KnitBala":0,"NetReceivedQtyKgs":450,"NetDeliveryQtyKgs":400,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-26",
+                  "endDate": "2026-11-05",
+                  "limitation": "DLV-red",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-23",
+                  "floorEndDate": "2026-11-01",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_blue_s/j_180",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Blue","FabricConstruction":"S/J","GSM":180,"RequiredQtyKgs":300,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":320,"KnitProd":300,"KnitBala":0,"NetReceivedQtyKgs":250,"NetDeliveryQtyKgs":200,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-24",
+                  "floorEndDate": "2026-11-02",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_green_rib_200",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Green","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":200,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":220,"KnitProd":200,"KnitBala":0,"NetReceivedQtyKgs":150,"NetDeliveryQtyKgs":100,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_white_rib_200",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"White","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":150,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":170,"KnitProd":150,"KnitBala":0,"NetReceivedQtyKgs":100,"NetDeliveryQtyKgs":50,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_grey_pique_220",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Grey","FabricConstruction":"Pique","GSM":220,"RequiredQtyKgs":90,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":110,"KnitProd":90,"KnitBala":0,"NetReceivedQtyKgs":40,"NetDeliveryQtyKgs":-10,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_navy_s/j_160",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Navy","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":120,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":140,"KnitProd":120,"KnitBala":0,"NetReceivedQtyKgs":70,"NetDeliveryQtyKgs":20,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "Confirm",
+                  "startDate": "2026-10-27",
+                  "endDate": "2026-11-06",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-27",
+                  "floorEndDate": "2026-11-05",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_red_rib_200",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Red","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":110,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":130,"KnitProd":110,"KnitBala":0,"NetReceivedQtyKgs":60,"NetDeliveryQtyKgs":10,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-23",
+                  "floorEndDate": "2026-11-01",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-l1_red_pique_220",
+                  "itemData": {"OrderNo":"SYN-L1","Color":"Red","FabricConstruction":"Pique","GSM":220,"RequiredQtyKgs":100,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":120,"KnitProd":100,"KnitBala":0,"NetReceivedQtyKgs":50,"NetDeliveryQtyKgs":0,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-23",
+                  "floorEndDate": "2026-11-01",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                }
+              ],
+              "orderStatus": "On Process"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-L1?dept=delivery","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-L1!"}
+    }
+  ]
+}

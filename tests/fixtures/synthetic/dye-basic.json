@@ -1,0 +1,168 @@
+{
+  "about": "Dyeing against saved Knitting rows (matched by colour): Red knit Confirm, Blue Tentative, Green blank, White none (and no Unit/Process), Navy '-', Black Confirm (dyeing saved Confirm), Grey blank. Green and Navy have saved dyeing dates without a plan type, so they stay editable for non-admins.",
+  "orderNo": "SYN-D1",
+  "orders": [
+    {
+      "_id": "a00000000000000000000009",
+      "orderNo": "SYN-D1",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-D1.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [
+        {"OrderNo":"SYN-D1","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":20,"BP Qty":470,"Dyeing Prod.":60,"Dyeing Bala.":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"EKL","Process Name":"HTR","Grey Req.":320,"Knit Prod.":300,"Knit. Bala.":20,"BP Qty":270,"Dyeing Prod.":60,"Dyeing Bala.":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"Green","RequiredQtyKgs":200,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Dyeing Wash","Grey Req.":220,"Knit Prod.":200,"Knit. Bala.":20,"BP Qty":170,"Dyeing Prod.":60,"Dyeing Bala.":140,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"White","RequiredQtyKgs":150,"Buyer":"Buyer North","Unit":"","Process Name":"","Grey Req.":170,"Knit Prod.":150,"Knit. Bala.":20,"BP Qty":120,"Dyeing Prod.":60,"Dyeing Bala.":90,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"Navy","RequiredQtyKgs":120,"Buyer":"Buyer North","Unit":"Ext","Process Name":"Pluvia","Grey Req.":140,"Knit Prod.":120,"Knit. Bala.":20,"BP Qty":90,"Dyeing Prod.":60,"Dyeing Bala.":60,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"Black","RequiredQtyKgs":100,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":120,"Knit Prod.":100,"Knit. Bala.":20,"BP Qty":70,"Dyeing Prod.":60,"Dyeing Bala.":40,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D1","Color":"Grey","RequiredQtyKgs":90,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":110,"Knit Prod.":90,"Knit. Bala.":20,"BP Qty":60,"Dyeing Prod.":60,"Dyeing Bala.":30,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0}
+      ],
+      "finishingItems": [],
+      "deliveryItems": [],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000010",
+      "orderNo": "SYN-D1",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-d1_red_s/j_160",
+          "itemData": {"Color":"Red","FabricConstruction":"S/J"},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Confirm",
+          "limitation": "KL-red",
+          "remarks": "KR-red"
+        },
+        {
+          "itemId": "syn-d1_blue_s/j_180",
+          "itemData": {"Color":"Blue","FabricConstruction":"S/J"},
+          "startDate": "2026-10-06",
+          "endDate": "2026-10-16",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_green_rib_200",
+          "itemData": {"Color":"Green","FabricConstruction":"Rib"},
+          "startDate": "",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_navy_pique_220",
+          "itemData": {"Color":"Navy","FabricConstruction":"Pique"},
+          "startDate": "2026-10-07",
+          "endDate": "2026-10-17",
+          "planType": "-",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_black_s/j_160",
+          "itemData": {"Color":"Black","FabricConstruction":"S/J"},
+          "startDate": "2026-10-08",
+          "endDate": "2026-10-18",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_grey_rib_200",
+          "itemData": {"Color":"Grey","FabricConstruction":"Rib"},
+          "startDate": "",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "dyeing": [
+        {
+          "itemId": "syn-d1_red_solid",
+          "itemData": {"Color":"Red","Unit":"EFL","ProcessName":"Solid","Process Name":"Solid"},
+          "startDate": "2026-10-16",
+          "endDate": "2026-10-25",
+          "planType": "Tentative",
+          "limitation": "DL-red",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_green_dyeingwash",
+          "itemData": {"Color":"Green","Unit":"EFL","ProcessName":"Dyeing Wash","Process Name":"Dyeing Wash"},
+          "startDate": "2026-10-19",
+          "endDate": "2026-10-27",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_navy_pluvia",
+          "itemData": {"Color":"Navy","Unit":"Ext","ProcessName":"Pluvia","Process Name":"Pluvia"},
+          "startDate": "2026-10-18",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d1_black_solid",
+          "itemData": {"Color":"Black","Unit":"EFL","ProcessName":"Solid","Process Name":"Solid"},
+          "startDate": "2026-10-20",
+          "endDate": "2026-10-28",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "finishing": [],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "Pending",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

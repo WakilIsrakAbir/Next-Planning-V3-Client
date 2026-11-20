@@ -1,0 +1,300 @@
+{
+  "scenario": "dyeing/chg01-05-date-checks/admin",
+  "fixture": "dye-basic",
+  "dept": "dyeing",
+  "role": "admin",
+  "orderNo": "SYN-D1",
+  "rules": ["CHG-01","CHG-02","CHG-03","CHG-04","CHG-05"],
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D1 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D1",
+          "Booking No.": "SYN-D1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Dyeing Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-D1?dept=dyeing","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D1 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D1",
+          "Booking No.": "SYN-D1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "Pending",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1460",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-D1."
+        },
+        "section": {"header":"Department Fabric Items 7 Row 1 changes auto-fill all items below","footer":"Total 7 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm","KL-red","KR-red",null,null,null,null,null,"470","60","440","500","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-16","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-25","disabled":false,"title":null,"min":"2026-10-16"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"DL-red","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Tentative","","",null,null,null,null,null,"270","60","240","300","20"],
+              "fields": {
+                "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "HTR",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green",null,null,"—","—","-","","",null,null,null,null,null,"170","60","140","200","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Dyeing Wash",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-19","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-27","disabled":false,"title":null,"min":"2026-10-19"},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["White",null,null,"—","—","-","","",null,null,null,null,null,"120","60","90","150","20"],
+              "fields": {
+                "unit": {"value":"","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":true,"title":"Unit & Process Name must be selected before planning","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Unit & Process Name must be selected before planning","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Unit & Process Name must be selected before planning","greyed":true},
+                "limitation": {"value":"","disabled":true,"title":null,"greyed":true},
+                "remarks": {"value":"","disabled":true,"title":null,"greyed":true}
+              }
+            },
+            {
+              "row": "4",
+              "text": ["Navy",null,null,"07-Oct-2026","17-Oct-2026","-","","",null,null,null,null,null,"90","60","60","120","20"],
+              "fields": {
+                "unit": {"value":"Ext","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Pluvia",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-18","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null,"min":"2026-10-18"},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "5",
+              "text": ["Black",null,null,"08-Oct-2026","18-Oct-2026","Confirm","","",null,null,null,null,null,"70","60","40","100","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-20","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-28","disabled":false,"title":null,"min":"2026-10-20"},
+                "planType": {"value":"Confirm","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "6",
+              "text": ["Grey",null,null,"—","—","-","","",null,null,null,null,null,"60","60","30","90","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-05"},
+      "events": {"toasts":["error: Dyeing Start Date cannot be less than Knitting Start Date!"]},
+      "changes": {"toast":"error: Dyeing Start Date cannot be less than Knitting Start Date!"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-17"},
+      "changes": {"toast":null,"table.rows[1].fields.startDate.value":"2026-10-17","table.rows[1].fields.endDate.min":"2026-10-17"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-12"},
+      "events": {"toasts":["error: Start Date cannot be greater than End Date!"]},
+      "changes": {"toast":"error: Start Date cannot be greater than End Date!"}
+    },
+    {
+      "n": 5,
+      "step": {"do":"set","row":1,"field":"startDate","value":""},
+      "changes": {"toast":null,"table.rows[1].fields.startDate.value":"","table.rows[1].fields.endDate.min":"<removed>"}
+    },
+    {
+      "n": 6,
+      "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-12"},
+      "events": {"toasts":["error: Dyeing End Date cannot be less than Knitting End Date!"]},
+      "changes": {"toast":"error: Dyeing End Date cannot be less than Knitting End Date!"}
+    },
+    {
+      "n": 7,
+      "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-20"},
+      "changes": {"toast":null,"table.rows[1].fields.endDate.value":"2026-10-20"}
+    },
+    {
+      "n": 8,
+      "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-21"},
+      "events": {"toasts":["error: Start Date cannot be greater than End Date!"]},
+      "changes": {"toast":"error: Start Date cannot be greater than End Date!"}
+    },
+    {
+      "n": 9,
+      "step": {"do":"set","row":2,"field":"endDate","value":"2026-10-28"},
+      "events": {"toasts":["error: Cannot set Dyeing plan because Knitting plan is blank!"]},
+      "changes": {"toast":"error: Cannot set Dyeing plan because Knitting plan is blank!","table.rows[2].fields.endDate.value":""}
+    }
+  ]
+}

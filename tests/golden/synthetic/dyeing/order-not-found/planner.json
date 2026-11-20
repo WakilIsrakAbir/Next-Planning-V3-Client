@@ -1,0 +1,76 @@
+{
+  "scenario": "dyeing/order-not-found/planner",
+  "fixture": "empty-order",
+  "dept": "dyeing",
+  "role": "planner",
+  "orderNo": "SYN-NOPE",
+  "rules": [],
+  "note": "GET /api/orders/SYN-NOPE answers 404: the page shows \"Order Not Found\" with the Dyeing Plan name and a link back to /planning/dyeing.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-NOPE Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-NOPE",
+          "Booking No.": "SYN-NOPE",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Dyeing Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-NOPE?dept=dyeing","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {"view":"notFound","notFound":"Order Not Found The requested Order # SYN-NOPE was not found in the Dyeing Plan registry. Return to Planning | link: /planning/dyeing","toast":null}
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "about": "DropdownMaster documents as GET /api/dropdowns returns them (createdAt ascending, HIDDEN items included: the server does not filter them and the page shows every name).",
+  "dropdownmasters": [
+    { "_id": "d00000000000000000000001", "type": "UNIT", "name": "EFL", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.001Z", "updatedAt": "2026-09-01T00:00:00.001Z", "__v": 0 },
+    { "_id": "d00000000000000000000002", "type": "UNIT", "name": "EKL", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.002Z", "updatedAt": "2026-09-01T00:00:00.002Z", "__v": 0 },
+    { "_id": "d00000000000000000000003", "type": "UNIT", "name": "Ext", "status": "HIDDEN", "deletedAt": "2026-09-05T00:00:00.000Z", "createdAt": "2026-09-01T00:00:00.003Z", "updatedAt": "2026-09-05T00:00:00.000Z", "__v": 0 },
+    { "_id": "d00000000000000000000004", "type": "UNIT", "name": "Outside", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.004Z", "updatedAt": "2026-09-01T00:00:00.004Z", "__v": 0 },
+    { "_id": "d00000000000000000000005", "type": "PROCESS", "name": "Solid", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.005Z", "updatedAt": "2026-09-01T00:00:00.005Z", "__v": 0 },
+    { "_id": "d00000000000000000000006", "type": "PROCESS", "name": "Dyeing Wash", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.006Z", "updatedAt": "2026-09-01T00:00:00.006Z", "__v": 0 },
+    { "_id": "d00000000000000000000007", "type": "PROCESS", "name": "HTR", "status": "HIDDEN", "deletedAt": "2026-09-05T00:00:00.000Z", "createdAt": "2026-09-01T00:00:00.007Z", "updatedAt": "2026-09-05T00:00:00.000Z", "__v": 0 },
+    { "_id": "d00000000000000000000008", "type": "PROCESS", "name": "Pluvia", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.008Z", "updatedAt": "2026-09-01T00:00:00.008Z", "__v": 0 },
+    { "_id": "d00000000000000000000009", "type": "PROCESS", "name": "SB", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.009Z", "updatedAt": "2026-09-01T00:00:00.009Z", "__v": 0 },
+    { "_id": "d0000000000000000000000a", "type": "PROCESS", "name": "WH", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.010Z", "updatedAt": "2026-09-01T00:00:00.010Z", "__v": 0 },
+    { "_id": "d0000000000000000000000b", "type": "PROCESS", "name": "DF", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-01T00:00:00.011Z", "updatedAt": "2026-09-01T00:00:00.011Z", "__v": 0 },
+    { "_id": "d0000000000000000000000c", "type": "UNIT", "name": "Unit-X", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-02T00:00:00.000Z", "updatedAt": "2026-09-02T00:00:00.000Z", "__v": 0 },
+    { "_id": "d0000000000000000000000d", "type": "PROCESS", "name": "Process-X", "status": "ACTIVE", "deletedAt": null, "createdAt": "2026-09-03T00:00:00.000Z", "updatedAt": "2026-09-03T00:00:00.000Z", "__v": 0 }
+  ]
+}
