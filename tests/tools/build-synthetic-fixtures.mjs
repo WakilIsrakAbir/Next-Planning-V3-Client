@@ -616,6 +616,105 @@ fixtures['empty-order'] = {
   orderDates: [],
 };
 
+// ---- added later: keep new fixtures below this line, so the generated _ids of the fixtures above never change ----
+
+// ---- dyeing: the 'next department' lock ----
+{
+  const no = 'SYN-D4';
+  const id = no.toLowerCase();
+  fixtures['dye-match'] = {
+    about:
+      "Dyeing 'next department' lock (SAVE-02). Rows 1 and 2 carry their own itemId, equal to a saved Delivery row's id: row 1's Delivery row is Confirm, row 2's is Confirm only in the Floor plan type (which the lock ignores). Row 3's Delivery row is Confirm under its id plus a trailing '_' (the lock looks up the exact id only). Row 0 has no Delivery row. Every row has a saved Dyeing Tentative plan after a Confirm Knitting row, so no other rule interferes.",
+    orderNo: no,
+    orders: [
+      order(no, {
+        dyeingItems: [
+          dyeRow(no, 'Red', 'EFL', 'Solid', 500),
+          dyeRow(no, 'Blue', 'EKL', 'HTR', 300, { itemId: 'd4-blue-own' }),
+          dyeRow(no, 'Green', 'EFL', 'Solid', 200, { itemId: 'd4-green-own' }),
+          dyeRow(no, 'Navy', 'Ext', 'Pluvia', 120),
+        ],
+        dyeingPlanStatus: 'Tentative',
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        knitting: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Confirm'),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-06', '2026-10-16', 'Confirm'),
+          plan(`${id}_green_rib_200`, { Color: 'Green', FabricConstruction: 'Rib' }, '2026-10-07', '2026-10-17', 'Confirm'),
+          plan(`${id}_navy_pique_220`, { Color: 'Navy', FabricConstruction: 'Pique' }, '2026-10-08', '2026-10-18', 'Confirm'),
+        ],
+        dyeing: [
+          plan(`${id}_red_solid`, { Color: 'Red', Unit: 'EFL', ProcessName: 'Solid', 'Process Name': 'Solid' }, '2026-10-16', '2026-10-25', 'Tentative'),
+          plan('d4-blue-own', { Color: 'Blue', Unit: 'EKL', ProcessName: 'HTR', 'Process Name': 'HTR' }, '2026-10-17', '2026-10-26', 'Tentative'),
+          plan('d4-green-own', { Color: 'Green', Unit: 'EFL', ProcessName: 'Solid', 'Process Name': 'Solid' }, '2026-10-18', '2026-10-27', 'Tentative'),
+          plan(`${id}_navy_pluvia`, { Color: 'Navy', Unit: 'Ext', ProcessName: 'Pluvia', 'Process Name': 'Pluvia' }, '2026-10-19', '2026-10-28', 'Tentative'),
+        ],
+        delivery: [
+          plan('d4-blue-own', { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-27', '2026-11-06', 'Confirm', {
+            floorStartDate: '2026-10-24',
+            floorEndDate: '2026-11-02',
+            floorPlanType: 'Tentative',
+          }),
+          plan('d4-green-own', { Color: 'Green', FabricConstruction: 'Rib' }, '2026-10-28', '2026-11-07', 'Tentative', {
+            floorStartDate: '2026-10-25',
+            floorEndDate: '2026-11-03',
+            floorPlanType: 'Confirm',
+          }),
+          plan(`${id}_navy_pluvia_`, { Color: 'Navy', FabricConstruction: 'Pique' }, '2026-10-29', '2026-11-08', 'Confirm'),
+        ],
+        dyeingStatus: 'Pending',
+      }),
+    ],
+  };
+}
+
+// ---- every department: a saved Order Status other than 'On Process' ----
+{
+  const no = 'SYN-S1';
+  const id = no.toLowerCase();
+  fixtures['status-saved'] = {
+    about:
+      "Every department saved with an Order Status other than 'On Process' (YD Confirm, Knitting Tentative, Dyeing Pending, Finishing Confirm, Delivery Tentative), with one row per department whose saved plan passes every save check, so a save goes straight to the Completed prompt (SAVE-15: Cancel restores the saved status).",
+    orderNo: no,
+    orders: [
+      order(no, {
+        ydItems: [ydRow(no, 'Solid', 'YDB-301')],
+        knittingItems: [knitRow(no, 'Red', 'S/J', 160, 500)],
+        dyeingItems: [dyeRow(no, 'Red', 'EFL', 'Solid', 500)],
+        finishingItems: [dyeRow(no, 'Red', 'EFL', 'Solid', 500)],
+        deliveryItems: [deliRow(no, 'Red', 'S/J', 160, 500)],
+        ydPlanStatus: 'Tentative',
+        knittingPlanStatus: 'Tentative',
+        dyeingPlanStatus: 'Tentative',
+        finishingPlanStatus: 'Tentative',
+        deliveryPlanStatus: 'Tentative',
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        yd: [plan(`${id}_solid_ydb-301`, { YDB: 'YDB-301', 'Booking Type': 'Solid' }, '2026-10-10', '2026-10-20', 'Tentative')],
+        knitting: [plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Tentative', { yarnDate: '2026-10-01' })],
+        dyeing: [plan(`${id}_red_solid`, { Color: 'Red', Unit: 'EFL', ProcessName: 'Solid', 'Process Name': 'Solid' }, '2026-10-16', '2026-10-25', 'Tentative')],
+        finishing: [plan(`${id}_red_solid`, { Color: 'Red', Unit: 'EFL', ProcessName: 'Solid', 'Process Name': 'Solid' }, '2026-11-01', '2026-11-05', 'Tentative')],
+        delivery: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-26', '2026-11-05', 'Tentative', {
+            floorStartDate: '2026-10-23',
+            floorEndDate: '2026-11-01',
+            floorPlanType: 'Tentative',
+          }),
+        ],
+        ydStatus: 'Confirm',
+        knittingStatus: 'Tentative',
+        dyeingStatus: 'Pending',
+        finishingStatus: 'Confirm',
+        deliveryStatus: 'Tentative',
+      }),
+    ],
+  };
+}
+
 /* ---------------- write ---------------- */
 
 const isPrimitive = (v) => v === null || typeof v !== 'object';

@@ -5,7 +5,7 @@
   "role": "planner",
   "orderNo": "SYN-Y1",
   "rules": ["AUTO-04","AUTO-05","CHG-06","CAS-01","CHG-02"],
-  "note": "Start/End changes rewrite the Floor dates (-4 days), also over Floor dates typed by hand; a failed row-0 End is cleared without touching the Floor End.",
+  "note": "Start/End changes rewrite the Floor dates (-4 days), also over Floor dates typed by hand; a failed row-0 End is cleared without touching the Floor End; clearing a Start clears the Floor Start, on its own row (step 7) and copied down from row 0 (step 8).",
   "steps": [
     {
       "n": 1,
@@ -224,6 +224,17 @@
       "n": 6,
       "step": {"do":"set","row":0,"field":"endDate","value":"2026-10-25"},
       "changes": {"toast":null,"table.rows[0].fields.endDate.value":"2026-10-25","table.rows[0].fields.floorEndDate.value":"2026-10-21","table.rows[1].fields.endDate.value":"2026-10-25","table.rows[1].fields.floorEndDate.value":"2026-10-21","table.rows[2].fields.endDate.value":"2026-10-25","table.rows[2].fields.floorEndDate.value":"2026-10-21","table.rows[3].fields.endDate.value":"2026-10-25","table.rows[3].fields.floorEndDate.value":"2026-10-21"}
+    },
+    {
+      "n": 7,
+      "step": {"do":"set","row":2,"field":"startDate","value":""},
+      "changes": {"table.rows[2].fields.startDate.value":"","table.rows[2].fields.floorStartDate.value":"","table.rows[2].fields.endDate.min":"<removed>","table.rows[2].fields.floorEndDate.min":"<removed>"}
+    },
+    {
+      "n": 8,
+      "step": {"do":"set","row":0,"field":"startDate","value":""},
+      "events": {"toasts":["error: Start and End dates are required to set Plan Type."]},
+      "changes": {"toast":"error: Start and End dates are required to set Plan Type.","table.rows[0].fields.startDate.value":"","table.rows[0].fields.planType.value":"","table.rows[0].fields.floorStartDate.value":"","table.rows[1].fields.startDate.value":"","table.rows[1].fields.floorStartDate.value":"","table.rows[3].fields.startDate.value":"","table.rows[3].fields.planType.value":"","table.rows[3].fields.floorStartDate.value":"","table.rows[0].fields.endDate.min":"<removed>","table.rows[0].fields.floorEndDate.min":"<removed>","table.rows[1].fields.endDate.min":"<removed>","table.rows[1].fields.floorEndDate.min":"<removed>","table.rows[3].fields.endDate.min":"<removed>","table.rows[3].fields.floorEndDate.min":"<removed>"}
     }
   ]
 }

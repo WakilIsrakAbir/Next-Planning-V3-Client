@@ -5,6 +5,7 @@
   "role": "admin",
   "orderNo": "SYN-D1",
   "rules": ["CHG-01","CHG-02","CHG-03","CHG-04","CHG-05"],
+  "note": "Row 2 has a saved Dyeing plan but a blank Knitting plan: both an End change (step 9) and a Start change (step 10) are refused and cleared.",
   "steps": [
     {
       "n": 1,
@@ -295,6 +296,12 @@
       "step": {"do":"set","row":2,"field":"endDate","value":"2026-10-28"},
       "events": {"toasts":["error: Cannot set Dyeing plan because Knitting plan is blank!"]},
       "changes": {"toast":"error: Cannot set Dyeing plan because Knitting plan is blank!","table.rows[2].fields.endDate.value":""}
+    },
+    {
+      "n": 10,
+      "step": {"do":"set","row":2,"field":"startDate","value":"2026-10-20"},
+      "events": {"toasts":["error: Cannot set Dyeing plan because Knitting plan is blank!"]},
+      "changes": {"table.rows[2].fields.startDate.value":"","table.rows[2].fields.endDate.min":"<removed>"}
     }
   ]
 }

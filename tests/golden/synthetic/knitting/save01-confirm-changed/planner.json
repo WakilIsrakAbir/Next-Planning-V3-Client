@@ -4,7 +4,7 @@
   "dept": "knitting",
   "role": "planner",
   "orderNo": "SYN-K1",
-  "rules": ["SAVE-01","AUTO-02","SAVE-17"],
+  "rules": ["SAVE-01","AUTO-02"],
   "note": "Clearing row 1's Yarn Date drops its saved Confirm; only Admin may save that.",
   "steps": [
     {

@@ -206,7 +206,8 @@ export const knittingScenarios: Scenario[] = [
     name: 'save01-confirm-changed',
     dept,
     fixture: 'knit-basic',
-    rules: ['SAVE-01', 'AUTO-02', 'SAVE-17'],
+    // SAVE-17 only for Admin: the non-admin's save is refused before any request is sent.
+    rules: isAdmin ? ['SAVE-01', 'AUTO-02', 'SAVE-17'] : ['SAVE-01', 'AUTO-02'],
     note: "Clearing row 1's Yarn Date drops its saved Confirm; only Admin may save that.",
     steps: [{ do: 'load' }, { do: 'set', row: 1, field: 'yarnDate', value: '' }, { do: 'save' }],
     expect: [

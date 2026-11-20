@@ -21,8 +21,9 @@ function generic(dept: Dept): Scenario[] {
     name: 'generic-rules',
     dept,
     fixture: `gen-${dept}`,
-    rules: ['SAVE-05', 'AUTO-03', 'CHG-01', 'CHG-02', 'CAS-01', 'SAVE-03', 'AUTO-06', 'CHG-06', 'SAVE-15', 'SAVE-16', 'SAVE-17', 'STAT-01', 'GATE-06', 'GATE-07', 'GATE-08', 'MATCH-01'],
-    note: 'Row 2 was saved Tentative without an end date; the Row-1 copy-down moves every row; Completed is cancelled once, then confirmed; a Completed order is saved again.',
+    // No CHG-06 here: every row has both dates when row 0's plan type is copied down (each department has its own CHG-06 scenario).
+    rules: ['SAVE-05', 'AUTO-03', 'CHG-01', 'CHG-02', 'CAS-01', 'SAVE-03', 'AUTO-06', 'SAVE-15', 'SAVE-16', 'SAVE-17', 'STAT-01', 'GATE-06', 'GATE-07', 'GATE-08', 'MATCH-01'],
+    note: "Row 2 was saved Tentative without an end date; the Row-1 copy-down moves every row; Completed is cancelled once (back to the saved 'On Process'), then confirmed; a Completed order is saved again.",
     steps: [
       { do: 'load' },
       { do: 'save' },
@@ -70,6 +71,52 @@ function generic(dept: Dept): Scenario[] {
   }));
 }
 
+/** Saved Order Status of each department in tests/fixtures/synthetic/status-saved.json (none is 'On Process'). */
+const SAVED_STATUS: Record<Dept, string> = {
+  yd: 'Confirm',
+  knitting: 'Tentative',
+  dyeing: 'Pending',
+  finishing: 'Confirm',
+  delivery: 'Tentative',
+};
+
+/**
+ * SAVE-15 on a department saved with a status other than 'On Process': Cancel returns the select to the SAVED
+ * status, which is neither V2's 'On Process' nor the value picked just before Completed.
+ */
+function cancelRestoresSavedStatus(dept: Dept): Scenario[] {
+  const saved = SAVED_STATUS[dept];
+  const picked = saved === 'Pending' ? 'Tentative' : 'Pending';
+  return forRoles(() => ({
+    name: 'save15-cancel-restores-saved-status',
+    dept,
+    fixture: 'status-saved',
+    rules: ['SAVE-15', 'STAT-01', 'SAVE-16', 'SAVE-17'],
+    note: `${NAMES[dept]} saved as '${saved}': the user picks '${picked}', then Completed, and cancels the prompt; the select returns to the saved '${saved}'. Confirming the prompt then saves Completed.`,
+    steps: [
+      { do: 'load' },
+      { do: 'status', value: picked },
+      { do: 'status', value: 'Completed' },
+      { do: 'save', confirm: [false] },
+      { do: 'status', value: 'Completed' },
+      { do: 'save', confirm: [true] },
+    ],
+    expect: [
+      { step: 1, status: saved },
+      { step: 2, status: picked },
+      { step: 3, status: 'Completed' },
+      { step: 4, confirm: T.completedConfirm('SYN-S1') },
+      { step: 4, saved: false },
+      { step: 4, status: saved },
+      { step: 6, confirm: T.completedConfirm('SYN-S1') },
+      { step: 6, saved: true },
+      { step: 6, toast: T.saved('SYN-S1') },
+      { step: 6, body: { key: 'orderStatus', equals: 'Completed' } },
+      { step: 6, status: 'Completed' },
+    ],
+  }));
+}
+
 /** An order without rows for the department: the empty table, and the save refused (SAVE-00). */
 function noItems(dept: Dept): Scenario[] {
   return forRoles(() => ({
@@ -101,4 +148,9 @@ function notFound(dept: Dept): Scenario[] {
   );
 }
 
-export const commonScenarios: Scenario[] = DEPTS.flatMap((dept) => [...generic(dept), ...noItems(dept), ...notFound(dept)]);
+export const commonScenarios: Scenario[] = DEPTS.flatMap((dept) => [
+  ...generic(dept),
+  ...cancelRestoresSavedStatus(dept),
+  ...noItems(dept),
+  ...notFound(dept),
+]);

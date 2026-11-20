@@ -4,7 +4,7 @@
   "dept": "yd",
   "role": "planner",
   "orderNo": "SYN-Y1",
-  "rules": ["AUTO-06","CHG-06","SAVE-01","GATE-05","SAVE-16"],
+  "rules": ["AUTO-06","CHG-06","SAVE-01","GATE-05"],
   "note": "YD has no Yarn or upstream rule for Confirm; a non-admin can change a Confirm row on screen but the save refuses it.",
   "steps": [
     {

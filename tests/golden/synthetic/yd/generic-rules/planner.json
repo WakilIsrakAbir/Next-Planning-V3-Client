@@ -4,8 +4,8 @@
   "dept": "yd",
   "role": "planner",
   "orderNo": "SYN-GY",
-  "rules": ["SAVE-05","AUTO-03","CHG-01","CHG-02","CAS-01","SAVE-03","AUTO-06","CHG-06","SAVE-15","SAVE-16","SAVE-17","STAT-01","GATE-06","GATE-07","GATE-08","MATCH-01"],
-  "note": "Row 2 was saved Tentative without an end date; the Row-1 copy-down moves every row; Completed is cancelled once, then confirmed; a Completed order is saved again.",
+  "rules": ["SAVE-05","AUTO-03","CHG-01","CHG-02","CAS-01","SAVE-03","AUTO-06","SAVE-15","SAVE-16","SAVE-17","STAT-01","GATE-06","GATE-07","GATE-08","MATCH-01"],
+  "note": "Row 2 was saved Tentative without an end date; the Row-1 copy-down moves every row; Completed is cancelled once (back to the saved 'On Process'), then confirmed; a Completed order is saved again.",
   "steps": [
     {
       "n": 1,

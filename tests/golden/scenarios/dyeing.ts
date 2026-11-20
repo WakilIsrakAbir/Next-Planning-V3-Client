@@ -71,6 +71,7 @@ export const dyeingScenarios: Scenario[] = [
     dept,
     fixture: 'dye-basic',
     rules: ['CHG-01', 'CHG-02', 'CHG-03', 'CHG-04', 'CHG-05'],
+    note: 'Row 2 has a saved Dyeing plan but a blank Knitting plan: both an End change (step 9) and a Start change (step 10) are refused and cleared.',
     steps: [
       { do: 'load' },
       { do: 'set', row: 1, field: 'startDate', value: '2026-10-05' },
@@ -81,6 +82,7 @@ export const dyeingScenarios: Scenario[] = [
       { do: 'set', row: 1, field: 'endDate', value: '2026-10-20' },
       { do: 'set', row: 1, field: 'startDate', value: '2026-10-21' },
       { do: 'set', row: 2, field: 'endDate', value: '2026-10-28' },
+      { do: 'set', row: 2, field: 'startDate', value: '2026-10-20' },
     ],
     expect: [
       { step: 2, toast: T.dyeStartBeforeKnit },
@@ -94,6 +96,9 @@ export const dyeingScenarios: Scenario[] = [
       { step: 8, toast: T.startAfterEnd },
       { step: 9, toast: T.knitBlank },
       { step: 9, field: [2, 'endDate'], value: '' },
+      { step: 9, field: [2, 'startDate'], value: '2026-10-19' },
+      { step: 10, toast: T.knitBlank },
+      { step: 10, field: [2, 'startDate'], value: '', disabled: false },
     ],
   })),
 
@@ -201,6 +206,63 @@ export const dyeingScenarios: Scenario[] = [
       ...(isAdmin ? [{ step: 7, saved: true }] : [{ step: 7, saved: false }, { step: 7, toast: T.adminOnlyConfirm }]),
     ],
   })),
+
+  // dye-match (SYN-D4): rows 1 and 2 carry their own itemId, equal to a saved Delivery row's id.
+  //   0 Red   syn-d4_red_solid    dyeing Tentative 10-16..10-25   no Delivery row
+  //   1 Blue  d4-blue-own         dyeing Tentative 10-17..10-26   Delivery Confirm (Floor Tentative)
+  //   2 Green d4-green-own        dyeing Tentative 10-18..10-27   Delivery Tentative, Floor Confirm
+  //   3 Navy  syn-d4_navy_pluvia  dyeing Tentative 10-19..10-28   Delivery Confirm saved as 'syn-d4_navy_pluvia_'
+  ...forRoles((role, isAdmin) =>
+    isAdmin
+      ? {
+          name: 'save02-next-confirmed',
+          dept,
+          fixture: 'dye-match',
+          rules: ['SAVE-02', 'MATCH-01'],
+          note: 'Admin is exempt from the next-department lock: the Start change of the row whose Delivery row is Confirm is saved.',
+          steps: [{ do: 'load' }, { do: 'set', row: 1, field: 'startDate', value: '2026-10-18' }, { do: 'save' }],
+          expect: [
+            { step: 1, field: [1, 'startDate'], value: '2026-10-17', disabled: false },
+            { step: 3, saved: true },
+            { step: 3, toast: T.saved('SYN-D4') },
+            { step: 3, body: { item: 1, key: 'itemId', equals: 'd4-blue-own' } },
+            { step: 3, body: { item: 1, key: 'startDate', equals: '2026-10-18' } },
+          ],
+        }
+      : {
+          name: 'save02-next-confirmed',
+          dept,
+          fixture: 'dye-match',
+          rules: ['SAVE-02', 'MATCH-01', 'MATCH-04'],
+          note: "A non-admin may not change Start, End or Plan Type of a row whose saved Delivery row (same exact itemId) is Confirm. The lock reads the Delivery main plan type, not the Floor plan type (row 2), and the exact itemId only (row 3's Delivery row has a trailing '_'). Remarks are not checked.",
+          steps: [
+            { do: 'load' },
+            { do: 'set', row: 2, field: 'startDate', value: '2026-10-19' },
+            { do: 'set', row: 3, field: 'startDate', value: '2026-10-20' },
+            { do: 'save' },
+            { do: 'set', row: 1, field: 'startDate', value: '2026-10-18' },
+            { do: 'save' },
+            { do: 'set', row: 1, field: 'startDate', value: '2026-10-17' },
+            { do: 'set', row: 1, field: 'remarks', value: 'remarks only' },
+            { do: 'save' },
+          ],
+          expect: [
+            { step: 1, field: [1, 'startDate'], value: '2026-10-17', disabled: false },
+            { step: 4, saved: true },
+            { step: 4, toast: T.saved('SYN-D4') },
+            { step: 4, body: { item: 2, key: 'startDate', equals: '2026-10-19' } },
+            { step: 4, body: { item: 3, key: 'startDate', equals: '2026-10-20' } },
+            { step: 6, toast: T.nextConfirmed('dyeing') },
+            { step: 6, saved: false },
+            { step: 6, field: [1, 'startDate'], value: '2026-10-18' },
+            { step: 9, saved: true },
+            { step: 9, toast: T.saved('SYN-D4') },
+            { step: 9, body: { item: 1, key: 'itemId', equals: 'd4-blue-own' } },
+            { step: 9, body: { item: 1, key: 'remarks', equals: 'remarks only' } },
+            { step: 9, body: { item: 1, key: 'startDate', equals: '2026-10-17' } },
+          ],
+        }
+  ),
 
   ...forRoles(() => ({
     name: 'dropdowns-request-failed',

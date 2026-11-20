@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TESTS_DIR } from '../harness/fixtures';
 import { RECORD } from './golden-suite';
 import { LOCAL_SCRIPTS } from './local-scripts';
-import { buildRulesMarkdown, IN_SCOPE, RULES } from './rules';
+import { buildRulesMarkdown, EVIDENCE, IN_SCOPE, missingEvidence, RULES } from './rules';
 import { syntheticScenarios } from './scenarios';
 
 const RULES_MD = `${TESTS_DIR}golden/RULES.md`;
@@ -13,6 +13,12 @@ describe('rule map', () => {
     const known = new Set(RULES.map((r) => r.id));
     const unknown = syntheticScenarios.flatMap((s) => s.rules.filter((r) => !known.has(r)).map((r) => `${s.id}: ${r}`));
     expect(unknown).toEqual([]);
+  });
+
+  it('backs every toast, confirm or request rule a scenario names with an expectation that proves it', () => {
+    expect(Object.keys(EVIDENCE).every((id) => RULES.some((r) => r.id === id))).toBe(true);
+    const missing = syntheticScenarios.flatMap((s) => s.rules.map((r) => missingEvidence(s, r)).filter((m): m is string => m !== null));
+    expect(missing).toEqual([]);
   });
 
   it('lists all 61 rules once', () => {

@@ -1,0 +1,200 @@
+{
+  "scenario": "delivery/save15-cancel-restores-saved-status/admin",
+  "fixture": "status-saved",
+  "dept": "delivery",
+  "role": "admin",
+  "orderNo": "SYN-S1",
+  "rules": ["SAVE-15","STAT-01","SAVE-16","SAVE-17"],
+  "note": "Delivery Plan saved as 'Tentative': the user picks 'Pending', then Completed, and cancels the prompt; the select returns to the saved 'Tentative'. Confirming the prompt then saves Completed.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-S1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-S1",
+          "Booking No.": "SYN-S1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-S1?dept=delivery","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-S1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-S1",
+          "Booking No.": "SYN-S1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "Tentative",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "2000",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-S1."
+        },
+        "section": {"header":"Department Fabric Items 1 Row 1 changes auto-fill all items below","footer":"Total 1 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Tentative","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-26","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-26"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {"n":2,"step":{"do":"status","value":"Pending"},"changes":{"general.Order Status.value":"Pending"}},
+    {"n":3,"step":{"do":"status","value":"Completed"},"changes":{"general.Order Status.value":"Completed"}},
+    {
+      "n": 4,
+      "step": {"do":"save","confirm":[false]},
+      "events": {
+        "confirms": [
+          {"message":"Are you sure you want to mark order 'SYN-S1' as Completed? It will be moved to the Completed List.","answer":false}
+        ]
+      },
+      "changes": {"general.Order Status.value":"Tentative"}
+    },
+    {"n":5,"step":{"do":"status","value":"Completed"},"changes":{"general.Order Status.value":"Completed"}},
+    {
+      "n": 6,
+      "step": {"do":"save","confirm":[true]},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-S1!"],
+        "confirms": [
+          {"message":"Are you sure you want to mark order 'SYN-S1' as Completed? It will be moved to the Completed List.","answer":true}
+        ],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-S1",
+              "department": "delivery",
+              "fabricItems": [
+                {
+                  "itemId": "syn-s1_red_s/j_160",
+                  "itemData": {"OrderNo":"SYN-S1","Color":"Red","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance":5,"YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":520,"KnitProd":500,"KnitBala":0,"NetReceivedQtyKgs":450,"NetDeliveryQtyKgs":400,"DeliBal":100,"RFD":25,"Slowmoving":5,"FFStock":10},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-26",
+                  "endDate": "2026-11-05",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-23",
+                  "floorEndDate": "2026-11-01",
+                  "floorPlanType": "Tentative",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                }
+              ],
+              "orderStatus": "Completed"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-S1?dept=delivery","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-S1!"}
+    }
+  ]
+}

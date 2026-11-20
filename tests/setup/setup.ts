@@ -9,6 +9,20 @@ if (new Date('2026-01-01T00:00:00Z').getTimezoneOffset() !== -360) {
 if (process.env.NEXT_PUBLIC_API_URL !== 'http://api.test') {
   throw new Error('Tests must run with NEXT_PUBLIC_API_URL=http://api.test (see vitest.config.ts).');
 }
+// knitting/save17-server-errors records the toast of a JSON parse error, worded by V8 as in Chrome and Node 20+
+// (Node 18 words it differently). Refuse to run where the wording differs, rather than fail with a confusing diff.
+{
+  const want = `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`;
+  let got = '';
+  try {
+    JSON.parse('<!DOCTYPE html><html><body>Bad gateway</body></html>');
+  } catch (err) {
+    got = (err as Error).message;
+  }
+  if (got !== want) {
+    throw new Error(`Tests need Node ^22.22.2 || ^24.15.0 || >=26 (jsdom 30); this runtime words a JSON parse error as ${JSON.stringify(got)}.`);
+  }
+}
 
 // No real network, ever: a scenario installs the mocked server; anything else fails the test.
 globalThis.fetch = (async (input: unknown, init?: unknown) => {
