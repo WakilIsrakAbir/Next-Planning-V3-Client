@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   FolderOpen,
+  Hourglass,
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
@@ -42,10 +43,13 @@ export default function DepartmentReportScreen({ params }: PageProps) {
   const [confirmCount, setConfirmCount] = useState(0);
   const [tentativeCount, setTentativeCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
-  const [hasData, setHasData] = useState(false);
 
   // Old data-processing.js (HEAD): YD and Delivery reports also include Pending orders.
   const includesPending = dept === 'yd' || dept === 'delivery';
+  // Updated card: Confirm / Tentative (plus Pending for YD / Delivery). Pending card: the Pending orders alone.
+  const hasUpdatedData = confirmCount > 0 || tentativeCount > 0 || (includesPending && pendingCount > 0);
+  const hasPendingData = pendingCount > 0;
+  const hasData = hasUpdatedData || hasPendingData;
 
   // Lazy table data (only loaded if user requests inspection/preview)
   const [showDetailedTable, setShowDetailedTable] = useState(false);
@@ -53,6 +57,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
   const [orders, setOrders] = useState<ReportOrder[]>([]);
   const [, setPlanMap] = useState<Record<string, unknown>>({});
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPending, setDownloadingPending] = useState(false);
   const [search, setSearch] = useState('');
   const [buyer, setBuyer] = useState('');
 
@@ -65,19 +70,20 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       setShowDetailedTable(false);
       setOrders([]);
       setPlanMap({});
+      setConfirmCount(0);
+      setTentativeCount(0);
+      setPendingCount(0);
 
       try {
         const token = localStorage.getItem('token');
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const withPending = dept === 'yd' || dept === 'delivery';
         const [confirmRes, tentativeRes, pendingRes] = await Promise.all([
           fetch(`${API_BASE}/api/orders?dept=${dept}&status=Confirm&limit=1`, { headers }),
           fetch(`${API_BASE}/api/orders?dept=${dept}&status=Tentative&limit=1`, { headers }),
-          // A failed Pending check must not hide the Confirm / Tentative result (old app: .catch(() => null)).
-          withPending
-            ? fetch(`${API_BASE}/api/orders?dept=${dept}&status=Pending&limit=1`, { headers }).catch(() => null)
-            : Promise.resolve(null),
+          // Every department has a Pending card. A failed Pending check must not hide the
+          // Confirm / Tentative result (old app: .catch(() => null)).
+          fetch(`${API_BASE}/api/orders?dept=${dept}&status=Pending&limit=1`, { headers }).catch(() => null),
         ]);
 
         let cCount = 0;
@@ -107,7 +113,6 @@ export default function DepartmentReportScreen({ params }: PageProps) {
           setConfirmCount(cCount);
           setTentativeCount(tCount);
           setPendingCount(pCount);
-          setHasData(cCount > 0 || tCount > 0 || (withPending && pCount > 0));
         }
       } catch (err) {
         console.error('Failed to check report data availability:', err);
@@ -157,17 +162,21 @@ export default function DepartmentReportScreen({ params }: PageProps) {
     }
   };
 
-  // 3. Fast Server-Side Excel Generation Download
-  const downloadExcel = async () => {
-    setDownloading(true);
+  // 3. Fast Server-Side Excel Generation Download (Updated report, or the Pending orders alone)
+  const downloadReportFile = async (
+    endpoint: 'report-download' | 'pending-download',
+    fileTag: 'Updated' | 'Pending',
+    setBusy: (busy: boolean) => void
+  ) => {
+    setBusy(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/orders/report-download/${dept}?token=${token}`, {
+      const res = await fetch(`${API_BASE}/api/orders/${endpoint}/${dept}?token=${token}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
-        alert(`No data found for ${dept.toUpperCase()} report.`);
+        alert(`No data found for ${fileTag === 'Pending' ? 'Pending ' : ''}${dept.toUpperCase()} report.`);
         return;
       }
 
@@ -176,7 +185,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       const a = document.createElement('a');
       a.href = url;
       const dateStr = new Date().toISOString().split('T')[0];
-      a.download = `${dept.toUpperCase()}_Updated_Report_${dateStr}.xlsx`;
+      a.download = `${dept.toUpperCase()}_${fileTag}_Report_${dateStr}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -185,9 +194,12 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       console.error('Download error:', err);
       alert('Failed to download report Excel.');
     } finally {
-      setDownloading(false);
+      setBusy(false);
     }
   };
+
+  const downloadExcel = () => downloadReportFile('report-download', 'Updated', setDownloading);
+  const downloadPendingExcel = () => downloadReportFile('pending-download', 'Pending', setDownloadingPending);
 
   const filteredOrders = orders.filter((o) => {
     if (buyer && o.buyer !== buyer) return false;
@@ -202,7 +214,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       {/* Prominent Exp Report Action Card matching Exp index.html */}
       <div className="bg-white dark:bg-[#151921] rounded-md shadow-sm border border-gray-200 dark:border-[#2a3346] w-full p-6 sm:p-8 flex flex-col items-center justify-center text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-[#313644] dark:text-gray-100 mb-6">
-          Updated {dept.toUpperCase()} Report
+          {dept.toUpperCase()} Department Reports
         </h2>
 
         {checking ? (
@@ -216,61 +228,99 @@ export default function DepartmentReportScreen({ params }: PageProps) {
               No Report Data Available
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              There is no Confirmed{includesPending ? ', Tentative or Pending' : ' or Tentative'} planning data
-              available for this department yet.
+              There is no Confirmed, Tentative or Pending planning data available for this department yet.
             </p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-emerald-600 hover:-translate-y-1 transition-transform">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
-              <Layers className="h-8 w-8 sm:h-10 sm:w-10" />
-            </div>
+          <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-6 w-full max-w-[1040px]">
+            {hasUpdatedData && (
+              <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-emerald-600 hover:-translate-y-1 transition-transform">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
+                  <Layers className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
 
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
-              Updated Report
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
-              Extract all data (both Confirm &amp; Tentative). All buyers will be combined into a{' '}
-              <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
-            </p>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
+                  Updated Report
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
+                  Extract all data (both Confirm &amp; Tentative). All buyers will be combined into a{' '}
+                  <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
+                </p>
 
-            {/* Quick Count Badges */}
-            <div className="flex items-center gap-2 mb-6">
-              <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 font-bold rounded-full text-xs">
-                Confirm: {confirmCount}
-              </span>
-              <span className="px-2.5 py-1 bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300 font-bold rounded-full text-xs">
-                Tentative: {tentativeCount}
-              </span>
-              {includesPending && (
-                <span className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 font-bold rounded-full text-xs">
-                  Pending: {pendingCount}
-                </span>
-              )}
-              <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold rounded-full text-xs">
-                Total: {confirmCount + tentativeCount + (includesPending ? pendingCount : 0)}
-              </span>
-            </div>
+                {/* Quick Count Badges */}
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 font-bold rounded-full text-xs">
+                    Confirm: {confirmCount}
+                  </span>
+                  <span className="px-2.5 py-1 bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300 font-bold rounded-full text-xs">
+                    Tentative: {tentativeCount}
+                  </span>
+                  {includesPending && (
+                    <span className="px-2.5 py-1 bg-gray-100 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 font-bold rounded-full text-xs">
+                      Pending: {pendingCount}
+                    </span>
+                  )}
+                  <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold rounded-full text-xs">
+                    Total: {confirmCount + tentativeCount + (includesPending ? pendingCount : 0)}
+                  </span>
+                </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
-              <button
-                onClick={downloadExcel}
-                disabled={downloading}
-                className="flex-1 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
-              >
-                {downloading ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
-                <span>Download {dept.toUpperCase()} Data</span>
-              </button>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                  <button
+                    onClick={downloadExcel}
+                    disabled={downloading}
+                    className="flex-1 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    {downloading ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
+                    <span>Download {dept.toUpperCase()} Data</span>
+                  </button>
 
-              <button
-                onClick={handleToggleTable}
-                className="w-full sm:w-auto px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
-                title={showDetailedTable ? 'Hide Table' : 'Preview Table Data'}
-              >
-                {showDetailedTable ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                <span>{showDetailedTable ? 'Hide Table' : 'Preview Table'}</span>
-              </button>
-            </div>
+                  <button
+                    onClick={handleToggleTable}
+                    className="w-full sm:w-auto px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
+                    title={showDetailedTable ? 'Hide Table' : 'Preview Table Data'}
+                  >
+                    {showDetailedTable ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span>{showDetailedTable ? 'Hide Table' : 'Preview Table'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Pending orders alone (orders not yet planned as Confirm or Tentative) */}
+            {hasPendingData && (
+              <div className="bg-white dark:bg-[#1b2230] rounded-xl shadow-[0_0_15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-[#2a3346] p-6 sm:p-8 flex flex-col items-center text-center max-w-[500px] w-full border-t-[5px] border-t-amber-500 hover:-translate-y-1 transition-transform">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4 sm:mb-6 shadow-inner">
+                  <Hourglass className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-3">
+                  Pending Report
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
+                  Extract only <strong className="text-gray-700 dark:text-gray-200">Pending</strong> orders (not yet
+                  planned as Confirm or Tentative). All buyers will be combined into a{' '}
+                  <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
+                </p>
+
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold rounded-full text-xs">
+                    Pending: {pendingCount}
+                  </span>
+                </div>
+
+                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                  <button
+                    onClick={downloadPendingExcel}
+                    disabled={downloadingPending}
+                    className="flex-1 w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-md shadow-amber-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                  >
+                    {downloadingPending ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
+                    <span>Download Pending Data</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

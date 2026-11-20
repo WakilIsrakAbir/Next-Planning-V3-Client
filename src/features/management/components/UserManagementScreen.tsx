@@ -292,6 +292,15 @@ export const ACTION_GROUPS: PermissionGroup[] = [
   },
 ];
 
+// Pending report download of each department (Reports page, Pending card)
+const PENDING_REPORT_KEYS = [
+  'reportPendingExcelYD',
+  'reportPendingExcelKnitting',
+  'reportPendingExcelDyeing',
+  'reportPendingExcelFinishing',
+  'reportPendingExcelDelivery',
+];
+
 export const DOWNLOAD_GROUPS: PermissionGroup[] = [
   {
     title: 'Report Menu',
@@ -303,6 +312,11 @@ export const DOWNLOAD_GROUPS: PermissionGroup[] = [
       ['reportUpdatedExcelDyeing', 'Updated Dyeing Report (Combined)'],
       ['reportUpdatedExcelFinishing', 'Updated Finishing Report (Combined)'],
       ['reportUpdatedExcelDelivery', 'Updated Delivery Report (Combined)'],
+      ['reportPendingExcelYD', 'Pending YD Report'],
+      ['reportPendingExcelKnitting', 'Pending Knitting Report'],
+      ['reportPendingExcelDyeing', 'Pending Dyeing Report'],
+      ['reportPendingExcelFinishing', 'Pending Finishing Report'],
+      ['reportPendingExcelDelivery', 'Pending Delivery Report'],
     ],
   },
   {
@@ -493,6 +507,7 @@ export function makeTemplate(role: string, groups: MenuGroup[] = MENU_GROUPS): P
       'reportUpdatedExcelDyeing',
       'reportUpdatedExcelFinishing',
       'reportUpdatedExcelDelivery',
+      ...PENDING_REPORT_KEYS,
       'osDetailedExcel',
       'osDetailedPdf',
       'loadDetailedYd',
@@ -531,6 +546,7 @@ export function makeTemplate(role: string, groups: MenuGroup[] = MENU_GROUPS): P
       'reportUpdatedExcelDyeing',
       'reportUpdatedExcelFinishing',
       'reportUpdatedExcelDelivery',
+      ...PENDING_REPORT_KEYS,
       'osDetailedExcel',
       'osDetailedPdf',
       // Tracking downloads
@@ -595,6 +611,13 @@ function normalizePermissions(raw: unknown, role: string | undefined, groups: Me
   });
   BATCH_PERMISSION_KEYS.downloads.forEach((key) => {
     if (!hasOwnKey(raw.downloads, key)) normalized.downloads[key] = false;
+  });
+  // Pending report keys are new: a user saved before they existed keeps the access of the
+  // matching Updated report (the same rule as the old app).
+  PENDING_REPORT_KEYS.forEach((key) => {
+    if (!hasOwnKey(raw.downloads, key)) {
+      normalized.downloads[key] = !!normalized.downloads[key.replace('reportPendingExcel', 'reportUpdatedExcel')];
+    }
   });
   // The one exception to "nothing stored is dropped": permissions of features that were removed,
   // so the next save of this user clears them.
