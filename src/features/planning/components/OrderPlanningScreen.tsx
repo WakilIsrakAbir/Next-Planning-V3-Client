@@ -1220,6 +1220,7 @@ export default function OrderPlanningScreen() {
           </button>
 
           <button
+            data-action="save"
             onClick={handleSavePlanning}
             disabled={saving}
             className="px-4 md:px-6 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-50"
@@ -1343,6 +1344,7 @@ export default function OrderPlanningScreen() {
                 Order Status
               </span>
               <select
+                data-field="orderStatus"
                 value={orderStatus}
                 onChange={(e) => setOrderStatus(e.target.value)}
                 className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500"
@@ -1571,7 +1573,7 @@ export default function OrderPlanningScreen() {
         </div>
 
         <div className="overflow-x-auto custom-scrollbar w-full bg-white dark:bg-[#151921]">
-          <table className="w-full text-left whitespace-nowrap border-collapse min-w-[1600px]">
+          <table data-plan-table={dept} className="w-full text-left whitespace-nowrap border-collapse min-w-[1600px]">
             <thead className="bg-white dark:bg-[#151921] shadow-sm select-none">
               {/* Main Top Header Row */}
               <tr className="text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]">
@@ -2060,6 +2062,7 @@ export default function OrderPlanningScreen() {
                 return (
                   <tr
                     key={item.itemId || idx}
+                    data-row={idx}
                     className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
                   >
                     {/* ==========================================================
@@ -2078,6 +2081,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-yellow-50 dark:bg-yellow-900/10">
                           <input
+                            data-field="yarnDate"
                             type="date"
                             value={item.yarnDate || ''}
                             onChange={(e) => handleYarnDateChange(idx, e.target.value)}
@@ -2087,6 +2091,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="startDate"
                             type="date"
                             value={item.startDate || ''}
                             min={item.yarnDate || undefined}
@@ -2098,6 +2103,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="endDate"
                             type="date"
                             value={item.endDate || ''}
                             min={item.startDate || item.yarnDate || undefined}
@@ -2109,6 +2115,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="planType"
                             value={item.planType || ''}
                             disabled={isInputsDisabled}
                             title={disabledTitle}
@@ -2122,6 +2129,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="limitation"
                             rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
@@ -2131,6 +2139,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="remarks"
                             rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
@@ -2172,6 +2181,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                           <select
+                            data-field="unit"
                             value={item.unit || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
                             className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2186,6 +2196,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
                           <select
+                            data-field="processName"
                             value={item.processName || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
                             className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2215,6 +2226,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="startDate"
                             type="date"
                             value={item.startDate || ''}
                             disabled={isDyeInputsDisabled}
@@ -2225,6 +2237,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="endDate"
                             type="date"
                             value={item.endDate || ''}
                             min={item.startDate || undefined}
@@ -2236,6 +2249,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="planType"
                             value={item.planType || ''}
                             disabled={isDyeInputsDisabled}
                             title={disabledTitle}
@@ -2249,6 +2263,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="limitation"
                             rows={1}
                             value={item.limitation || ''}
                             disabled={!isUnitProcessReady}
@@ -2261,6 +2276,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="remarks"
                             rows={1}
                             value={item.remarks || ''}
                             disabled={!isUnitProcessReady}
@@ -2305,6 +2321,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="startDate"
                             type="date"
                             value={item.startDate || ''}
                             onChange={(e) => handleStartDateChange(idx, e.target.value)}
@@ -2313,6 +2330,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="endDate"
                             type="date"
                             value={item.endDate || ''}
                             min={item.startDate || undefined}
@@ -2322,6 +2340,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="planType"
                             value={item.planType || ''}
                             onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
                             className="row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2333,6 +2352,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
                           <textarea
+                            data-field="limitation"
                             rows={1}
                             placeholder="Limitation"
                             value={item.limitation || ''}
@@ -2342,6 +2362,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[100px]">
                           <textarea
+                            data-field="remarks"
                             rows={1}
                             placeholder="Remarks"
                             value={item.remarks || ''}
@@ -2351,6 +2372,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                           <input
+                            data-field="yarnOkDate"
                             type="date"
                             value={item.yarnOkDate || ''}
                             onChange={(e) => handleYarnOkDateChange(idx, e.target.value)}
@@ -2359,6 +2381,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[95px]">
                           <input
+                            data-field="matchingOptionDate"
                             type="date"
                             value={item.matchingOptionDate || ''}
                             onChange={(e) => handleMatchingOptionDateChange(idx, e.target.value)}
@@ -2367,6 +2390,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                           <input
+                            data-field="floorStartDate"
                             type="date"
                             value={item.floorStartDate || ''}
                             onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
@@ -2375,6 +2399,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                           <input
+                            data-field="floorEndDate"
                             type="date"
                             value={item.floorEndDate || ''}
                             min={item.floorStartDate || undefined}
@@ -2384,6 +2409,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                           <select
+                            data-field="floorPlanType"
                             value={item.floorPlanType || ''}
                             onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
                             className="row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2407,6 +2433,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                           <input
+                            data-field="barrierQty"
                             type="number"
                             value={item.barrierQty !== undefined && item.barrierQty !== null ? item.barrierQty : ''}
                             onChange={(e) => handleCustomQtyChange(idx, 'barrierQty', e.target.value)}
@@ -2415,6 +2442,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                           <input
+                            data-field="workableQty"
                             type="number"
                             value={item.workableQty !== undefined && item.workableQty !== null ? item.workableQty : ''}
                             onChange={(e) => handleCustomQtyChange(idx, 'workableQty', e.target.value)}
@@ -2455,6 +2483,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
                           <input
+                            data-field="floorStartDate"
                             type="date"
                             value={item.floorStartDate || ''}
                             disabled={isDeliFloorDisabled}
@@ -2465,6 +2494,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
                           <input
+                            data-field="floorEndDate"
                             type="date"
                             value={item.floorEndDate || ''}
                             min={item.floorStartDate || undefined}
@@ -2476,6 +2506,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="floorPlanType"
                             value={item.floorPlanType || ''}
                             disabled={isDeliFloorDisabled}
                             title={floorDisabledTitle}
@@ -2489,6 +2520,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="startDate"
                             type="date"
                             value={item.startDate || ''}
                             disabled={isDeliInputsDisabled}
@@ -2499,6 +2531,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="endDate"
                             type="date"
                             value={item.endDate || ''}
                             min={item.startDate || undefined}
@@ -2510,6 +2543,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="planType"
                             value={item.planType || ''}
                             disabled={isDeliInputsDisabled}
                             title={disabledTitle}
@@ -2523,6 +2557,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="limitation"
                             rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
@@ -2532,6 +2567,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="remarks"
                             rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
@@ -2597,6 +2633,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                           <select
+                            data-field="unit"
                             value={item.unit || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'unit', e.target.value)}
                             className="row-unit p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2611,6 +2648,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
                           <select
+                            data-field="processName"
                             value={item.processName || ''}
                             onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
                             className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2658,6 +2696,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="startDate"
                             type="date"
                             value={item.startDate || ''}
                             onChange={(e) => handleStartDateChange(idx, e.target.value)}
@@ -2666,6 +2705,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <input
+                            data-field="endDate"
                             type="date"
                             value={item.endDate || ''}
                             min={item.startDate || undefined}
@@ -2675,6 +2715,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                           <select
+                            data-field="planType"
                             value={item.planType || ''}
                             onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
                             className="row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
@@ -2686,6 +2727,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="limitation"
                             rows={1}
                             value={item.limitation || ''}
                             onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
@@ -2695,6 +2737,7 @@ export default function OrderPlanningScreen() {
                         </td>
                         <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
                           <textarea
+                            data-field="remarks"
                             rows={1}
                             value={item.remarks || ''}
                             onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
@@ -2726,6 +2769,7 @@ export default function OrderPlanningScreen() {
               Cancel
             </button>
             <button
+              data-action="save"
               onClick={handleSavePlanning}
               disabled={saving}
               className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
