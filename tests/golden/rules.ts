@@ -101,17 +101,27 @@ export const RULE_NOTES: Record<string, string> = {
     "The YD 'Knit Plan' columns show the same blank mark for a blank, '-' or 'N/A' T&A Knit date (formatExcelDate), so the '-' / 'N/A' filter in ydKnitPlan has no visible effect today.",
   'CHG-07': "A Yarn Date of '-' or 'N/A' (saved by older code) counts as none (`knitting/chg07-legacy-yarn-placeholders`).",
   'AUTO-10':
-    "Older saves: a top-level barrierQty is shown and copied into itemData at save; a saved itemData without 'Barrier Qty.' leaves the input empty while the save still sends the Excel value (`yd/auto10-legacy-barrier-qty`).",
+    "Older saves: a top-level barrierQty is shown and copied into itemData at save; a saved itemData without 'Barrier Qty.' leaves the input empty while the save still sends the Excel value (`yd/auto10-legacy-barrier-qty`). A saved 'Workable Qty.' of 0 or '' (no top-level workableQty) is shown, and the save copies it into itemData over the Excel value (`yd/auto10-legacy-workable-qty`).",
   'MATCH-01':
     "The `item_${idx}` fallback is unreachable: generateItemId always returns a non-empty id (getColData returns '' for missing columns, so even an empty row gives '<order>_..._'). The 'N/A' parts are unreachable for the same reason. A Dyeing / Finishing Process Name of '-' counts as empty in the id (`finishing/match01-dash-process-name`).",
   'SAVE-01':
     'The save stops at the first failing row: in `knitting/save01-first-failure-wins` later rows fail other checks too, and a non-admin sees only the SAVE-01 toast.',
   'SAVE-02':
     "Fires only when an Excel row carries its own itemId equal to the next department's saved row (knit-match for Knitting -> Dyeing, dye-match for Dyeing -> Delivery); with generated ids the departments never share ids. The Dyeing check reads the Delivery main plan type, not the Floor plan type, and the exact itemId only (dye-match rows 2 and 3). A change of the plan type alone is enough (`dyeing/save02-plan-type-only`).",
+  'SAVE-03':
+    'Within a row too, the save stops at the first failing check: in `knitting/save03-first-failure-wins` the row also fails SAVE-07, and only the SAVE-03 toast shows.',
   'SAVE-04':
     'Applies to every department, not only YD / Delivery Floor: a knitting row saved with floor dates is checked (and sent) although the knitting table has no floor inputs (knit-floor-legacy).',
+  'SAVE-06':
+    "A saved Yarn Date of '-' or 'N/A' counts as none (`knitting/save06-legacy-yarn-placeholders`): each placeholder is the only failing row of one save (Admin fixes the '-' row first, the Planner the 'N/A' row).",
+  'SAVE-08':
+    "Dyeing input is a Start, an End or a plan type, each counting alone: the Start alone refuses the save in `dyeing/save08-ladder-then-saved` (row 4), the End alone in `dyeing/save08-end-date-alone`. A plan type alone cannot get this far (SAVE-05 runs first). A Knitting plan type of '-' counts as blank.",
+  'SAVE-11':
+    'Delivery input is a Start, an End, a Floor start or a Floor end, each counting alone; a Floor plan type does not count, and a plan type alone cannot get this far (SAVE-05 runs first). The Floor start alone refuses the save in `delivery/save11-12-then-saved` and `delivery/gate03-saved-plan-exemption`; the Floor end, End and Start alone in `delivery/save11-floor-end-alone`, `delivery/save11-end-date-alone` and `delivery/save11-start-date-alone`.',
+  'SAVE-12':
+    "A Dyeing start of '-' counts as missing (`delivery/save12-legacy-dash-dyeing-start`; the Dyeing plan type is set there, so SAVE-11 passes).",
   'SAVE-15':
-    "Cancel returns the select to the department's SAVED status: `save15-cancel-restores-saved-status` (status-saved) proves it for every department on saved statuses other than 'On Process', after another value was picked. generic-rules and knitting/save15 start from 'On Process', which V2's reset to 'On Process' would also give. The save checks run BEFORE the prompt: `save15-checks-before-completed-prompt` (every department) shows a failing check's toast, no prompt (an unscripted prompt is a harness error), no request, and the select keeping Completed.",
+    "Cancel returns the select to the department's SAVED status: `save15-cancel-restores-saved-status` (status-saved) proves it for every department on saved statuses other than 'On Process', after another value was picked. generic-rules and knitting/save15 start from 'On Process', which V2's reset to 'On Process' would also give. Without any saved status (an order never planned, no OrderDate) Cancel returns to 'On Process': `save15-cancel-never-saved` (no-saved-plan, every department). The save checks run BEFORE the prompt: `save15-checks-before-completed-prompt` (every department) shows a failing check's toast, no prompt (an unscripted prompt is a harness error), no request, and the select keeping Completed.",
 };
 
 export const IN_SCOPE = RULES.filter((r) => !r.uncovered).map((r) => r.id);
@@ -236,6 +246,8 @@ export function buildRulesMarkdown(scenarios: Scenario[], localScripts: Array<{ 
   lines.push('- A scenario that lists a rule shown by a toast, a confirm or a request (CHG-01..11, SAVE-00..17) must have an');
   lines.push('  expectation that proves it on a step of the right kind (`EVIDENCE` in `tests/golden/rules.ts`; `npm test` checks it).');
   lines.push('  SAVE-01 and SAVE-02 may instead be shown not firing, by a save that goes through (Admin exemption, exact-itemId lookup).');
+  lines.push('- Any `console.error` or `console.warn` during a test fails it (`tests/setup/setup.ts`): React reports missing keys, act()');
+  lines.push("  problems and hook-order changes there. The one line allowed is the page's own log of a failed order load.");
   lines.push('- Node: jsdom 30 needs Node `^22.22.2 || ^24.15.0 || >=26` (the recordings were made on 24.21.0). `knitting/save17-server-errors`');
   lines.push("  records V8's JSON parse error text (Node 18 words it differently); `tests/setup/setup.ts` refuses to run when it differs.");
   lines.push('- Install: `vitest` is an optional peer of `better-auth` (a production dependency), so npm marks vitest, vite, jsdom and');

@@ -313,4 +313,34 @@ export const dyeingScenarios: Scenario[] = [
           ]),
     ],
   })),
+
+  // dye-basic (SYN-D1): with row 2's dates and row 4's start cleared, a save goes through (save08-ladder-then-saved),
+  // so one value typed afterwards decides the save on its own.
+  ...forRoles(() => ({
+    name: 'save08-end-date-alone',
+    dept,
+    fixture: 'dye-basic',
+    rules: ['SAVE-08', 'SAVE-16', 'SAVE-17'],
+    note: "An End date alone counts as Dyeing input: row 4 (Knitting type '-') with only an End refuses the save. The End itself is accepted on change, because that check looks for Knitting dates, which row 4's Knitting row has. A non-admin edits rows 2 and 4 through their saved Dyeing plans. Cleared again, the save goes through.",
+    steps: [
+      { do: 'load' },
+      { do: 'set', row: 2, field: 'startDate', value: '' },
+      { do: 'set', row: 2, field: 'endDate', value: '' },
+      { do: 'set', row: 4, field: 'startDate', value: '' },
+      { do: 'set', row: 4, field: 'endDate', value: '2026-10-30' },
+      { do: 'save' },
+      { do: 'set', row: 4, field: 'endDate', value: '' },
+      { do: 'save' },
+    ],
+    expect: [
+      { step: 5, noToast: true },
+      { step: 5, field: [4, 'endDate'], value: '2026-10-30', disabled: false },
+      { step: 5, field: [4, 'startDate'], value: '' },
+      { step: 6, toast: T.saveKnitTypeMandatory },
+      { step: 6, saved: false },
+      { step: 8, saved: true },
+      { step: 8, toast: T.saved('SYN-D1') },
+      { step: 8, body: { item: 4, key: 'endDate', equals: '' } },
+    ],
+  })),
 ];

@@ -1,4 +1,4 @@
-import type { Scenario } from '../../harness/types';
+import type { Scenario, Step } from '../../harness/types';
 import { forRoles } from './helpers';
 import { T } from './texts';
 
@@ -13,6 +13,48 @@ import { T } from './texts';
 //   7 Red Pique   no delivery (Floor defaults)                                           knit: no Red Pique -> first Red row
 // Cells: 0 Color, 1 Construction, 2 GSM, 3..10 inputs, 11 dye start, 12 dye end, 13 dye type, 14 knit start, 15 knit end.
 const dept = 'delivery';
+
+// deli-saved-plan (SYN-L4; its rows are listed above gate03-saved-plan-exemption): with rows 1-3 cleared, a save goes
+// through (gate03-saved-plan-exemption, step 6), so one value typed afterwards decides the save on its own.
+const CLEAR_SAVED_ROWS: Step[] = [
+  { do: 'load' },
+  { do: 'set', row: 1, field: 'floorStartDate', value: '' },
+  { do: 'set', row: 2, field: 'planType', value: '' },
+  { do: 'set', row: 3, field: 'startDate', value: '' },
+];
+
+/**
+ * SAVE-11: one Delivery value alone, on a row whose Dyeing plan type is blank, refuses the save; cleared again, the
+ * save goes through. Admin types it into row 4 (no saved Delivery row, editable for Admin only); a non-admin into
+ * row 1, which its saved Delivery plan keeps editable (GATE-03).
+ */
+function saveRefusedByOneValue(name: string, field: 'floorEndDate' | 'endDate' | 'startDate', value: string, label: string): Scenario[] {
+  return forRoles((role, isAdmin) => {
+    const row = isAdmin ? 4 : 1;
+    return {
+      name,
+      dept,
+      fixture: 'deli-saved-plan',
+      rules: ['SAVE-11', 'SAVE-16', 'SAVE-17'],
+      note: `A ${label} alone counts as Delivery input: rows 1-3 are cleared, then row ${row} gets only a ${label}, and the save is refused while the Dyeing plan type is blank. Cleared again, the save goes through.`,
+      steps: [
+        ...CLEAR_SAVED_ROWS,
+        { do: 'set', row, field, value },
+        { do: 'save' },
+        { do: 'set', row, field, value: '' },
+        { do: 'save' },
+      ],
+      expect: [
+        { step: 5, field: [row, field], value, disabled: false },
+        { step: 6, toast: T.saveDyeTypeMandatory },
+        { step: 6, saved: false },
+        { step: 8, saved: true },
+        { step: 8, toast: T.saved('SYN-L4') },
+        { step: 8, body: { item: row, key: field, equals: '' } },
+      ],
+    };
+  });
+}
 
 export const deliveryScenarios: Scenario[] = [
   ...forRoles((role, isAdmin) => ({
@@ -263,6 +305,28 @@ export const deliveryScenarios: Scenario[] = [
       { step: 2, field: [2, 'planType'], value: '' },
       { step: 3, toast: T.saveDyeTypeMandatory },
       { step: 3, saved: false },
+    ],
+  })),
+
+  ...saveRefusedByOneValue('save11-floor-end-alone', 'floorEndDate', '2026-11-05', 'Floor End date'),
+  ...saveRefusedByOneValue('save11-end-date-alone', 'endDate', '2026-11-05', 'End date'),
+  ...saveRefusedByOneValue('save11-start-date-alone', 'startDate', '2026-10-28', 'Start date'),
+
+  // legacy-save-placeholders (SYN-X2): row 0 Navy saved with Floor dates only (10-25..11-03 Tentative), under a Navy
+  // Dyeing row typed Tentative whose start and end are '-'.
+  ...forRoles(() => ({
+    name: 'save12-legacy-dash-dyeing-start',
+    dept,
+    fixture: 'legacy-save-placeholders',
+    rules: ['SAVE-12', 'GATE-04'],
+    note: "A Dyeing start of '-' counts as missing at save too: the saved Floor dates are refused (SAVE-12), for Admin as well. The Dyeing plan type is set, so SAVE-11 passes and the Floor inputs stay editable; the main inputs are locked for everyone (GATE-04).",
+    steps: [{ do: 'load' }, { do: 'save' }],
+    expect: [
+      { step: 1, field: [0, 'floorStartDate'], value: '2026-10-25', disabled: false },
+      { step: 1, field: [0, 'startDate'], value: '', disabled: true, title: T.dyeMissing },
+      { step: 1, cell: [0, 13], text: 'Tentative' },
+      { step: 2, toast: T.saveDyeMissing },
+      { step: 2, saved: false },
     ],
   })),
 ];

@@ -522,4 +522,72 @@ export const knittingScenarios: Scenario[] = [
       { step: 4, body: { item: 2, key: 'yarnDate', equals: 'N/A' } },
     ],
   })),
+
+  // legacy-save-placeholders (SYN-X2): row 0 Red Tentative 10-05..10-15 (Yarn 10-01), rows 1 Blue and 2 Green saved
+  // Confirm (10-06..10-16, 10-07..10-17) with a Yarn Date of '-' and 'N/A' (saved by older code).
+  ...forRoles((role, isAdmin) => {
+    // Each placeholder must be the only failing row of one save: Admin gives row 1 ('-') a real Yarn Date first,
+    // so row 2 ('N/A') fails alone; the non-admin starts with row 2, so row 1 fails alone.
+    const [first, second] = isAdmin ? [1, 2] : [2, 1];
+    const yarn = (row: number) => (row === 1 ? '2026-10-02' : '2026-10-03');
+    return {
+      name: 'save06-legacy-yarn-placeholders',
+      dept,
+      fixture: 'legacy-save-placeholders',
+      rules: ['SAVE-06', 'GATE-05', 'SAVE-16', 'SAVE-17'],
+      note: `A saved Yarn Date of '-' or 'N/A' counts as none at save too: each saved Confirm row refuses the save until it gets a real Yarn Date (row ${first} first, then row ${second} fails alone). The Yarn Date stays editable on a Confirm row, for a non-admin too.`,
+      steps: [
+        { do: 'load' },
+        { do: 'save' },
+        { do: 'set', row: first, field: 'yarnDate', value: yarn(first) },
+        { do: 'save' },
+        { do: 'set', row: second, field: 'yarnDate', value: yarn(second) },
+        { do: 'save' },
+      ],
+      expect: [
+        { step: 1, field: [1, 'yarnDate'], value: '', disabled: false },
+        { step: 1, field: [1, 'planType'], value: 'Confirm', disabled: !isAdmin },
+        { step: 1, field: [2, 'yarnDate'], value: '', disabled: false },
+        { step: 2, toast: T.saveYarnForConfirm },
+        { step: 2, saved: false },
+        { step: 4, toast: T.saveYarnForConfirm },
+        { step: 4, saved: false },
+        { step: 6, saved: true },
+        { step: 6, toast: T.saved('SYN-X2') },
+        { step: 6, body: { item: 1, key: 'yarnDate', equals: '2026-10-02' } },
+        { step: 6, body: { item: 1, key: 'planType', equals: 'Confirm' } },
+        { step: 6, body: { item: 2, key: 'yarnDate', equals: '2026-10-03' } },
+        { step: 6, body: { item: 2, key: 'planType', equals: 'Confirm' } },
+      ],
+    };
+  }),
+
+  // knit-save03-first (SYN-K5): one row saved with Start 10-12, End 10-08 and Yarn Date 10-15 (older code).
+  ...forRoles(() => ({
+    name: 'save03-first-failure-wins',
+    dept,
+    fixture: 'knit-save03-first',
+    rules: ['SAVE-03', 'SAVE-07', 'SAVE-16', 'SAVE-17'],
+    note: 'The row fails two save checks, End before Start (SAVE-03) and Start before the Yarn Date (SAVE-07): the save stops at the first and shows only its toast. With the End fixed, the next save shows the second; with the Start fixed too, the save goes through.',
+    steps: [
+      { do: 'load' },
+      { do: 'save' },
+      { do: 'set', row: 0, field: 'endDate', value: '2026-10-20' },
+      { do: 'save' },
+      { do: 'set', row: 0, field: 'startDate', value: '2026-10-15' },
+      { do: 'save' },
+    ],
+    expect: [
+      { step: 1, field: [0, 'startDate'], value: '2026-10-12', min: '2026-10-15' },
+      { step: 1, field: [0, 'endDate'], value: '2026-10-08' },
+      { step: 2, toast: T.endBeforeStart },
+      { step: 2, saved: false },
+      { step: 4, toast: T.saveStartBeforeYarn },
+      { step: 4, saved: false },
+      { step: 6, saved: true },
+      { step: 6, toast: T.saved('SYN-K5') },
+      { step: 6, body: { item: 0, key: 'startDate', equals: '2026-10-15' } },
+      { step: 6, body: { item: 0, key: 'endDate', equals: '2026-10-20' } },
+    ],
+  })),
 ];
