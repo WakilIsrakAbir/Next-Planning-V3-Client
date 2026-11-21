@@ -68,6 +68,21 @@ export interface ICachedOrderDetail {
   order: any;
   planData: any;
   timestamp: number;
+  /** Plan fingerprint of each department (GET /api/orders/:orderNo and save-plans), the `base` of the next save. */
+  fingerprints?: IOrderFingerprints;
+  /** Per department: is the order in that department's latest file, and does it have rows there. */
+  deptFlags?: IOrderDeptFlags;
+}
+
+export type IOrderFingerprints = Partial<Record<string, string>>;
+export type IOrderDeptFlags = Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>>;
+
+/** The parts of an order's detail the order page shows and caches (one entry per department key). */
+export interface IOrderDetailData {
+  order: ICachedOrderDetail['order'];
+  planData: ICachedOrderDetail['planData'];
+  fingerprints?: IOrderFingerprints;
+  deptFlags?: IOrderDeptFlags;
 }
 
 export const cachedPlanningOrders: Record<string, ICachedPlanningData> = {};
@@ -157,15 +172,35 @@ export function fetchPlanningOrders(q: IPlanningListQuery): Promise<ICachedPlann
 export interface IOrderDetailResponse {
   ok: boolean;
   status: number;
-  data: Partial<Pick<ICachedOrderDetail, 'order' | 'planData'>> | null;
+  data: Partial<IOrderDetailData> | null;
+}
+
+// Orders saved from this tab, with the save time: for a while their detail reads skip the server's 60 s cache
+// (`fresh=1`), so another server instance's older cached copy is never shown after a save.
+const RECENT_SAVE_MS = 2 * 60 * 1000;
+const recentlySavedOrders = new Map<string, number>();
+
+/** Marks an order as just saved: for the next 2 minutes its detail requests add `fresh=1`. */
+export function markOrderRecentlySaved(orderNo: string): void {
+  recentlySavedOrders.set(String(orderNo).trim(), Date.now());
+}
+
+function isRecentlySaved(orderNo: string): boolean {
+  const key = String(orderNo).trim();
+  const savedAt = recentlySavedOrders.get(key);
+  if (savedAt === undefined) return false;
+  if (Date.now() - savedAt < RECENT_SAVE_MS) return true;
+  recentlySavedOrders.delete(key);
+  return false;
 }
 
 /**
  * Fetches one order's detail. Shared while in flight, so a hover prefetch followed by a click sends one request.
- * `fresh` starts a new request (used after saving).
+ * `fresh` starts a new request (used after saving). The response holds every department of the order whatever
+ * `dept` is (the server uses it only in its cache key).
  */
 export function fetchOrderDetail(dept: string, orderNo: string, fresh = false): Promise<IOrderDetailResponse> {
-  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`;
+  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}${isRecentlySaved(orderNo) ? '&fresh=1' : ''}`;
   return sharedRequest(
     url,
     async () => {
@@ -199,11 +234,11 @@ export function findPrecachedOrder(orderNo: string): any | null {
 /**
  * Retrieves cached order detail if available and not expired (< 3 minutes)
  */
-export function getPrecachedOrderDetail(dept: string, orderNo: string): { order: any; planData: any } | null {
+export function getPrecachedOrderDetail(dept: string, orderNo: string): IOrderDetailData | null {
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
   const entry = cachedOrderDetails.get(key);
   if (entry && Date.now() - entry.timestamp < 3 * 60 * 1000) {
-    return { order: entry.order, planData: entry.planData };
+    return { order: entry.order, planData: entry.planData, fingerprints: entry.fingerprints, deptFlags: entry.deptFlags };
   }
   return null;
 }
@@ -211,13 +246,23 @@ export function getPrecachedOrderDetail(dept: string, orderNo: string): { order:
 /**
  * Stores single order detail in memory cache
  */
-export function setPrecachedOrderDetail(dept: string, orderNo: string, data: { order: any; planData: any }): void {
+export function setPrecachedOrderDetail(dept: string, orderNo: string, data: IOrderDetailData): void {
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
   cachedOrderDetails.set(key, {
     order: data.order,
     planData: data.planData,
     timestamp: Date.now(),
+    fingerprints: data.fingerprints,
+    deptFlags: data.deptFlags,
   });
+}
+
+/** The department keys of the order detail cache (every order page reads the key of its own department). */
+export const ORDER_DETAIL_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'];
+
+/** Stores the same detail under all five department keys (after a save from the universal order page). */
+export function setPrecachedOrderDetailAllDepts(orderNo: string, data: IOrderDetailData): void {
+  ORDER_DETAIL_DEPTS.forEach((dept) => setPrecachedOrderDetail(dept, orderNo, data));
 }
 
 /**
@@ -280,6 +325,8 @@ export async function prefetchOrderDetail(dept: string, orderNo: string): Promis
         order: res.data.order,
         planData: res.data.planData,
         timestamp: Date.now(),
+        fingerprints: res.data.fingerprints,
+        deptFlags: res.data.deptFlags,
       });
     }
   } catch {
