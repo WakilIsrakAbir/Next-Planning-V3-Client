@@ -325,7 +325,8 @@ describe('editing and saving', () => {
     expect(draft()).toEqual(asDraft(stored?.value || []));
     expect(status()).toBe('9 criteria · 8 active · Saved · Last saved by admin, 21-Nov-2026 06:01');
     expect(button('Save Changes').disabled).toBe(true);
-    expect(m.guard.getUnsavedLabels()).toEqual([]);
+    // The guard drops the label in a passive effect, which may run just after the toast is drawn.
+    await waitFor(() => expect(m.guard.getUnsavedLabels()).toEqual([]));
     // the shared copy is the saved list, so order pages pick the change up
     const shared = m.data.getCachedPlanCheckList();
     expect(shared?.version).toBe(2);
@@ -647,7 +648,8 @@ describe('unsaved-work guard (src/lib/unsaved-changes.ts)', () => {
     fireEvent.click(button('Save Changes'));
     expect(m.guard.getUnsavedLabels()).toEqual(['Plan Check List']); // still unsaved while the save runs
     await screen.findByText('Plan Check List saved.');
-    expect(m.guard.getUnsavedLabels()).toEqual([]);
+    // The guard drops the label in a passive effect, which may run just after the toast is drawn.
+    await waitFor(() => expect(m.guard.getUnsavedLabels()).toEqual([]));
     expect(unloadPrompts()).toBe(false);
 
     // leaving the page (unmount) unregisters it
