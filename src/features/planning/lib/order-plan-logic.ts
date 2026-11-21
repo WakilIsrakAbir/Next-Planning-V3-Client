@@ -315,13 +315,104 @@ function buildMergedItems(currentOrder: Loose, currentPlan: Loose, dept: string)
   return merged;
 }
 
+function findUpstreamPlans(planData: Loose, item: Loose) {
+  const myColor = String(item.itemData?.Color || item.Color || item['Color'] || item['Colour'] || '').trim().toLowerCase();
+  const myConst = String(item.itemData?.FabricConstruction || item.FabricConstruction || item['Fabric Construction'] || item['Construction'] || '').trim().toLowerCase();
+
+  let knitItem: Loose = null;
+  let dyeItem: Loose = null;
+
+  if (planData?.knitting && Array.isArray(planData.knitting)) {
+    knitItem = planData.knitting.find((k: Loose) => {
+      const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
+      const fc = String((k.itemData && k.itemData.FabricConstruction) || k.FabricConstruction || '').trim().toLowerCase();
+      if (myConst && fc) {
+        return c === myColor && fc === myConst;
+      }
+      return c === myColor;
+    });
+    if (!knitItem) {
+      knitItem = planData.knitting.find((k: Loose) => {
+        const c = String((k.itemData && k.itemData.Color) || k.Color || '').trim().toLowerCase();
+        return c === myColor;
+      });
+    }
+  }
+
+  if (planData?.dyeing && Array.isArray(planData.dyeing)) {
+    dyeItem = planData.dyeing.find((d: Loose) => matchesDyeColor(d, myColor));
+  }
+
+  const isKnitTypeSelected = Boolean(
+    knitItem?.planType && knitItem.planType !== 'Select' && knitItem.planType !== '-' && knitItem.planType !== ''
+  );
+  const isDyeTypeSelected = Boolean(
+    dyeItem?.planType && dyeItem.planType !== 'Select' && dyeItem.planType !== '-' && dyeItem.planType !== ''
+  );
+
+  return { knitItem, dyeItem, isKnitTypeSelected, isDyeTypeSelected };
+}
+
+function ydKnitPlan(planData: Loose, order: Loose) {
+  if (planData?.knitting && Array.isArray(planData.knitting) && planData.knitting.length > 0) {
+    const kItem = planData.knitting[0];
+    return {
+      start: kItem.startDate || kItem.planStart || '',
+      end: kItem.endDate || kItem.planEnd || '',
+    };
+  }
+  return {
+    start: order?.knitStart && order.knitStart !== 'N/A' && order.knitStart !== '-' ? order.knitStart : '',
+    end: order?.knitEnd && order.knitEnd !== 'N/A' && order.knitEnd !== '-' ? order.knitEnd : '',
+  };
+}
+
+function formatPlanPayload(dept: string, planItems: Loose[]) {
+  const formattedItems = planItems.map((item) => {
+    const itemData = { ...(item.itemData || {}) };
+    if (dept === 'yd') {
+      if (item.barrierQty !== undefined) itemData['Barrier Qty.'] = item.barrierQty;
+      if (item.workableQty !== undefined) itemData['Workable Qty.'] = item.workableQty;
+    }
+    if (dept === 'dyeing' || dept === 'finishing') {
+      if (item.unit) itemData.Unit = item.unit;
+      if (item.processName) {
+        itemData.ProcessName = item.processName;
+        itemData['Process Name'] = item.processName;
+      }
+    }
+    return {
+      itemId: item.itemId,
+      itemData,
+      planType: item.planType || '',
+      startDate: item.startDate || '',
+      endDate: item.endDate || '',
+      limitation: item.limitation || '',
+      remarks: item.remarks || '',
+      floorStartDate: item.floorStartDate || '',
+      floorEndDate: item.floorEndDate || '',
+      floorPlanType: item.floorPlanType || '',
+      yarnDate: item.yarnDate || '',
+      yarnOkDate: item.yarnOkDate || '',
+      matchingOptionDate: item.matchingOptionDate || '',
+      unit: item.unit || '',
+      processName: item.processName || '',
+      barrierQty: item.barrierQty !== undefined ? item.barrierQty : itemData['Barrier Qty.'],
+      workableQty: item.workableQty !== undefined ? item.workableQty : itemData['Workable Qty.'],
+    };
+  });
+  return formattedItems;
+}
+
 export type { Loose };
 export {
   buildMergedItems,
+  findUpstreamPlans,
   formatDateDisplay,
   formatExcelDate,
-  matchesDyeColor,
+  formatPlanPayload,
   readIsAdminRole,
   subscribeToNothing,
   withCurrentOption,
+  ydKnitPlan,
 };
