@@ -602,3 +602,5 @@ export function createDeptPlanLogic(ctx: DeptPlanLogicContext) {
     confirmCompletion,
   };
 }
+
+export type DeptPlanLogic = ReturnType<typeof createDeptPlanLogic>;
