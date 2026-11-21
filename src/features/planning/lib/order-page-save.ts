@@ -148,9 +148,30 @@ export interface SavePlansResult {
 /** Shown when the server has no save-plans route yet (an older server answers Express's 404 page). */
 export const SAVE_PLANS_MISSING_MESSAGE = 'Deploy the updated Next Planning V3 server to save from this page.';
 
+/** A save-plans answer that is not OK: its message is the toast text; a 409 also names the changed departments. */
+export class SavePlansError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly departments?: string[];
+
+  constructor(message: string, status: number, code?: string, departments?: string[]) {
+    super(message);
+    this.name = 'SavePlansError';
+    this.status = status;
+    this.code = code;
+    this.departments = departments;
+  }
+
+  /** Plan D7: someone else changed these departments after the page read them (S1: 409 CONFLICT). */
+  get conflictDepartments(): string[] | null {
+    return this.status === 409 && this.code === 'CONFLICT' && Array.isArray(this.departments) ? this.departments : null;
+  }
+}
+
 /**
  * POST /api/orders/save-plans. Throws an Error whose message is the toast text: the server's message (400, 404 with a
- * message, 409, 500), today's fallback text, the JSON parse error of a non-JSON reply, or the network error.
+ * message, 409, 500; as a SavePlansError), today's fallback text, the JSON parse error of a non-JSON reply, or the
+ * network error.
  */
 export async function postSavePlans(body: SavePlansBody): Promise<SavePlansResult> {
   const token = localStorage.getItem('token');
@@ -172,10 +193,10 @@ export async function postSavePlans(body: SavePlansBody): Promise<SavePlansResul
       } catch {
         message = '';
       }
-      throw new Error(message || SAVE_PLANS_MISSING_MESSAGE);
+      throw new SavePlansError(message || SAVE_PLANS_MISSING_MESSAGE, 404);
     }
     const errorData = await res.json();
-    throw new Error(errorData.message || 'Failed to save planning schedule.');
+    throw new SavePlansError(errorData.message || 'Failed to save planning schedule.', res.status, errorData.code, errorData.departments);
   }
   return (await res.json()) as SavePlansResult;
 }

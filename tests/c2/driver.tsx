@@ -73,8 +73,11 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
 
   const toasts: string[] = [];
   let last = '';
+  // Only the toast ([data-toast]): the page's other daisyUI alerts (a section's conflict alert, the restore offer)
+  // are not toasts.
   const observer = new MutationObserver(() => {
-    const t = readToast(document.body);
+    const host = document.querySelector('[data-toast]');
+    const t = host ? readToast(host) : null;
     const key = t ? `${t.type}: ${t.text}` : '';
     if (key && key !== last) toasts.push(key);
     last = key;

@@ -14,11 +14,16 @@ interface OrderGeneralInfoProps {
   displayQty: Loose;
   orderStatus: string;
   onStatusChange: (status: string) => void;
+  /**
+   * The rows are on screen. Until then the page ignores a status change (see orderPageReducer 'status'). The select
+   * keeps today's look while the order loads (the golden master records it enabled), so only aria-disabled says so.
+   */
+  loaded: boolean;
   hidden: boolean;
   onToggleHidden: (key: string) => void;
 }
 
-function OrderGeneralInfo({ order, displayQty, orderStatus, onStatusChange, hidden, onToggleHidden }: OrderGeneralInfoProps) {
+function OrderGeneralInfo({ order, displayQty, orderStatus, onStatusChange, loaded, hidden, onToggleHidden }: OrderGeneralInfoProps) {
   return (
     <div data-general-info className="flex flex-col gap-1">
       <div
@@ -158,6 +163,7 @@ function OrderGeneralInfo({ order, displayQty, orderStatus, onStatusChange, hidd
                 <select
                   data-field="orderStatus"
                   value={orderStatus}
+                  aria-disabled={loaded ? undefined : true}
                   onChange={(e) => onStatusChange(e.target.value)}
                   className="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500"
                 >

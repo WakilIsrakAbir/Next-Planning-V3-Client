@@ -148,7 +148,29 @@ export function deptsFor(routeDept: string): string[] {
   return out;
 }
 
+/**
+ * What a save sends: one section (its strip Save), a whole department (the route card's footer Save: on the delivery
+ * page today's single "Save Planning Schedule" stored Floor and Lock together, and still does), or Save Data.
+ */
+export type SaveTarget = { kind: 'section'; key: string } | { kind: 'dept'; dept: string } | { kind: 'all' };
+
 /* ---------------- state ---------------- */
+
+/**
+ * Plan D7: a department the server refused to save because someone else changed it after this page read it (409).
+ * Its sections show an alert with "Load latest" and "Save mine anyway" until the department's base fingerprint is
+ * adopted again (a save, or a read that shows the unsaved work was made on what is stored now).
+ */
+export interface DeptConflict {
+  /** The field groups of the refused save (delivery: 'floor' and/or 'lock'); their sections show the alert. */
+  groups: GroupKey[];
+  /** The save that was refused, sent again by "Save mine anyway". */
+  target: SaveTarget;
+  /** Every department of the same refusal ("Save mine anyway" sends all of them without `base`). */
+  depts: string[];
+  /** "Save mine anyway" was chosen: saves send this department without `base` until it is saved. */
+  force: boolean;
+}
 
 export interface DeptDraft {
   rows: Loose[];
@@ -167,6 +189,10 @@ export interface OrderPageModel {
   fingerprints: Partial<Record<string, string>>;
   deptFlags: DeptFlags | null;
   drafts: Record<string, DeptDraft>;
+  /** The rows are on screen (from the cached detail or the first read). Until then no Order Status can change. */
+  loaded: boolean;
+  /** Plan D7: departments with a refused save (409), by department. */
+  conflicts: Record<string, DeptConflict>;
 }
 
 export interface OrderDetailInput {
@@ -202,6 +228,8 @@ export function initOrderPageModel(depts: string[], cached: OrderDetailInput | n
     fingerprints: { ...(cached?.fingerprints || {}) },
     deptFlags: cached?.deptFlags || null,
     drafts,
+    loaded: Boolean(cached?.order),
+    conflicts: {},
   };
 }
 
@@ -266,11 +294,46 @@ export function rowsForSave(draft: DeptDraft, dept: string, groups: GroupKey[]):
   return { rows: withFieldsFrom(draft.rows, draft.base.floor, FLOOR_FIELDS), status: draft.status };
 }
 
-/** True when `next` is a plan saved BEFORE the one on screen (an older read must never replace newer data). */
+/**
+ * True when `next` is a plan saved BEFORE the one on screen (an older read must never replace newer data). An order's
+ * plan (OrderDate) is never deleted, so once the plan on screen has a save time, a read without a plan or without a
+ * save time is an older copy too (e.g. another server instance's cached "no plan yet").
+ */
 export function isOlderPlanData(next: Loose, current: Loose): boolean {
-  const a = Date.parse(String(next?.updatedAt ?? ''));
   const b = Date.parse(String(current?.updatedAt ?? ''));
-  return Number.isFinite(a) && Number.isFinite(b) && a < b;
+  if (!Number.isFinite(b)) return false;
+  const a = Date.parse(String(next?.updatedAt ?? ''));
+  return !Number.isFinite(a) || a < b;
+}
+
+/** Same item ids in the same order. */
+function sameItems(a: Loose[] | undefined, b: Loose[] | undefined): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((row, i) => row?.itemId === b[i]?.itemId);
+}
+
+/**
+ * The group's baseline (what the unsaved work was made on) is what a read shows now: the same items, the same values
+ * of the group's fields, and for the status group the same Order Status.
+ */
+function baseMatchesRead(draft: DeptDraft, dept: string, group: GroupKey, merged: Loose[], status: string): boolean {
+  if (group === statusGroupOf(dept) && draft.baseStatus !== status) return false;
+  const base = draft.base[group];
+  return sameItems(base, merged) && !rowsDiffer(merged, base, groupFields(group));
+}
+
+/**
+ * Every group's baseline becomes the read (`merged`); the `reload` groups also take the read's values, the other groups
+ * keep their unsaved values (only used when those groups' baselines equal the read, see baseMatchesRead).
+ */
+function rebaseOnRead(draft: DeptDraft, dept: string, reload: GroupKey[], merged: Loose[], status: string): DeptDraft {
+  let rows = merged;
+  const base: Partial<Record<GroupKey, Loose[]>> = {};
+  groupsOf(dept).forEach((g) => {
+    base[g] = merged;
+    if (!reload.includes(g)) rows = withFieldsFrom(rows, draft.rows, groupFields(g));
+  });
+  return { rows, status: reload.includes(statusGroupOf(dept)) ? status : draft.status, base, baseStatus: status };
 }
 
 /**
@@ -295,9 +358,22 @@ function remergeGroups(draft: DeptDraft, dept: string, groups: GroupKey[], merge
   };
 }
 
+/** A section's backed-up unsaved work (see order-page-backup.ts): the rows' values of `groups`, and the status. */
+export interface RestoreInput {
+  dept: string;
+  groups: GroupKey[];
+  rows: Loose[];
+  status?: string;
+}
+
 export type OrderPageAction =
-  /** A detail read: every clean group is re-merged from it; dirty groups keep their drafts and old bases. */
-  | { type: 'hydrate'; data: OrderDetailInput }
+  /**
+   * A detail read: every clean group (and every `drop` group, whose draft is given up) is re-merged from it; dirty
+   * groups keep their drafts. The department adopts the read's fingerprint only when every group that keeps a draft
+   * was made on what the read shows (its baseline equals the read); otherwise the old base stays, so a save is
+   * refused instead of silently overwriting someone else's change.
+   */
+  | { type: 'hydrate'; data: OrderDetailInput; drop?: Array<{ dept: string; group: GroupKey }> }
   | { type: 'rows'; dept: string; update: SetStateAction<Loose[]> }
   | { type: 'status'; dept: string; update: SetStateAction<string> }
   | { type: 'discard'; dept: string; group: GroupKey }
@@ -307,7 +383,13 @@ export type OrderPageAction =
       saved: Array<{ dept: string; groups: GroupKey[] }>;
       planData: Loose;
       fingerprints?: Partial<Record<string, string>>;
-    };
+    }
+  /** Plan D7: the server refused a save (409) for `depts`; `sent` is what that save sent. */
+  | { type: 'conflict'; depts: string[]; sent: Array<{ dept: string; groups: GroupKey[] }>; target: SaveTarget }
+  /** Plan D7 "Save mine anyway": these departments are sent without `base` until they are saved. */
+  | { type: 'force'; depts: string[] }
+  /** Backed-up unsaved work put back into the drafts (the baselines stay: it shows as unsaved). */
+  | { type: 'restore'; backups: RestoreInput[] };
 
 export function orderPageReducer(state: OrderPageModel, action: OrderPageAction): OrderPageModel {
   switch (action.type) {
@@ -317,20 +399,31 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
       const order = data.order || {};
       const planData = data.planData || {};
       const fingerprints = { ...state.fingerprints };
+      const conflicts = { ...state.conflicts };
       const drafts: Record<string, DeptDraft> = {};
       Object.keys(state.drafts).forEach((dept) => {
         const draft = state.drafts[dept];
-        const clean = groupsOf(dept).filter((g) => !isGroupDirty(draft, dept, g));
-        if (clean.length === 0) {
-          drafts[dept] = draft;
+        const dropped = (action.drop || []).filter((d) => d.dept === dept).map((d) => d.group);
+        const reload = groupsOf(dept).filter((g) => dropped.includes(g) || !isGroupDirty(draft, dept, g));
+        const keep = groupsOf(dept).filter((g) => !reload.includes(g));
+        const merged = buildMergedItems(order, planData, dept);
+        const status = statusOf(planData, dept);
+        const stale = keep.filter((g) => !baseMatchesRead(draft, dept, g, merged, status));
+        const fp = data.fingerprints ? data.fingerprints[dept] : undefined;
+        const remerged = reload.length > 0 ? remergeGroups(draft, dept, reload, merged, status) : draft;
+        if (stale.length > 0) {
+          // Unsaved work made on data that has changed since: keep its draft, its baseline and its old base.
+          drafts[dept] = remerged;
+          if (conflicts[dept]) conflicts[dept] = { ...conflicts[dept], groups: stale };
           return;
         }
-        drafts[dept] = remergeGroups(draft, dept, clean, buildMergedItems(order, planData, dept), statusOf(planData, dept));
-        if (clean.length === groupsOf(dept).length && data.fingerprints && data.fingerprints[dept] !== undefined) {
-          fingerprints[dept] = data.fingerprints[dept];
-        }
+        if (keep.length === 0) drafts[dept] = cleanDraft(merged, status, dept);
+        else if (fp !== undefined && fp !== state.fingerprints[dept]) drafts[dept] = rebaseOnRead(draft, dept, reload, merged, status);
+        else drafts[dept] = remerged;
+        if (fp !== undefined) fingerprints[dept] = fp;
+        delete conflicts[dept];
       });
-      return { order, planData, fingerprints, deptFlags: data.deptFlags || null, drafts };
+      return { order, planData, fingerprints, deptFlags: data.deptFlags || null, drafts, loaded: true, conflicts };
     }
     case 'rows': {
       const draft = state.drafts[action.dept];
@@ -341,7 +434,9 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
     }
     case 'status': {
       const draft = state.drafts[action.dept];
-      if (!draft) return state;
+      // A status chosen before the rows are on screen would hold back the read's rows and status (a dirty group keeps
+      // its draft), so no Order Status changes until then.
+      if (!draft || !state.loaded) return state;
       const status = typeof action.update === 'function' ? action.update(draft.status) : action.update;
       if (status === draft.status) return state;
       return { ...state, drafts: { ...state.drafts, [action.dept]: { ...draft, status } } };
@@ -358,13 +453,45 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
       const planData = action.planData || {};
       const drafts = { ...state.drafts };
       const fingerprints = { ...state.fingerprints };
+      const conflicts = { ...state.conflicts };
       action.saved.forEach(({ dept, groups }) => {
         const draft = drafts[dept];
         if (!draft) return;
         drafts[dept] = remergeGroups(draft, dept, groups, buildMergedItems(state.order, planData, dept), statusOf(planData, dept));
         if (action.fingerprints && action.fingerprints[dept] !== undefined) fingerprints[dept] = action.fingerprints[dept];
+        // What is stored now is what this save sent (its other group from the baseline): nothing left to resolve.
+        delete conflicts[dept];
       });
-      return { ...state, planData, fingerprints, drafts };
+      return { ...state, planData, fingerprints, drafts, conflicts };
+    }
+    case 'conflict': {
+      const conflicts = { ...state.conflicts };
+      const depts = action.sent.map((s) => s.dept).filter((d) => action.depts.includes(d));
+      action.sent.forEach(({ dept, groups }) => {
+        if (depts.includes(dept)) conflicts[dept] = { groups, target: action.target, depts, force: false };
+      });
+      return depts.length > 0 ? { ...state, conflicts } : state;
+    }
+    case 'force': {
+      const conflicts = { ...state.conflicts };
+      action.depts.forEach((d) => {
+        if (conflicts[d]) conflicts[d] = { ...conflicts[d], force: true };
+      });
+      return { ...state, conflicts };
+    }
+    case 'restore': {
+      const drafts = { ...state.drafts };
+      action.backups.forEach(({ dept, groups, rows, status }) => {
+        const draft = drafts[dept];
+        if (!draft) return;
+        let next = draft.rows;
+        groups.forEach((g) => {
+          next = withFieldsFrom(next, rows, groupFields(g));
+        });
+        const withStatus = groups.includes(statusGroupOf(dept)) && typeof status === 'string';
+        drafts[dept] = { ...draft, rows: next, status: withStatus ? (status as string) : draft.status };
+      });
+      return { ...state, drafts };
     }
     default:
       return state;
