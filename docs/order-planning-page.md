@@ -79,8 +79,8 @@ Each section has a strip above today's table card. The strip holds:
 - Discard (named "Discard <Section> changes"; asks first: "Discard the unsaved changes in <Section>?"), `Save <Dept>`
   (`Save Floor` / `Save Lock` for delivery) and Hide/Unhide.
 
-The strip's Order Status select and the guide's selects and date inputs show a focus ring for keyboard focus
-(`focus-visible`).
+The strip's Order Status select and the guide's selects show a focus ring for keyboard focus (`focus-visible`); the
+guide's date inputs show it on focus (Chrome does not match a date input as `:focus-visible`).
 
 Hide/Unhide is remembered per page in localStorage `orderPage.hiddenSections` (`<route>:<section>`). Everything the
 page adds around today's card is marked `data-c2-chrome`.
