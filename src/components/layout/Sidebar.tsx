@@ -62,6 +62,8 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'view', label: 'Source File Upload', href: '/management/upload' },
       // Database health and the backup download (permission menus.dataManagement.atlasMonitor)
       { key: 'atlasMonitor', label: 'Atlas Monitor', href: '/management/atlas-monitor' },
+      // Criteria of the order page's Checkpoint & Planning Guide (permission menus.dataManagement.planCheckList)
+      { key: 'planCheckList', label: 'Plan Check List', href: '/management/plan-check-list' },
       {
         key: 'setupGroup',
         label: 'Setup',

@@ -8,6 +8,8 @@ export interface IUserPermissions {
       setup?: boolean;
       view?: boolean;
       atlasMonitor?: boolean;
+      // Data Management > Plan Check List: open the page and save the list (an Admin always can).
+      planCheckList?: boolean;
       dyeingMc?: boolean;
       flatAllowance?: boolean;
       unitSetup?: boolean;
