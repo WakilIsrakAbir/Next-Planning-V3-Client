@@ -72,6 +72,9 @@ export interface ICachedOrderDetail {
   fingerprints?: IOrderFingerprints;
   /** Per department: is the order in that department's latest file, and does it have rows there. */
   deptFlags?: IOrderDeptFlags;
+  /** The order's Checkpoint & Planning Guide from the same detail answer (null before its first save); read it
+   *  with readPlanGuide (plan-guide-api.ts). */
+  guide?: unknown;
 }
 
 export type IOrderFingerprints = Partial<Record<string, string>>;
@@ -83,6 +86,7 @@ export interface IOrderDetailData {
   planData: ICachedOrderDetail['planData'];
   fingerprints?: IOrderFingerprints;
   deptFlags?: IOrderDeptFlags;
+  guide?: unknown;
 }
 
 export const cachedPlanningOrders: Record<string, ICachedPlanningData> = {};
@@ -265,7 +269,7 @@ export function getPrecachedOrderDetail(dept: string, orderNo: string): IOrderDe
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
   const entry = cachedOrderDetails.get(key);
   if (entry && Date.now() - entry.timestamp < 3 * 60 * 1000) {
-    return { order: entry.order, planData: entry.planData, fingerprints: entry.fingerprints, deptFlags: entry.deptFlags };
+    return { order: entry.order, planData: entry.planData, fingerprints: entry.fingerprints, deptFlags: entry.deptFlags, guide: entry.guide };
   }
   return null;
 }
@@ -281,6 +285,7 @@ export function setPrecachedOrderDetail(dept: string, orderNo: string, data: IOr
     timestamp: Date.now(),
     fingerprints: data.fingerprints,
     deptFlags: data.deptFlags,
+    guide: data.guide,
   });
 }
 
@@ -354,6 +359,7 @@ export async function prefetchOrderDetail(dept: string, orderNo: string): Promis
         timestamp: Date.now(),
         fingerprints: res.data.fingerprints,
         deptFlags: res.data.deptFlags,
+        guide: res.data.guide,
       });
     }
   } catch {

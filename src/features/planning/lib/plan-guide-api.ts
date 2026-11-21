@@ -225,3 +225,24 @@ export function storeGuideInDetailCache(orderNo: string, guide: PlanGuide): void
     cachedOrderDetails.set(key, next);
   }
 }
+
+/**
+ * The order page's step after a guide save (SPEC C4): the guide goes into the cached details under ALL five
+ * department keys. Entries that exist get it as in storeGuideInDetailCache (a newer guide there is kept); a key without
+ * an entry gets a copy of this order's latest cached entry, guide included (one detail answer holds every
+ * department; the copy keeps that entry's age). Nothing is cached when the order has no entry at all.
+ */
+export function storeGuideInAllDetailKeys(orderNo: string, guide: PlanGuide): void {
+  storeGuideInDetailCache(orderNo, guide);
+  const target = String(orderNo).trim();
+  let latest: ICachedOrderDetail | undefined;
+  for (const dept of PLAN_DEPTS) {
+    const entry = cachedOrderDetails.get(`${dept}_${target}`);
+    if (entry && (!latest || entry.timestamp > latest.timestamp)) latest = entry;
+  }
+  if (!latest) return;
+  for (const dept of PLAN_DEPTS) {
+    const key = `${dept}_${target}`;
+    if (!cachedOrderDetails.has(key)) cachedOrderDetails.set(key, { ...latest });
+  }
+}
