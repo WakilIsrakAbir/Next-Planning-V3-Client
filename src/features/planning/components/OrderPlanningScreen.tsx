@@ -458,7 +458,10 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       try {
         if (entries.length > 0) {
           const result = await postSavePlans(buildSavePlansBody(orderNo, entries, bases));
-          if (!isOlderPlanData(result.planData, newestPlanRef.current)) newestPlanRef.current = result.planData;
+          // Keep-newest: an answer older than the newest plan on screen (a read of a later save answered first)
+          // replaces neither the plan (the reducer checks it too) nor the cache.
+          const older = isOlderPlanData(result.planData, newestPlanRef.current);
+          if (!older) newestPlanRef.current = result.planData;
           // Only the saved sections are merged again (and adopt the new fingerprints); others keep their drafts.
           dispatch({
             type: 'saved',
@@ -467,13 +470,15 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             fingerprints: result.fingerprints,
           });
           // Every department page of this order opens with the saved data.
-          setPrecachedOrderDetailAllDepts(orderNo, {
-            order: m.order,
-            planData: result.planData,
-            fingerprints: result.fingerprints,
-            deptFlags: m.deptFlags || undefined,
-            guide: guideRef.current,
-          });
+          if (!older) {
+            setPrecachedOrderDetailAllDepts(orderNo, {
+              order: m.order,
+              planData: result.planData,
+              fingerprints: result.fingerprints,
+              deptFlags: m.deptFlags || undefined,
+              guide: guideRef.current,
+            });
+          }
           markOrderRecentlySaved(orderNo);
           // Batch Plan reads the saved units and plan dates: reload it the next time it is shown.
           markBatchDataStale();

@@ -484,7 +484,9 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
       return { ...state, drafts: { ...state.drafts, [dept]: { ...draft, rows, status } } };
     }
     case 'saved': {
-      const planData = action.planData || {};
+      // Keep-newest: an answer older than the plan on screen (a read of a later save answered first) does not replace
+      // it. The saved groups are then merged again from that newer plan, which holds this save or a later one.
+      const planData = isOlderPlanData(action.planData, state.planData) ? state.planData : action.planData || {};
       const drafts = { ...state.drafts };
       const fingerprints = { ...state.fingerprints };
       const conflicts = { ...state.conflicts };

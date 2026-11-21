@@ -3,7 +3,9 @@ import { openPage, type PageDriver } from './driver';
 import { twoRows } from './fixtures';
 import { API_BASE, TEST_TOKEN, fingerprintDept } from '../harness/mock-server';
 import { T } from '../golden/scenarios/texts';
+import { harnessState } from '../harness/state';
 import type { Loose } from '../harness/types';
+import { initOrderPageModel, orderPageReducer } from '@/features/planning/lib/order-page-model';
 
 // Lost-update sequences against the fingerprint-adoption rule (a read adopts a department's fingerprint only when every
 // group that keeps a draft was made on what the read shows), against "Save mine anyway" and against the keep-newest
@@ -490,6 +492,76 @@ describe('reads racing with saves (keep-newest)', () => {
     // A silent overwrite would leave ''.
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('YD')}`);
     expect(stored(page).yd[0].itemData['Barrier Qty.']).toBe(50);
+  });
+
+  it('a save answer older than the plan on screen (a read of a later save answered first) replaces neither the plan nor the cache', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    // A slow server instance: the read that follows save 1 is handled only when released (after save 2 and their save).
+    const h = harnessState();
+    const direct = h.fetchHandler!;
+    let handleRead: (() => void) | null = null;
+    h.fetchHandler = (input, init) => {
+      const method = ((init || {}) as { method?: string }).method || 'GET';
+      if (!handleRead && method === 'GET' && String(input).includes('/api/orders/SYN-S1?')) {
+        return new Promise((resolve) => {
+          handleRead = () => resolve(direct(input, init));
+        });
+      }
+      return direct(input, init);
+    };
+    await page.set('knitting', 0, 'remarks', 'k1');
+    await page.saveSection('knitting');
+    expect(handleRead).not.toBeNull();
+    await page.wait(2000);
+    // Save 2 is stored now; its answer is held.
+    await page.set('dyeing', 1, 'remarks', 'd2');
+    page.server.scriptNext('saveDates', { hold: true });
+    await page.saveSection('dyeing');
+    expect(page.server.heldCount).toBe(1);
+    await page.wait(1000);
+    await someoneElseSaves(page, 'knitting', (rows) => {
+      rows[1].limitation = 'theirs';
+    });
+    await page.wait(1000);
+    // The read is handled now (it holds save 2 and their save) and answers first.
+    handleRead!();
+    await page.settle();
+    expect(ta(page, 'knitting', 1, 'limitation')).toBe('theirs');
+    // Save 2's (older) answer arrives; the read after it is held.
+    page.server.scriptNext('detail', { hold: true });
+    page.server.releaseHeld();
+    await page.settle();
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    expect(ta(page, 'dyeing', 1, 'remarks')).toBe('d2');
+    expect(page.pills('dyeing')).not.toContain('Unsaved');
+    expect(ta(page, 'knitting', 1, 'limitation')).toBe('theirs');
+    // The cache still holds the newer read: the page opens again from it before its own read answers.
+    await page.reopen();
+    expect(ta(page, 'knitting', 1, 'limitation')).toBe('theirs');
+    expect(ta(page, 'dyeing', 1, 'remarks')).toBe('d2');
+    page.server.releaseHeld();
+    await page.settle();
+    expect(ta(page, 'knitting', 1, 'limitation')).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('the reducer: an older save answer keeps the newer plan and merges the saved group again from it', () => {
+    const f = twoRows();
+    const newer = { ...JSON.parse(JSON.stringify(f.orderDates[0])), updatedAt: '2026-11-21T05:00:00.000Z' };
+    newer.dyeing[1].remarks = 'd2';
+    newer.knitting[1].limitation = 'theirs';
+    const m = initOrderPageModel(['knitting', 'dyeing'], { order: f.orders[0], planData: newer, fingerprints: { dyeing: 'fp-old' } }, {});
+    const older = { ...JSON.parse(JSON.stringify(f.orderDates[0])), updatedAt: '2026-11-21T04:00:00.000Z' };
+    older.dyeing[1].remarks = 'd2';
+    const dirty = orderPageReducer(m, { type: 'rows', dept: 'dyeing', update: (rows) => rows.map((r, i) => (i === 0 ? { ...r, remarks: 'later' } : r)) });
+    const next = orderPageReducer(dirty, { type: 'saved', saved: [{ dept: 'dyeing', groups: ['main'] }], planData: older, fingerprints: { dyeing: 'fp-2' } });
+    expect(next.planData).toBe(newer);
+    expect(next.drafts.dyeing.rows.map((r) => r.remarks)).toEqual(['', 'd2']);
+    expect(next.drafts.knitting).toBe(m.drafts.knitting);
+    expect(next.fingerprints.dyeing).toBe('fp-2');
+    // A newer answer is taken as before.
+    const newest = { ...older, updatedAt: '2026-11-21T06:00:00.000Z' };
+    expect(orderPageReducer(dirty, { type: 'saved', saved: [{ dept: 'dyeing', groups: ['main'] }], planData: newest }).planData).toBe(newest);
   });
 
   it('a read answered while my Dyeing edit is dirty and someone else saved Dyeing: not absorbed even when it arrives late', async () => {
