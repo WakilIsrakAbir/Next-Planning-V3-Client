@@ -78,6 +78,8 @@ describe('the backup', () => {
     await page.reload('knitting', () => signIn('admin'));
     expect(offer()?.textContent).toContain(offerText(['Knitting Plan', 'Delivery Plan (Lock)']));
     expect(offer()?.className).toContain('alert-warning');
+    // Restore and Discard: a keyboard focus outline in the alert's own text colour (readable in both themes).
+    offer()!.querySelectorAll('button').forEach((b) => expect(b.className).toContain('focus-visible:outline-warning-content'));
     // Not restored until asked: the saved values are shown, nothing is unsaved.
     expect(textarea(page, 'knitting', 1, 'remarks')).toBe('');
     expect(page.saveDataButton().disabled).toBe(true);

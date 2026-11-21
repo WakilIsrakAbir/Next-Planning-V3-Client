@@ -268,7 +268,13 @@ function PlanSection({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" data-action="load-latest" onClick={() => onLoadLatest(key)} disabled={saving} className="btn btn-xs">
+            <button
+              type="button"
+              data-action="load-latest"
+              onClick={() => onLoadLatest(key)}
+              disabled={saving}
+              className="btn btn-xs focus-visible:outline-warning-content"
+            >
               Load latest
             </button>
             {dirty && (

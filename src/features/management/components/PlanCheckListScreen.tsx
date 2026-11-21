@@ -360,11 +360,19 @@ export default function PlanCheckListScreen() {
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1 min-w-0">{notice.text}</span>
           {notice.kind === 'conflict' && (
-            <button type="button" onClick={reload} disabled={busy} className="btn btn-xs">
+            <button type="button" onClick={reload} disabled={busy} className="btn btn-xs focus-visible:outline-warning-content">
               <RefreshCw className="h-3 w-3" /> Reload
             </button>
           )}
-          <button type="button" onClick={() => setNotice(null)} className="btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content" aria-label="Close message">
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className={cn(
+              'btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content',
+              notice.kind === 'conflict' ? 'focus-visible:outline-warning-content' : 'focus-visible:outline-error-content'
+            )}
+            aria-label="Close message"
+          >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>

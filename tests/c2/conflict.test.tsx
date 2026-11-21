@@ -54,6 +54,8 @@ describe('a refused section Save', () => {
     expect(alert?.className).toContain('alert-warning');
     expect(alert?.textContent).toContain(conflictText('Dyeing'));
     expect(Array.from(alert!.querySelectorAll('button')).map((b) => b.textContent)).toEqual(['Load latest', 'Save mine anyway']);
+    // A keyboard focus outline in the alert's own text colour (readable in both themes).
+    alert!.querySelectorAll('button').forEach((b) => expect(b.className).toContain('focus-visible:outline-warning-content'));
     for (const key of ['knitting', 'deliveryFloor', 'deliveryLock']) expect(alertOf(page, key)).toBeNull();
     expect(page.pills('dyeing')).toContain('Unsaved');
     expect(page.pills('knitting')).toContain('Unsaved');

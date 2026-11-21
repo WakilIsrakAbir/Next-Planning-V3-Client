@@ -316,11 +316,19 @@ function GuideCard({
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="flex-1 min-w-0">{g.notice.text}</span>
               {g.notice.kind === 'conflict' && (
-                <button type="button" onClick={reload} disabled={busy} className="btn btn-xs gap-1">
+                <button type="button" onClick={reload} disabled={busy} className="btn btn-xs gap-1 focus-visible:outline-warning-content">
                   {g.reloading ? <InlineSpinner size={12} /> : <RefreshCw className="h-3 w-3" />} Reload
                 </button>
               )}
-              <button type="button" onClick={g.dismissNotice} className="btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content" aria-label="Close message">
+              <button
+                type="button"
+                onClick={g.dismissNotice}
+                className={cn(
+                  'btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content',
+                  g.notice.kind === 'error' ? 'focus-visible:outline-error-content' : 'focus-visible:outline-warning-content'
+                )}
+                aria-label="Close message"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>

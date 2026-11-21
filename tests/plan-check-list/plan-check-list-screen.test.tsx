@@ -210,6 +210,8 @@ describe('load', () => {
     render(<m.PlanCheckListScreen />);
     await waitFor(() => expect(noticeText()).toBe('Could not load the Plan Check List.'));
     expect(alertBox().className).toContain('alert-error');
+    // The close button's keyboard focus outline uses the alert's own text colour (readable in both themes).
+    expect(within(alertBox()).getByRole('button', { name: 'Close message' }).className).toContain('focus-visible:outline-error-content');
     expect(screen.getByText('The Plan Check List could not be loaded. Try Reload.')).toBeTruthy();
     expect(status()).toBe('Not loaded');
 
@@ -418,6 +420,7 @@ describe('editing and saving', () => {
       )
     );
     expect(alertBox().className).toContain('alert-warning');
+    alertBox().querySelectorAll('button').forEach((b) => expect(b.className).toContain('focus-visible:outline-warning-content'));
     expect(server.requests('PUT')[0].body).toMatchObject({ version: 1 });
     // the draft is kept and still unsaved; nobody was signed out; the other user's save is untouched
     expect(field('End days, row 3').value).toBe('10');

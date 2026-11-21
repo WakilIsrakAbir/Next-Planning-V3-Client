@@ -861,10 +861,21 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             Unsaved changes from your last visit were kept for: {restoreLabels.join(', ')}. Restore them?
           </p>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" data-action="restore-backup" onClick={handleRestore} disabled={isSaving} className="btn btn-xs">
+            <button
+              type="button"
+              data-action="restore-backup"
+              onClick={handleRestore}
+              disabled={isSaving}
+              className="btn btn-xs focus-visible:outline-warning-content"
+            >
               Restore
             </button>
-            <button type="button" data-action="drop-backup" onClick={handleDropBackup} className="btn btn-xs btn-ghost text-current hover:text-base-content focus-visible:text-base-content">
+            <button
+              type="button"
+              data-action="drop-backup"
+              onClick={handleDropBackup}
+              className="btn btn-xs btn-ghost text-current hover:text-base-content focus-visible:text-base-content focus-visible:outline-warning-content"
+            >
               Discard
             </button>
           </div>

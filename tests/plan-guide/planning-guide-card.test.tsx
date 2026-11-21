@@ -512,6 +512,8 @@ describe('409: someone else saved the guide first', () => {
     expect(server.requests('PUT')[0].body).toMatchObject({ version: 1 });
     const alert = screen.getByRole('alert');
     expect(alert.className).toContain('alert-warning');
+    // Its buttons' keyboard focus outline uses the alert's own text colour (readable in both themes).
+    alert.querySelectorAll('button').forEach((b) => expect(b.className).toContain('focus-visible:outline-warning-content'));
     expect(alert.textContent).toContain(
       'The Planning Guide of this order was changed by planner9 at 21-Nov-2026 06:01. Click Reload to see the latest values.'
     );
@@ -808,6 +810,7 @@ describe('the save check: the T&A or the Plan Check List changed while the page 
     fireEvent.click(saveButton());
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Server error while loading the order.'));
     expect(screen.getByRole('alert').className).toContain('alert-error');
+    expect(within(screen.getByRole('alert')).getByRole('button', { name: 'Close message' }).className).toContain('focus-visible:outline-error-content');
     expect(server.requests('PUT')).toHaveLength(0);
     expect(screen.getByText('Unsaved')).toBeTruthy();
   });
