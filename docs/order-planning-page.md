@@ -22,7 +22,7 @@ follows, referred to here as D1-D8.
 | `src/features/planning/components/DeptPlanSection.tsx` | Today's table card of one department (moved from the old page), rows memoised (`DeptPlanRow`) |
 | `src/features/planning/lib/order-plan-logic.ts` | Today's pure helpers, moved verbatim: `buildMergedItems`, `formatPlanPayload`, `findUpstreamPlans`, `ydKnitPlan`, `readIsAdminRole`, ... |
 | `src/features/planning/lib/dept-plan-logic.ts` | `createDeptPlanLogic(ctx)`: today's validators (`validateForSave`, `confirmCompletion`) and 10 edit handlers, moved verbatim |
-| `src/features/planning/lib/order-page-model.ts` | Sections, edit rights, the page state and its reducer |
+| `src/features/planning/lib/order-page-model.ts` | Sections, edit rights, the page state and its reducer, what a save sends (`rowsForSave`, and `rowsOnRead` for "Save mine anyway") |
 | `src/features/planning/lib/order-page-save.ts` | Save Data planner (checks, SAVE-02 overlay, Completed prompts), the `save-plans` request, `SavePlansError` |
 | `src/features/planning/lib/order-page-backup.ts` | sessionStorage backup of unsaved work |
 | `src/features/planning/lib/section-visibility.ts` | Hide/Unhide store (localStorage) |
@@ -82,6 +82,9 @@ Each section has a strip above today's table card. The strip holds:
 The strip's Order Status select and the guide's selects show a focus ring for keyboard focus (`focus-visible`); the
 guide's date inputs show it whenever they hold the focus (`focus-within`: reached with Shift+Tab, Chrome matches
 neither `:focus` nor `:focus-visible` on a date input, whose focus sits on its day, month or year part).
+The buttons inside the amber and red alerts (the conflict alert, the restore offer, the guide card's and the Plan Check
+List's notices) draw their keyboard focus outline in the alert's own text colour (`focus-visible:outline-warning-content`
+or `focus-visible:outline-error-content`), readable in both themes.
 
 Hide/Unhide is remembered per page in localStorage `orderPage.hiddenSections` (`<route>:<section>`). Everything the
 page adds around today's card is marked `data-c2-chrome`.
@@ -167,7 +170,9 @@ Reducer actions:
     shows the conflict alert, so saving it is refused instead of overwriting what was just kept.
   - Keep-newest: an answer older than the plan on screen (a read of a later save answered first) does not replace
     `planData`; the saved groups are merged again from the newer plan on screen, which holds this save or a later one.
-- `conflict`, `force`: plan D7 (see [Conflicts](#conflicts-409-plan-d7)).
+  - `order` (only after "Save mine anyway"): the order of the fresh read the save was rebased on. The saved rows are
+    merged over it, so items an upload added stay on screen with the fingerprint that covers them.
+- `conflict`: a refused save (409); see [Conflicts](#conflicts-409-plan-d7). There is no lasting "forced" state.
 - `restore`: backed-up work put back into the drafts.
 
 The page also guards reads in `applyRead`:
@@ -200,11 +205,12 @@ Typing on the largest order (272147, 112 rows on the page) stays under 50 ms per
 What a save of one delivery group sends (`rowsForSave`, D3):
 
 - that group's fields from the draft;
-- the other group's fields from its baseline (from a fresh read for "Save mine anyway", see
-  [Conflicts](#conflicts-409-plan-d7));
-- the status: the draft status when Lock is saved, otherwise the baseline status (or the fresh read's).
+- the other group's fields from its baseline;
+- the status: the draft status when Lock is saved, otherwise the baseline status.
 
 `validateForSave('delivery')` checks exactly those rows. Save Data with both groups dirty sends the full draft.
+"Save mine anyway" sends a save rebased on a fresh read instead (`rowsOnRead`, see
+[Conflicts](#conflicts-409-plan-d7)).
 
 Save Data (`order-page-save.ts`, D5):
 
@@ -276,16 +282,43 @@ On a 409:
   - For delivery, if the other group still has a draft made on values that someone else also changed, the alert moves
     to that group.
   - Saving one delivery group sends the other group's baseline, so that save would also overwrite their change.
-- **Save mine anyway** (shown only while the section has unsaved work): sends the refused save again (Save Data again,
-  or that department's refused sections) without `base` for the refused departments. That choice holds for the
-  department until it is saved, so a second refusal of another department does not bring it back.
-  - For a refused Delivery, the page first reads the order with `fresh=1`. A save of one delivery group sends the
-    other group's fields (and, when Floor is saved, the status) as that read shows them, not from the page's baseline,
-    so forcing Floor keeps someone else's Lock changes and vice versa. Only the user's own unsaved work overwrites
-    theirs. If that read fails, nothing is sent ("Could not load the latest plan of Order #<orderNo>. Please try
-    again.").
-  - If the other group also has unsaved work made before their change, it is not sent: it stays unsaved, the alert
-    moves to it, and saving it is refused until the user chooses Load latest or Save mine anyway there.
+- **Save mine anyway** (shown only while the section has unsaved work; plan D7 as refined in SPEC section 6): it
+  overwrites the change the user was warned about, as it is stored NOW, and nothing that arrives later. It is a save
+  REBASED on a fresh read, never a save without a conflict check (`handleSaveMine`, `runSave` with `rebase`,
+  `rowsOnRead`):
+  1. **A fresh read first.** The page reads the order with `fresh=1`. If that read fails, nothing is sent ("Could not
+     load the latest plan of Order #<orderNo>. Please try again.").
+  2. **The read's base.** It sends the refused save again (Save Data again, or that department's refused sections),
+     with the fresh read's fingerprint as the `base` of each refused department. If someone saves that department
+     between the read and the request, the server refuses it again (409) and the alert shows again. Departments that
+     were not refused keep their own base.
+  3. **The rows** of a refused department (`rowsOnRead`):
+     - start from the fresh read's rows (`buildMergedItems` over the read's order and plan), so items an upload added
+       are kept with their stored values;
+     - the user's draft values go on top, by item id, only for the fields the save covers: one Delivery group's fields
+       (Floor: `floorStartDate`, `floorEndDate`, `floorPlanType`; Lock: `startDate`, `endDate`, `planType`,
+       `limitation`, `remarks`), or every field of a whole section;
+     - draft items the fresh read does not have are left out. They are items the order no longer has, so a reload
+       (`buildMergedItems` over the order's items) would not show them either; work typed on such an item is not sent;
+     - items only the read has are sent as a reload shows them: their stored values, with today's defaults for blank
+       fields (e.g. the Delivery Floor dates from Dyeing + 7 days), exactly as a Save after a reload would send them.
+  4. **The status:** a Delivery Floor save sends the status the fresh read stores (someone else's status is kept);
+     Delivery Lock and every other section send the draft status. Today's Completed prompt compares the draft status
+     with the fresh read's status, so it asks only when the user changed the status to Completed, never for a
+     Completed status someone else stored. Cancel puts back the status the page shows as saved.
+  5. **The checks** (today's `validateForSave`, downstream first) read the fresh read's plan, the same snapshot the
+     rows are rebased on. A row of someone else's that today's rules refuse (e.g. an added Delivery item whose Dyeing
+     has no plan type) refuses the whole save, with today's toast; nothing is sent.
+  6. **One click, no lasting state.** If the forced save fails (network, 4xx, 5xx), is refused by the checks or is
+     cancelled at a prompt, nothing changes: the department keeps its old base and the alert stays, so the next plain
+     save is a normal checked save and is refused (409) again.
+  7. **After a successful forced save** the page adopts the answer's fingerprints as after any save (see `saved`), and
+     the alert goes away.
+  - If the other delivery group also has unsaved work made before their change, it is not sent: it stays unsaved, the
+    alert moves to it, and saving it is refused until the user chooses Load latest or Save mine anyway there.
+  - A forced Save Data refused (409) for another department: the departments it rebased were not saved either, so
+    they keep their old base and their alert, and they join the new refusal. The next "Save mine anyway" (in any of
+    those alerts) rebases all of them on a new read, so the user is not sent back and forth between two alerts.
   - Save Data again is a whole Save Data: the plans first, then the Planning Guide when it is dirty, with the same
     messages ("Plans saved. Planning Guide not saved: <reason>"). A refused section Save sent again stays a section
     save: it never sends the guide.
@@ -339,7 +372,7 @@ Some exits cannot be stopped. Work still has to survive them (plan 2.1, "কা�
   - the same user is signed in.
 - **Saved since.** When a section's backup was made on another fingerprint (the department was saved since), it is
   not offered. One line in the same place names it instead: "<sections> work from your last visit could not be
-  restored: it was saved by someone else since." That backup is removed only after the line has been shown. Sections
+  restored: it was changed since." That backup is removed only after the line has been shown. Sections
   the user may not change on the page are neither named nor touched there.
 - **Restore checks again.** Restore puts back only backups whose fingerprint is still the department's (a read while
   the offer was shown may have adopted someone else's save); the others are dropped with the toast "Some unsaved
@@ -363,7 +396,7 @@ never compiles them; `npx tsc -p tests/tsconfig.json` type-checks them.
 | Folder | What |
 |---|---|
 | `tests/golden/` | Golden master of the order page (today's behaviour, rule by rule) |
-| `tests/c2/` | The universal page itself: `layout`, `saving`, `save-logic`, `conflict`, `guard`, `backup`, `carryover`, and `lost-update` (someone else's save racing with this page's unsaved work, "Save mine anyway", keep-newest) |
+| `tests/c2/` | The universal page itself: `layout`, `saving`, `save-logic`, `conflict`, `guard`, `backup`, `carryover`, `rights` (plan T6, T7), `lost-update` (someone else's save racing with this page's unsaved work, "Save mine anyway", keep-newest) and `forced` ("Save mine anyway" as a one-shot save rebased on a fresh read: failed, refused and cancelled forced saves, a change between the read and the save, added and removed items, the Completed prompt) |
 | `tests/c34/` | The Planning Guide card on the page (`guide-on-page`), and with the conflict alert, guard and backup (`guide-c2b`) |
 | `tests/plan-guide/` | Guide dates and lead (three time zones, server parity vectors) and the card on its own |
 | `tests/plan-check-list/` | The Plan Check List page, its data module and its menu permission |
