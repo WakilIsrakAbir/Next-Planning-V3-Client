@@ -906,6 +906,66 @@ fixtures['empty-order'] = {
   };
 }
 
+// ---- dyeing: dates equal to the Knitting dates (the boundary of CHG-04/05 and SAVE-09/10) ----
+{
+  const no = 'SYN-D5';
+  const id = no.toLowerCase();
+  fixtures['dye-equal-dates'] = {
+    about:
+      'Dyeing rows on the boundary of the Knitting dates (both Knitting rows Confirm, both Dyeing rows Tentative, so every row is editable for every role). Row 0 Red is saved with exactly its Knitting dates (10-05..10-15), as many rows of the local copy are. Row 1 Blue was saved by older code two days before both of its Knitting dates (10-04..10-14 against 10-06..10-16).',
+    orderNo: no,
+    orders: [order(no, { dyeingItems: [dyeRow(no, 'Red', 'EFL', 'Solid', 500), dyeRow(no, 'Blue', 'EKL', 'HTR', 300)] })],
+    orderDates: [
+      orderDate(no, {
+        knitting: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Confirm', { yarnDate: '2026-10-01' }),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-06', '2026-10-16', 'Confirm', { yarnDate: '2026-10-01' }),
+        ],
+        dyeing: [
+          plan(`${id}_red_solid`, { Color: 'Red', Unit: 'EFL', ProcessName: 'Solid', 'Process Name': 'Solid' }, '2026-10-05', '2026-10-15', 'Tentative'),
+          plan(`${id}_blue_htr`, { Color: 'Blue', Unit: 'EKL', ProcessName: 'HTR', 'Process Name': 'HTR' }, '2026-10-04', '2026-10-14', 'Tentative'),
+        ],
+      }),
+    ],
+  };
+}
+
+// ---- delivery: dates equal to the Dyeing dates (the boundary of SAVE-13/14) ----
+{
+  const no = 'SYN-L5';
+  const id = no.toLowerCase();
+  fixtures['deli-equal-dates'] = {
+    about:
+      'Delivery rows on the boundary of the Dyeing dates (both Dyeing rows Confirm, both Delivery rows Tentative with Floor dates, so every row is editable for every role). Row 0 Red is saved with exactly its Dyeing dates (10-16..10-25), as many rows of the local copy are. Row 1 Blue is saved after its Dyeing dates (10-27..11-06 against 10-17..10-26).',
+    orderNo: no,
+    orders: [order(no, { deliveryItems: [deliRow(no, 'Red', 'S/J', 160, 500), deliRow(no, 'Blue', 'S/J', 180, 300)] })],
+    orderDates: [
+      orderDate(no, {
+        knitting: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Confirm'),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-06', '2026-10-16', 'Confirm'),
+        ],
+        dyeing: [
+          plan(`${id}_red_solid`, { Color: 'Red' }, '2026-10-16', '2026-10-25', 'Confirm'),
+          plan(`${id}_blue_solid`, { Color: 'Blue' }, '2026-10-17', '2026-10-26', 'Confirm'),
+        ],
+        delivery: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-16', '2026-10-25', 'Tentative', {
+            floorStartDate: '2026-10-23',
+            floorEndDate: '2026-11-01',
+            floorPlanType: 'Tentative',
+          }),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-27', '2026-11-06', 'Tentative', {
+            floorStartDate: '2026-10-24',
+            floorEndDate: '2026-11-02',
+            floorPlanType: 'Tentative',
+          }),
+        ],
+      }),
+    ],
+  };
+}
+
 /* ---------------- write ---------------- */
 
 const isPrimitive = (v) => v === null || typeof v !== 'object';

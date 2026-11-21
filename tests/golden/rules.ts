@@ -99,6 +99,10 @@ export const RULE_NOTES: Record<string, string> = {
   'GATE-04': "A Dyeing start of '-' counts as missing (`delivery/legacy-dash-dyeing-plan`, row 1, Admin).",
   'GATE-06':
     "The YD 'Knit Plan' columns show the same blank mark for a blank, '-' or 'N/A' T&A Knit date (formatExcelDate), so the '-' / 'N/A' filter in ydKnitPlan has no visible effect today.",
+  'CHG-04':
+    'Whole days are compared, so a Start equal to the Knitting Start is allowed: in `dyeing/chg04-05-save09-10-equal-dates` a Start one day before it is refused, and the equal date is kept without a toast.',
+  'CHG-05':
+    'Whole days are compared, so an End equal to the Knitting End is allowed: in `dyeing/chg04-05-save09-10-equal-dates` an End one day before it is refused, and the equal date is kept without a toast.',
   'CHG-07': "A Yarn Date of '-' or 'N/A' (saved by older code) counts as none (`knitting/chg07-legacy-yarn-placeholders`).",
   'AUTO-10':
     "Older saves: a top-level barrierQty is shown and copied into itemData at save; a saved itemData without 'Barrier Qty.' leaves the input empty while the save still sends the Excel value (`yd/auto10-legacy-barrier-qty`). A saved 'Workable Qty.' of 0 or '' (no top-level workableQty) is shown, and the save copies it into itemData over the Excel value (`yd/auto10-legacy-workable-qty`).",
@@ -116,13 +120,36 @@ export const RULE_NOTES: Record<string, string> = {
     "A saved Yarn Date of '-' or 'N/A' counts as none (`knitting/save06-legacy-yarn-placeholders`): each placeholder is the only failing row of one save (Admin fixes the '-' row first, the Planner the 'N/A' row).",
   'SAVE-08':
     "Dyeing input is a Start, an End or a plan type, each counting alone: the Start alone refuses the save in `dyeing/save08-ladder-then-saved` (row 4), the End alone in `dyeing/save08-end-date-alone`. A plan type alone cannot get this far (SAVE-05 runs first). A Knitting plan type of '-' counts as blank.",
+  'SAVE-09':
+    'Equal dates pass: in `dyeing/chg04-05-save09-10-equal-dates` row 0, saved with exactly its Knitting dates, passes every save; row 1, saved by older code before its Knitting Start, is refused until its Start is set equal to it.',
+  'SAVE-10':
+    'Equal dates pass: in `dyeing/chg04-05-save09-10-equal-dates` row 0, saved with exactly its Knitting dates, passes every save; row 1, saved by older code before its Knitting End, is refused until its End is set equal to it.',
   'SAVE-11':
     'Delivery input is a Start, an End, a Floor start or a Floor end, each counting alone; a Floor plan type does not count, and a plan type alone cannot get this far (SAVE-05 runs first). The Floor start alone refuses the save in `delivery/save11-12-then-saved` and `delivery/gate03-saved-plan-exemption`; the Floor end, End and Start alone in `delivery/save11-floor-end-alone`, `delivery/save11-end-date-alone` and `delivery/save11-start-date-alone`.',
   'SAVE-12':
     "A Dyeing start of '-' counts as missing (`delivery/save12-legacy-dash-dyeing-start`; the Dyeing plan type is set there, so SAVE-11 passes).",
+  'SAVE-13':
+    "Equal dates pass: in `delivery/save13-14-equal-dates` row 0, saved with exactly its Dyeing dates, passes every save; row 1's Start typed one day before its Dyeing Start is refused, and the equal date is saved.",
+  'SAVE-14':
+    "Equal dates pass: in `delivery/save13-14-equal-dates` row 0, saved with exactly its Dyeing dates, passes every save; row 1's End typed one day before its Dyeing End is refused, and the equal date is saved.",
   'SAVE-15':
     "Cancel returns the select to the department's SAVED status: `save15-cancel-restores-saved-status` (status-saved) proves it for every department on saved statuses other than 'On Process', after another value was picked. generic-rules and knitting/save15 start from 'On Process', which V2's reset to 'On Process' would also give. Without any saved status (an order never planned, no OrderDate) Cancel returns to 'On Process': `save15-cancel-never-saved` (no-saved-plan, every department). The save checks run BEFORE the prompt: `save15-checks-before-completed-prompt` (every department) shows a failing check's toast, no prompt (an unscripted prompt is a harness error), no request, and the select keeping Completed.",
 };
+
+/**
+ * Code paths no scenario reaches, on purpose: values that older code may once have stored, that today's page never
+ * writes, and that the local copy of the live data (abir_test, restored 2026-11-21; read-only counts) never holds.
+ */
+export const UNCOVERED_PATHS: Array<{ what: string; why: string }> = [
+  {
+    what: "A saved `planStart` / `planEnd` read where `startDate` / `endDate` are empty: the dates shown on load (buildMergedItems), the YD 'Knit Plan' columns (ydKnitPlan), and the upstream Knitting / Dyeing dates that Dyeing and Delivery show and check.",
+    why: 'In abir_test none of the 4601 OrderDate documents has a `planStart` or `planEnd` on any row of any department.',
+  },
+  {
+    what: "A Dyeing Unit or Process Name of 'Select' counting as not set (GATE-01).",
+    why: "The page's own 'Select' option has the value ''. In abir_test none of the 4601 OrderDate documents has 'Select' as a saved Dyeing `unit`, `processName` or itemData Unit / Process Name, and none of the 7284 orders has it as a Dyeing Excel Unit / Process Name, a floor or a program type.",
+  },
+];
 
 export const IN_SCOPE = RULES.filter((r) => !r.uncovered).map((r) => r.id);
 
@@ -275,6 +302,15 @@ export function buildRulesMarkdown(scenarios: Scenario[], localScripts: Array<{ 
     if (byRule.has(r.id)) continue;
     lines.push(`| ${r.id} | ${r.what} | ${r.uncovered || 'NO SCENARIO YET'} |`);
   }
+  lines.push('');
+  lines.push('## Legacy code paths not covered on purpose');
+  lines.push('');
+  lines.push("Values that older code may once have stored and that today's page never writes. The counts are read-only counts on");
+  lines.push('`abir_test`, the local copy of the live data restored on 2026-11-21.');
+  lines.push('');
+  lines.push('| Path | Why |');
+  lines.push('|---|---|');
+  for (const p of UNCOVERED_PATHS) lines.push(`| ${p.what} | ${p.why} |`);
   lines.push('');
   lines.push('## Recorded behaviour without a rule id');
   lines.push('');

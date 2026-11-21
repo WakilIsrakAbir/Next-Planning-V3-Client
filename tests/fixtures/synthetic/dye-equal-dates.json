@@ -1,0 +1,111 @@
+{
+  "about": "Dyeing rows on the boundary of the Knitting dates (both Knitting rows Confirm, both Dyeing rows Tentative, so every row is editable for every role). Row 0 Red is saved with exactly its Knitting dates (10-05..10-15), as many rows of the local copy are. Row 1 Blue was saved by older code two days before both of its Knitting dates (10-04..10-14 against 10-06..10-16).",
+  "orderNo": "SYN-D5",
+  "orders": [
+    {
+      "_id": "a00000000000000000000056",
+      "orderNo": "SYN-D5",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-D5.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [
+        {"OrderNo":"SYN-D5","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":20,"BP Qty":470,"Dyeing Prod.":60,"Dyeing Bala.":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-D5","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"EKL","Process Name":"HTR","Grey Req.":320,"Knit Prod.":300,"Knit. Bala.":20,"BP Qty":270,"Dyeing Prod.":60,"Dyeing Bala.":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0}
+      ],
+      "finishingItems": [],
+      "deliveryItems": [],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000057",
+      "orderNo": "SYN-D5",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-d5_red_s/j_160",
+          "itemData": {"Color":"Red","FabricConstruction":"S/J"},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": "",
+          "yarnDate": "2026-10-01"
+        },
+        {
+          "itemId": "syn-d5_blue_s/j_180",
+          "itemData": {"Color":"Blue","FabricConstruction":"S/J"},
+          "startDate": "2026-10-06",
+          "endDate": "2026-10-16",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": "",
+          "yarnDate": "2026-10-01"
+        }
+      ],
+      "dyeing": [
+        {
+          "itemId": "syn-d5_red_solid",
+          "itemData": {"Color":"Red","Unit":"EFL","ProcessName":"Solid","Process Name":"Solid"},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-d5_blue_htr",
+          "itemData": {"Color":"Blue","Unit":"EKL","ProcessName":"HTR","Process Name":"HTR"},
+          "startDate": "2026-10-04",
+          "endDate": "2026-10-14",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "finishing": [],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}
