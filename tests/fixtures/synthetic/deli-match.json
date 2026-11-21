@@ -1,0 +1,109 @@
+{
+  "about": "Delivery rows without a colour: an empty colour matches the saved Knitting and Dyeing rows whose colour is empty too.",
+  "orderNo": "SYN-L3",
+  "orders": [
+    {
+      "_id": "a00000000000000000000019",
+      "orderNo": "SYN-L3",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-L3.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [
+        {"OrderNo":"SYN-L3","Color":"Red","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":0,"NetReceivedQtyKgs":450,"NetDeliveryQtyKgs":400,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-L3","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":80,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":100,"Knit Prod.":80,"Knit. Bala.":0,"NetReceivedQtyKgs":30,"NetDeliveryQtyKgs":-20,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100}
+      ],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000020",
+      "orderNo": "SYN-L3",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-l3_red_s/j_160",
+          "itemData": {"Color":"Red","FabricConstruction":"S/J"},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-l3__s/j_160",
+          "itemData": {"Color":"","FabricConstruction":"S/J"},
+          "startDate": "2026-10-07",
+          "endDate": "2026-10-17",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "dyeing": [
+        {
+          "itemId": "syn-l3_red_solid",
+          "itemData": {"Color":"Red"},
+          "startDate": "2026-10-16",
+          "endDate": "2026-10-25",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-l3__solid",
+          "itemData": {"Color":""},
+          "startDate": "2026-10-18",
+          "endDate": "2026-10-27",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "finishing": [],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

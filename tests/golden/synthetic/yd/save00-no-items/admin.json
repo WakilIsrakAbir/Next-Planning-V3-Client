@@ -1,0 +1,134 @@
+{
+  "scenario": "yd/save00-no-items/admin",
+  "fixture": "empty-order",
+  "dept": "yd",
+  "role": "admin",
+  "orderNo": "SYN-E1",
+  "rules": ["SAVE-00"],
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-E1 YD Plan",
+        "general": {
+          "EWO No.": "SYN-E1",
+          "Booking No.": "SYN-E1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [],
+          "message": "Loading YD Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-E1?dept=yd","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-E1 YD Plan",
+        "general": {
+          "EWO No.": "SYN-E1",
+          "Booking No.": "SYN-E1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "750",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-E1."
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [],
+          "message": "No YD Plan fabric items found for Order # SYN-E1 ."
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: No fabric items to save! Please upload department data first."]},
+      "changes": {"toast":"error: No fabric items to save! Please upload department data first."}
+    }
+  ]
+}

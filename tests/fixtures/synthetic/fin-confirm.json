@@ -1,0 +1,80 @@
+{
+  "about": "Finishing row saved Confirm under its exact itemId: never disabled, but a non-admin change is refused at save (SAVE-01).",
+  "orderNo": "SYN-F2",
+  "orders": [
+    {
+      "_id": "a00000000000000000000026",
+      "orderNo": "SYN-F2",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-F2.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [
+        {"OrderNo":"SYN-F2","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":20,"BP Qty":470,"Dyeing Prod.":60,"Dyeing Bala.":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0}
+      ],
+      "deliveryItems": [],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000027",
+      "orderNo": "SYN-F2",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [],
+      "dyeing": [],
+      "finishing": [
+        {
+          "itemId": "syn-f2_red_solid",
+          "itemData": {"Color":"Red","Unit":"EFL","ProcessName":"Solid"},
+          "startDate": "2026-11-01",
+          "endDate": "2026-11-05",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

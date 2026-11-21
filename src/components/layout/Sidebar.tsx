@@ -23,6 +23,7 @@ import {
 import { IUser } from '@/types/user';
 import { prefetchOrderManagement } from '@/features/planning/lib/planning-cache';
 import { batchMenuRoute, requestBatchRoute } from '@/features/batch/lib/batch-navigation';
+import { confirmPageLeave, guardedLinkHandlers } from '@/lib/unsaved-changes';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -61,6 +62,8 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'view', label: 'Source File Upload', href: '/management/upload' },
       // Database health and the backup download (permission menus.dataManagement.atlasMonitor)
       { key: 'atlasMonitor', label: 'Atlas Monitor', href: '/management/atlas-monitor' },
+      // Criteria of the order page's Checkpoint & Planning Guide (permission menus.dataManagement.planCheckList)
+      { key: 'planCheckList', label: 'Plan Check List', href: '/management/plan-check-list' },
       {
         key: 'setupGroup',
         label: 'Setup',
@@ -306,6 +309,9 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   const itemHref = (item: MenuItemDef): string =>
     item.batchRoute === 'plan' || item.batchRoute === 'card' ? batchHrefs[item.batchRoute] : item.href;
 
+  /* Every link leaves the open page. With unsaved work (src/lib/unsaved-changes.ts) it asks first, and its click
+     side effects (handleNavClick, handleItemClick) run only after the user agrees; with nothing unsaved a click
+     works exactly as before. */
   const handleItemClick = (item: MenuItemDef) => {
     handleNavClick();
     // A click on the Batch page that is already open re-opens it there (BatchModuleHost).
@@ -377,7 +383,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
       >
         {/* Brand bar (Clean, matching Exp index.html lines 472-477) */}
         <div className="flex h-16 shrink-0 items-center border-b border-base-300 px-4">
-          <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-2.5 min-w-0">
+          <Link href="/dashboard" {...guardedLinkHandlers(handleNavClick)} className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content font-black text-sm shadow-md shadow-primary/20 shrink-0">
               TP
             </div>
@@ -405,6 +411,8 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
           </div>
           <button
             onClick={() => {
+              // Signing out leaves the page: with unsaved work, ask first.
+              if (!confirmPageLeave()) return;
               localStorage.removeItem('token');
               localStorage.removeItem('user');
               localStorage.removeItem('username');
@@ -426,7 +434,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
           {/* Dashboard Home */}
           <Link
             href="/dashboard"
-            onClick={handleNavClick}
+            {...guardedLinkHandlers(handleNavClick)}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all border-l-[3px] ${
               pathname === '/dashboard'
                 ? 'bg-primary text-primary-content border-primary shadow-sm'
@@ -456,7 +464,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
                 <Link
                   key={item.key}
                   href={itemHref(item)}
-                  onClick={() => handleItemClick(item)}
+                  {...guardedLinkHandlers(() => handleItemClick(item))}
                   className={`flex items-center justify-between px-3 py-1.5 rounded-md text-[11px] transition-all truncate border-l-[3px] ${
                     active
                       ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-black border-emerald-500 shadow-xs'

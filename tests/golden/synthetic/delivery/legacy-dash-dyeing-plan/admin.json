@@ -1,0 +1,184 @@
+{
+  "scenario": "delivery/legacy-dash-dyeing-plan/admin",
+  "fixture": "legacy-placeholders",
+  "dept": "delivery",
+  "role": "admin",
+  "orderNo": "SYN-X1",
+  "rules": ["GATE-03","GATE-04","CHG-11","SAVE-11"],
+  "note": "A Dyeing start of '-' counts as missing: row 1's Start/End/Plan Type stay locked for Admin too. A Dyeing plan type of '-' counts as blank: row 2's Confirm is refused, and so is its save.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-X1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-X1",
+          "Booking No.": "SYN-X1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-X1?dept=delivery","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-X1 Delivery Plan",
+        "general": {
+          "EWO No.": "SYN-X1",
+          "Booking No.": "SYN-X1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "2220",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-X1."
+        },
+        "section": {"header":"Department Fabric Items 3 Row 1 changes auto-fill all items below","footer":"Total 3 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "delivery",
+          "head": [
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Navy","S/J","160",null,null,null,null,null,null,null,null,"—","—","-","—","—","120","70","20","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "startDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Dyeing plan is missing for this item","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Black","S/J","160",null,null,null,null,null,null,null,null,"18-Oct-2026","27-Oct-2026","-","—","—","100","50","0","100","25","5","10"],
+              "fields": {
+                "floorStartDate": {"value":"2026-10-25","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-11-03","disabled":false,"title":null,"min":"2026-10-25"},
+                "floorPlanType": {"value":"Tentative","disabled":false,"title":null},
+                "startDate": {"value":"2026-10-26","disabled":false,"title":null},
+                "endDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-26"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":2,"field":"planType","value":"Confirm"},
+      "events": {"toasts":["error: Cannot confirm Delivery when Dyeing is Tentative or blank."]},
+      "changes": {"toast":"error: Cannot confirm Delivery when Dyeing is Tentative or blank.","table.rows[2].fields.planType.value":""}
+    },
+    {
+      "n": 3,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!"]},
+      "changes": {"toast":"error: Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!"}
+    }
+  ]
+}

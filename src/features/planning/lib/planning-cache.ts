@@ -68,6 +68,25 @@ export interface ICachedOrderDetail {
   order: any;
   planData: any;
   timestamp: number;
+  /** Plan fingerprint of each department (GET /api/orders/:orderNo and save-plans), the `base` of the next save. */
+  fingerprints?: IOrderFingerprints;
+  /** Per department: is the order in that department's latest file, and does it have rows there. */
+  deptFlags?: IOrderDeptFlags;
+  /** The order's Checkpoint & Planning Guide from the same detail answer (null before its first save); read it
+   *  with readPlanGuide (plan-guide-api.ts). */
+  guide?: unknown;
+}
+
+export type IOrderFingerprints = Partial<Record<string, string>>;
+export type IOrderDeptFlags = Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>>;
+
+/** The parts of an order's detail the order page shows and caches (one entry per department key). */
+export interface IOrderDetailData {
+  order: ICachedOrderDetail['order'];
+  planData: ICachedOrderDetail['planData'];
+  fingerprints?: IOrderFingerprints;
+  deptFlags?: IOrderDeptFlags;
+  guide?: unknown;
 }
 
 export const cachedPlanningOrders: Record<string, ICachedPlanningData> = {};
@@ -157,15 +176,63 @@ export function fetchPlanningOrders(q: IPlanningListQuery): Promise<ICachedPlann
 export interface IOrderDetailResponse {
   ok: boolean;
   status: number;
-  data: Partial<Pick<ICachedOrderDetail, 'order' | 'planData'>> | null;
+  data: Partial<IOrderDetailData> | null;
+}
+
+// Orders saved from this tab, with the save time: for a while their detail reads skip the server's 60 s cache
+// (`fresh=1`), so another server instance's older cached copy is never shown after a save. Kept in memory and in
+// sessionStorage (this tab only), so a reload (F5) within that time still reads fresh; storage that is blocked
+// simply remembers nothing beyond this page's memory.
+const RECENT_SAVE_MS = 2 * 60 * 1000;
+const RECENT_SAVE_STORAGE_KEY = 'planning.recentlySavedOrders';
+const recentlySavedOrders = new Map<string, number>();
+
+/** The stored marks that are still within the 2 minutes. */
+function readStoredRecentSaves(now: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(RECENT_SAVE_STORAGE_KEY) || '{}');
+    if (parsed && typeof parsed === 'object') {
+      Object.entries(parsed).forEach(([orderNo, at]) => {
+        if (typeof at === 'number' && at <= now && now - at < RECENT_SAVE_MS) out[orderNo] = at;
+      });
+    }
+  } catch {
+    /* nothing remembered */
+  }
+  return out;
+}
+
+/** Marks an order as just saved: for the next 2 minutes its detail requests add `fresh=1`. */
+export function markOrderRecentlySaved(orderNo: string): void {
+  const key = String(orderNo).trim();
+  const now = Date.now();
+  recentlySavedOrders.set(key, now);
+  try {
+    sessionStorage.setItem(RECENT_SAVE_STORAGE_KEY, JSON.stringify({ ...readStoredRecentSaves(now), [key]: now }));
+  } catch {
+    /* not remembered across a reload */
+  }
+}
+
+function isRecentlySaved(orderNo: string): boolean {
+  const key = String(orderNo).trim();
+  const now = Date.now();
+  const savedAt = recentlySavedOrders.get(key) ?? readStoredRecentSaves(now)[key];
+  if (savedAt === undefined) return false;
+  if (now - savedAt < RECENT_SAVE_MS) return true;
+  recentlySavedOrders.delete(key);
+  return false;
 }
 
 /**
  * Fetches one order's detail. Shared while in flight, so a hover prefetch followed by a click sends one request.
- * `fresh` starts a new request (used after saving).
+ * `fresh` starts a new request (used after saving). `latest` always skips the server's 60 s cache (`fresh=1`, the
+ * order page's "Load latest"). The response holds every department of the order whatever `dept` is (the server uses
+ * it only in its cache key).
  */
-export function fetchOrderDetail(dept: string, orderNo: string, fresh = false): Promise<IOrderDetailResponse> {
-  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}`;
+export function fetchOrderDetail(dept: string, orderNo: string, fresh = false, latest = false): Promise<IOrderDetailResponse> {
+  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}${latest || isRecentlySaved(orderNo) ? '&fresh=1' : ''}`;
   return sharedRequest(
     url,
     async () => {
@@ -199,11 +266,11 @@ export function findPrecachedOrder(orderNo: string): any | null {
 /**
  * Retrieves cached order detail if available and not expired (< 3 minutes)
  */
-export function getPrecachedOrderDetail(dept: string, orderNo: string): { order: any; planData: any } | null {
+export function getPrecachedOrderDetail(dept: string, orderNo: string): IOrderDetailData | null {
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
   const entry = cachedOrderDetails.get(key);
   if (entry && Date.now() - entry.timestamp < 3 * 60 * 1000) {
-    return { order: entry.order, planData: entry.planData };
+    return { order: entry.order, planData: entry.planData, fingerprints: entry.fingerprints, deptFlags: entry.deptFlags, guide: entry.guide };
   }
   return null;
 }
@@ -211,13 +278,24 @@ export function getPrecachedOrderDetail(dept: string, orderNo: string): { order:
 /**
  * Stores single order detail in memory cache
  */
-export function setPrecachedOrderDetail(dept: string, orderNo: string, data: { order: any; planData: any }): void {
+export function setPrecachedOrderDetail(dept: string, orderNo: string, data: IOrderDetailData): void {
   const key = `${dept.toLowerCase()}_${String(orderNo).trim()}`;
   cachedOrderDetails.set(key, {
     order: data.order,
     planData: data.planData,
     timestamp: Date.now(),
+    fingerprints: data.fingerprints,
+    deptFlags: data.deptFlags,
+    guide: data.guide,
   });
+}
+
+/** The department keys of the order detail cache (every order page reads the key of its own department). */
+export const ORDER_DETAIL_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'];
+
+/** Stores the same detail under all five department keys (after a save from the universal order page). */
+export function setPrecachedOrderDetailAllDepts(orderNo: string, data: IOrderDetailData): void {
+  ORDER_DETAIL_DEPTS.forEach((dept) => setPrecachedOrderDetail(dept, orderNo, data));
 }
 
 /**
@@ -280,6 +358,9 @@ export async function prefetchOrderDetail(dept: string, orderNo: string): Promis
         order: res.data.order,
         planData: res.data.planData,
         timestamp: Date.now(),
+        fingerprints: res.data.fingerprints,
+        deptFlags: res.data.deptFlags,
+        guide: res.data.guide,
       });
     }
   } catch {

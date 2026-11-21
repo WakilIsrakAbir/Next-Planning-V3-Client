@@ -1,0 +1,162 @@
+{
+  "about": "Generic script, delivery: three editable rows (row 1 saved under its id plus a trailing '_' and without floor dates, so it gets the +7 day defaults), Dyeing Confirm 10-01..10-08.",
+  "orderNo": "SYN-GL",
+  "orders": [
+    {
+      "_id": "a00000000000000000000032",
+      "orderNo": "SYN-GL",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-GL.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [
+        {"OrderNo":"SYN-GL","Color":"Red","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":0,"NetReceivedQtyKgs":450,"NetDeliveryQtyKgs":400,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-GL","Color":"Blue","FabricConstruction":"S/J","GSM":180,"RequiredQtyKgs":300,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":320,"Knit Prod.":300,"Knit. Bala.":0,"NetReceivedQtyKgs":250,"NetDeliveryQtyKgs":200,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-GL","Color":"Green","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":200,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":220,"Knit Prod.":200,"Knit. Bala.":0,"NetReceivedQtyKgs":150,"NetDeliveryQtyKgs":100,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100}
+      ],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000033",
+      "orderNo": "SYN-GL",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-gl_red_s/j_160",
+          "itemData": {"Color":"Red","FabricConstruction":"S/J"},
+          "startDate": "2026-09-25",
+          "endDate": "2026-09-30",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-gl_blue_s/j_180",
+          "itemData": {"Color":"Blue","FabricConstruction":"S/J"},
+          "startDate": "2026-09-25",
+          "endDate": "2026-09-30",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-gl_green_rib_200",
+          "itemData": {"Color":"Green","FabricConstruction":"Rib"},
+          "startDate": "2026-09-25",
+          "endDate": "2026-09-30",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "dyeing": [
+        {
+          "itemId": "syn-gl_red_solid",
+          "itemData": {"Color":"Red"},
+          "startDate": "2026-10-01",
+          "endDate": "2026-10-08",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-gl_blue_solid",
+          "itemData": {"Color":"Blue"},
+          "startDate": "2026-10-01",
+          "endDate": "2026-10-08",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-gl_green_solid",
+          "itemData": {"Color":"Green"},
+          "startDate": "2026-10-01",
+          "endDate": "2026-10-08",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "finishing": [],
+      "delivery": [
+        {
+          "itemId": "syn-gl_red_s/j_160",
+          "itemData": {"Color":"Red"},
+          "startDate": "2026-10-10",
+          "endDate": "2026-10-30",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "2026-10-08",
+          "floorEndDate": "2026-10-15",
+          "floorPlanType": "Tentative"
+        },
+        {
+          "itemId": "syn-gl_blue_s/j_180_",
+          "itemData": {"Color":"Blue"},
+          "startDate": "2026-10-12",
+          "endDate": "2026-10-14",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "syn-gl_green_rib_200",
+          "itemData": {"Color":"Green"},
+          "startDate": "2026-10-15",
+          "endDate": "",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "2026-10-08",
+          "floorEndDate": "2026-10-15",
+          "floorPlanType": "Tentative"
+        }
+      ],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

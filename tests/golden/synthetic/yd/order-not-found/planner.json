@@ -1,0 +1,76 @@
+{
+  "scenario": "yd/order-not-found/planner",
+  "fixture": "empty-order",
+  "dept": "yd",
+  "role": "planner",
+  "orderNo": "SYN-NOPE",
+  "rules": [],
+  "note": "GET /api/orders/SYN-NOPE answers 404: the page shows \"Order Not Found\" with the YD Plan name and a link back to /planning/yd.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-NOPE YD Plan",
+        "general": {
+          "EWO No.": "SYN-NOPE",
+          "Booking No.": "SYN-NOPE",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [],
+          "message": "Loading YD Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-NOPE?dept=yd","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {"view":"notFound","notFound":"Order Not Found The requested Order # SYN-NOPE was not found in the YD Plan registry. Return to Planning | link: /planning/yd","toast":null}
+    }
+  ]
+}

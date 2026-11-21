@@ -1,0 +1,421 @@
+{
+  "scenario": "dyeing/save08-ladder-then-saved/planner",
+  "fixture": "dye-basic",
+  "dept": "dyeing",
+  "role": "planner",
+  "orderNo": "SYN-D1",
+  "rules": ["SAVE-08","SAVE-16","SAVE-17","AUTO-09","MATCH-01","STAT-01"],
+  "note": "Rows with dyeing input but a blank (or '-') Knitting type block the whole save; once cleared, the save sends Unit/Process inside itemData.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D1 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D1",
+          "Booking No.": "SYN-D1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Dyeing Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-D1?dept=dyeing","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D1 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D1",
+          "Booking No.": "SYN-D1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "Pending",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1460",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-D1."
+        },
+        "section": {"header":"Department Fabric Items 7 Row 1 changes auto-fill all items below","footer":"Total 7 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm","KL-red","KR-red",null,null,null,null,null,"470","60","440","500","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-16","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-25","disabled":false,"title":null,"min":"2026-10-16"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"DL-red","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Tentative","","",null,null,null,null,null,"270","60","240","300","20"],
+              "fields": {
+                "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "HTR",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green",null,null,"—","—","-","","",null,null,null,null,null,"170","60","140","200","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Dyeing Wash",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-19","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-27","disabled":false,"title":null,"min":"2026-10-19"},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["White",null,null,"—","—","-","","",null,null,null,null,null,"120","60","90","150","20"],
+              "fields": {
+                "unit": {"value":"","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "limitation": {"value":"","disabled":true,"title":null,"greyed":true},
+                "remarks": {"value":"","disabled":true,"title":null,"greyed":true}
+              }
+            },
+            {
+              "row": "4",
+              "text": ["Navy",null,null,"07-Oct-2026","17-Oct-2026","-","","",null,null,null,null,null,"90","60","60","120","20"],
+              "fields": {
+                "unit": {"value":"Ext","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Pluvia",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-18","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null,"min":"2026-10-18"},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "5",
+              "text": ["Black",null,null,"08-Oct-2026","18-Oct-2026","Confirm","","",null,null,null,null,null,"70","60","40","100","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-20","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
+                "endDate": {"value":"2026-10-28","disabled":true,"title":"Only Admin can modify Confirmed plan","min":"2026-10-20","greyed":true},
+                "planType": {"value":"Confirm","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "6",
+              "text": ["Grey",null,null,"—","—","-","","",null,null,null,null,null,"60","60","30","90","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "endDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "planType": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!"]},
+      "changes": {"toast":"error: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"set","row":2,"field":"startDate","value":""},
+      "changes": {"toast":null,"table.rows[2].fields.startDate.value":"","table.rows[2].fields.endDate.min":"<removed>"}
+    },
+    {"n":4,"step":{"do":"set","row":2,"field":"endDate","value":""},"changes":{"table.rows[2].fields.endDate.value":""}},
+    {
+      "n": 5,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!"]},
+      "changes": {"toast":"error: Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!"}
+    },
+    {
+      "n": 6,
+      "step": {"do":"set","row":4,"field":"startDate","value":""},
+      "changes": {"toast":null,"table.rows[4].fields.startDate.value":"","table.rows[4].fields.endDate.min":"<removed>"}
+    },
+    {
+      "n": 7,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-D1!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-D1",
+              "department": "dyeing",
+              "fabricItems": [
+                {
+                  "itemId": "syn-d1_red_solid",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":520,"KnitProd":500,"KnitBala":20,"BPQty":470,"DyeingProd":60,"DyeingBala":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-16",
+                  "endDate": "2026-10-25",
+                  "limitation": "DL-red",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "syn-d1_blue_htr",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"EKL","ProcessName":"HTR","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":320,"KnitProd":300,"KnitBala":20,"BPQty":270,"DyeingProd":60,"DyeingBala":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"HTR"},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EKL",
+                  "processName": "HTR"
+                },
+                {
+                  "itemId": "syn-d1_green_dyeingwash",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Green","RequiredQtyKgs":200,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Dyeing Wash","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":220,"KnitProd":200,"KnitBala":20,"BPQty":170,"DyeingProd":60,"DyeingBala":140,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Dyeing Wash"},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Dyeing Wash"
+                },
+                {
+                  "itemId": "syn-d1_white_",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"White","RequiredQtyKgs":150,"Buyer":"Buyer North","Unit":"","ProcessName":"","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":170,"KnitProd":150,"KnitBala":20,"BPQty":120,"DyeingProd":60,"DyeingBala":90,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": ""
+                },
+                {
+                  "itemId": "syn-d1_navy_pluvia",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Navy","RequiredQtyKgs":120,"Buyer":"Buyer North","Unit":"Ext","ProcessName":"Pluvia","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":140,"KnitProd":120,"KnitBala":20,"BPQty":90,"DyeingProd":60,"DyeingBala":60,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Pluvia"},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "Ext",
+                  "processName": "Pluvia"
+                },
+                {
+                  "itemId": "syn-d1_black_solid",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Black","RequiredQtyKgs":100,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":120,"KnitProd":100,"KnitBala":20,"BPQty":70,"DyeingProd":60,"DyeingBala":40,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Confirm",
+                  "startDate": "2026-10-20",
+                  "endDate": "2026-10-28",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "syn-d1_grey_solid",
+                  "itemData": {"OrderNo":"SYN-D1","Color":"Grey","RequiredQtyKgs":90,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":110,"KnitProd":90,"KnitBala":20,"BPQty":60,"DyeingProd":60,"DyeingBala":30,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                }
+              ],
+              "orderStatus": "Pending"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-D1?dept=dyeing","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-D1!","table.rows[2].fields.startDate.disabled":true,"table.rows[2].fields.startDate.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[2].fields.startDate.greyed":true,"table.rows[2].fields.endDate.disabled":true,"table.rows[2].fields.endDate.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[2].fields.endDate.greyed":true,"table.rows[2].fields.planType.disabled":true,"table.rows[2].fields.planType.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[2].fields.planType.greyed":true,"table.rows[4].fields.startDate.disabled":true,"table.rows[4].fields.startDate.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[4].fields.startDate.greyed":true,"table.rows[4].fields.endDate.disabled":true,"table.rows[4].fields.endDate.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[4].fields.endDate.greyed":true,"table.rows[4].fields.planType.disabled":true,"table.rows[4].fields.planType.title":"Knitting Plan type selection is mandatory to input Dyeing plan","table.rows[4].fields.planType.greyed":true}
+    }
+  ]
+}

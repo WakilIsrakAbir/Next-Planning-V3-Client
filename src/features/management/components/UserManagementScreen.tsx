@@ -94,6 +94,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     items: [
       ['view', 'Source File Upload'],
       ['atlasMonitor', 'Atlas Monitor'],
+      ['planCheckList', 'Plan Check List'],
       ['setup', 'Dropdown Master Setup'],
       ['dyeingMc', 'Dyeing MC'],
       ['flatAllowance', 'Flat Allowance'],
@@ -364,8 +365,8 @@ const REMOVED_ACTION_KEYS = ['wipeSystem'];
 // when an Admin ticks them in the permission builder, never from the role template.
 const BATCH_PERMISSION_KEYS = {
   menus: {
-    // atlasMonitor came later still; it is off for every saved user too until an Admin ticks it.
-    dataManagement: ['dyeingMc', 'flatAllowance', 'unitSetup', 'atlasMonitor'],
+    // atlasMonitor and planCheckList came later still; they are off for every saved user too until an Admin ticks them.
+    dataManagement: ['dyeingMc', 'flatAllowance', 'unitSetup', 'atlasMonitor', 'planCheckList'],
     batchPlan: ['all', 'efl', 'ekl', 'ext', 'pluvia', 'outside'],
     batchCard: ['all', 'efl', 'ekl', 'ext', 'pluvia', 'outside'],
     batchReport: ['dyeableBatch', 'dyeableSummary', 'dailyConfirm'],

@@ -1,0 +1,94 @@
+{
+  "about": "Finishing: row 0 saved Tentative; row 1 without Unit/Process in Excel (General floor / program type fill them, Unit not in the master list); row 2 saved Confirm under an old itemId (matched by colour); row 3 a second Red row that takes row 0's saved plan (and its saved Unit/Process).",
+  "orderNo": "SYN-F1",
+  "orders": [
+    {
+      "_id": "a00000000000000000000024",
+      "orderNo": "SYN-F1",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-F1.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [
+        {"OrderNo":"SYN-F1","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","Process Name":"Solid","Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":20,"BP Qty":470,"Dyeing Prod.":60,"Dyeing Bala.":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-F1","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"","Process Name":"","Grey Req.":320,"Knit Prod.":300,"Knit. Bala.":20,"BP Qty":270,"Dyeing Prod.":60,"Dyeing Bala.":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-F1","Color":"Green","RequiredQtyKgs":200,"Buyer":"Buyer North","Unit":"EKL","Process Name":"HTR","Grey Req.":220,"Knit Prod.":200,"Knit. Bala.":20,"BP Qty":170,"Dyeing Prod.":60,"Dyeing Bala.":140,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0},
+        {"OrderNo":"SYN-F1","Color":"Red","RequiredQtyKgs":100,"Buyer":"Buyer North","Unit":"EKL","Process Name":"HTR","Grey Req.":120,"Knit Prod.":100,"Knit. Bala.":20,"BP Qty":70,"Dyeing Prod.":60,"Dyeing Bala.":40,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"RFD":0,"Slowmoving":0,"FF Stock":0}
+      ],
+      "deliveryItems": [],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z",
+      "floor": "Floor-2",
+      "programType": "Prog-A"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000025",
+      "orderNo": "SYN-F1",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [],
+      "dyeing": [],
+      "finishing": [
+        {
+          "itemId": "syn-f1_red_solid",
+          "itemData": {"Color":"Red","Unit":"EFL","ProcessName":"Solid","Process Name":"Solid"},
+          "startDate": "2026-11-01",
+          "endDate": "2026-11-05",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        },
+        {
+          "itemId": "old_green_xyz",
+          "itemData": {"Color":"Green","Unit":"EKL","ProcessName":"HTR"},
+          "startDate": "2026-11-02",
+          "endDate": "2026-11-03",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "delivery": [],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

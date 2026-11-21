@@ -1,0 +1,415 @@
+{
+  "scenario": "dyeing/save02-next-confirmed/planner",
+  "fixture": "dye-match",
+  "dept": "dyeing",
+  "role": "planner",
+  "orderNo": "SYN-D4",
+  "rules": ["SAVE-02","MATCH-01","MATCH-04"],
+  "note": "A non-admin may not change Start, End or Plan Type of a row whose saved Delivery row (same exact itemId) is Confirm. The lock reads the Delivery main plan type, not the Floor plan type (row 2), and the exact itemId only (row 3's Delivery row has a trailing '_'). Remarks are not checked.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D4 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D4",
+          "Booking No.": "SYN-D4",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [],
+          "message": "Loading Dyeing Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-D4?dept=dyeing","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-D4 Dyeing Plan",
+        "general": {
+          "EWO No.": "SYN-D4",
+          "Booking No.": "SYN-D4",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "Pending",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "1120",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-D4."
+        },
+        "section": {"header":"Department Fabric Items 4 Row 1 changes auto-fill all items below","footer":"Total 4 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "dyeing",
+          "head": [
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Start Date","End Date","Start Date","End Date"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm","","",null,null,null,null,null,"470","60","440","500","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-16","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-25","disabled":false,"title":null,"min":"2026-10-16"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Confirm","","",null,null,null,null,null,"270","60","240","300","20"],
+              "fields": {
+                "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "HTR",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-17","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-26","disabled":false,"title":null,"min":"2026-10-17"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Green",null,null,"07-Oct-2026","17-Oct-2026","Confirm","","",null,null,null,null,null,"170","60","140","200","20"],
+              "fields": {
+                "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-18","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-27","disabled":false,"title":null,"min":"2026-10-18"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "3",
+              "text": ["Navy",null,null,"08-Oct-2026","18-Oct-2026","Confirm","","",null,null,null,null,null,"90","60","60","120","20"],
+              "fields": {
+                "unit": {"value":"Ext","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
+                "processName": {
+                  "value": "Pluvia",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
+                },
+                "startDate": {"value":"2026-10-19","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-28","disabled":false,"title":null,"min":"2026-10-19"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":2,"field":"startDate","value":"2026-10-19"},
+      "changes": {"table.rows[2].fields.startDate.value":"2026-10-19","table.rows[2].fields.endDate.min":"2026-10-19"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"set","row":3,"field":"startDate","value":"2026-10-20"},
+      "changes": {"table.rows[3].fields.startDate.value":"2026-10-20","table.rows[3].fields.endDate.min":"2026-10-20"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-D4!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-D4",
+              "department": "dyeing",
+              "fabricItems": [
+                {
+                  "itemId": "syn-d4_red_solid",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":520,"KnitProd":500,"KnitBala":20,"BPQty":470,"DyeingProd":60,"DyeingBala":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-16",
+                  "endDate": "2026-10-25",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "d4-blue-own",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"EKL","ProcessName":"HTR","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":320,"KnitProd":300,"KnitBala":20,"BPQty":270,"DyeingProd":60,"DyeingBala":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"HTR"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-17",
+                  "endDate": "2026-10-26",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EKL",
+                  "processName": "HTR"
+                },
+                {
+                  "itemId": "d4-green-own",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Green","RequiredQtyKgs":200,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":220,"KnitProd":200,"KnitBala":20,"BPQty":170,"DyeingProd":60,"DyeingBala":140,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-19",
+                  "endDate": "2026-10-27",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "syn-d4_navy_pluvia",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Navy","RequiredQtyKgs":120,"Buyer":"Buyer North","Unit":"Ext","ProcessName":"Pluvia","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":140,"KnitProd":120,"KnitBala":20,"BPQty":90,"DyeingProd":60,"DyeingBala":60,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Pluvia"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-20",
+                  "endDate": "2026-10-28",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "Ext",
+                  "processName": "Pluvia"
+                }
+              ],
+              "orderStatus": "Pending"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-D4?dept=dyeing","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-D4!"}
+    },
+    {
+      "n": 5,
+      "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-18"},
+      "changes": {"toast":null,"table.rows[1].fields.startDate.value":"2026-10-18","table.rows[1].fields.endDate.min":"2026-10-18"}
+    },
+    {
+      "n": 6,
+      "step": {"do":"save"},
+      "events": {"toasts":["error: Save failed: Cannot change dyeing because the next department is already Confirmed!"]},
+      "changes": {"toast":"error: Save failed: Cannot change dyeing because the next department is already Confirmed!"}
+    },
+    {
+      "n": 7,
+      "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-17"},
+      "changes": {"toast":null,"table.rows[1].fields.startDate.value":"2026-10-17","table.rows[1].fields.endDate.min":"2026-10-17"}
+    },
+    {
+      "n": 8,
+      "step": {"do":"set","row":1,"field":"remarks","value":"remarks only"},
+      "changes": {"table.rows[1].fields.remarks.value":"remarks only"}
+    },
+    {
+      "n": 9,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-D4!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-D4",
+              "department": "dyeing",
+              "fabricItems": [
+                {
+                  "itemId": "syn-d4_red_solid",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Red","RequiredQtyKgs":500,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":520,"KnitProd":500,"KnitBala":20,"BPQty":470,"DyeingProd":60,"DyeingBala":440,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-16",
+                  "endDate": "2026-10-25",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "d4-blue-own",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Blue","RequiredQtyKgs":300,"Buyer":"Buyer North","Unit":"EKL","ProcessName":"HTR","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":320,"KnitProd":300,"KnitBala":20,"BPQty":270,"DyeingProd":60,"DyeingBala":240,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"HTR"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-17",
+                  "endDate": "2026-10-26",
+                  "limitation": "",
+                  "remarks": "remarks only",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EKL",
+                  "processName": "HTR"
+                },
+                {
+                  "itemId": "d4-green-own",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Green","RequiredQtyKgs":200,"Buyer":"Buyer North","Unit":"EFL","ProcessName":"Solid","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":220,"KnitProd":200,"KnitBala":20,"BPQty":170,"DyeingProd":60,"DyeingBala":140,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Solid"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-19",
+                  "endDate": "2026-10-27",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "EFL",
+                  "processName": "Solid"
+                },
+                {
+                  "itemId": "syn-d4_navy_pluvia",
+                  "itemData": {"OrderNo":"SYN-D4","Color":"Navy","RequiredQtyKgs":120,"Buyer":"Buyer North","Unit":"Ext","ProcessName":"Pluvia","Allowance":"","YarnReq":"","AllocatedQty":"","YarnBala":"","GreyReq":140,"KnitProd":120,"KnitBala":20,"BPQty":90,"DyeingProd":60,"DyeingBala":60,"NetReceivedQtyKgs":0,"NetDeliveryQtyKgs":0,"DeliBal":"","RFD":0,"Slowmoving":0,"FFStock":0,"Process Name":"Pluvia"},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-20",
+                  "endDate": "2026-10-28",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "Ext",
+                  "processName": "Pluvia"
+                }
+              ],
+              "orderStatus": "Pending"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-D4?dept=dyeing","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-D4!"}
+    }
+  ]
+}
