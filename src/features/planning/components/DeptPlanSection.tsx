@@ -24,7 +24,6 @@ interface DeptPlanSectionProps {
   logic: DeptPlanLogic;
 }
 
-/** One department's plan table card (header strip, table and footer), moved unchanged from OrderPlanningScreen.tsx. */
 export default function DeptPlanSection({
   dept,
   deptMeta,

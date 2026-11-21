@@ -14,11 +14,6 @@ export interface DeptPlanLogicContext {
   showToast: (message: string, type?: 'error' | 'success') => void;
 }
 
-/**
- * One department's plan rules, moved unchanged from OrderPlanningScreen.tsx.
- * A plain function, not a hook: the screen builds it on every render from that render's state,
- * so every handler reads the current values, exactly as the inline code did.
- */
 export function createDeptPlanLogic(ctx: DeptPlanLogicContext) {
   const { dept, orderNo, order, planData, planItems, setPlanItems, orderStatus, setOrderStatus, isAdmin, showToast } = ctx;
 
