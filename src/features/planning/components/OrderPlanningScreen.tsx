@@ -37,11 +37,13 @@ import {
   rowsForSave,
   sectionAccess,
   sectionsFor,
+  storedDept,
   type GroupKey,
   type OrderPageAction,
   type OrderPageModel,
   type SaveTarget,
   type SectionDef,
+  type StoredDept,
 } from '@/features/planning/lib/order-page-model';
 import {
   buildSavePlansBody,
@@ -401,7 +403,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   );
 
   const runSave = useCallback(
-    async (target: SaveTarget, opts: { noBase?: string[]; onlyDirty?: boolean } = {}) => {
+    async (target: SaveTarget, opts: { noBase?: string[]; onlyDirty?: boolean; fresh?: Record<string, StoredDept> } = {}) => {
       if (savingRef.current) return;
       const m = modelRef.current;
 
@@ -425,7 +427,8 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       const extras = target.kind === 'all' ? saveExtrasRef.current.filter((e) => e.isDirty) : [];
       if (groupsByDept.size === 0 && extras.length === 0) return;
 
-      const entries: PlanSaveEntry[] = [...groupsByDept].map(([d, groups]) => ({ dept: d, groups, ...rowsForSave(m.drafts[d], d, groups) }));
+      // `fresh`: "Save mine anyway" of one delivery group sends the other group as a fresh read shows it (plan D7).
+      const entries: PlanSaveEntry[] = [...groupsByDept].map(([d, groups]) => ({ dept: d, groups, ...rowsForSave(m.drafts[d], d, groups, opts.fresh?.[d]) }));
       const ctx = { orderNo, order: m.order, planData: m.planData, isAdmin, showToast };
 
       if (entries.length > 0) {
@@ -568,10 +571,12 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   // Plan D7 "Save mine anyway": the refused save again (Save Data, or the refused sections of this department),
   // without `base` for the departments it was refused for. Save Data again is a whole Save Data: the plans first,
   // then its extras (the Planning Guide, when it has unsaved changes), with the same messages.
+  // A save of one delivery group also sends the other group: for a refused Delivery it is taken from a fresh read
+  // (what is stored now), not from this page's baseline, so someone else's changes there are kept.
   const handleSaveMine = useCallback(
-    (key: string) => {
+    async (key: string) => {
       const found = conflictOf(key);
-      if (!found) return;
+      if (!found || savingRef.current) return;
       const { conflict, affected } = found;
       const depts = conflict.depts.filter((d) => modelRef.current.conflicts[d]);
       const target: SaveTarget =
@@ -580,10 +585,26 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           : affected.length === 1
             ? { kind: 'section', key: affected[0].key }
             : { kind: 'dept', dept: affected[0].dept };
+      let fresh: Record<string, StoredDept> | undefined;
+      if (depts.includes('delivery')) {
+        savingRef.current = true;
+        setSaving({ keys: affected.map((s) => s.key), all: target.kind === 'all' });
+        try {
+          const res = await fetchOrderDetail(dept, orderNo, true, true);
+          if (!res.ok || !res.data) throw new Error('not loaded');
+          fresh = { delivery: storedDept(res.data.order, res.data.planData, 'delivery') };
+        } catch {
+          showToast(`Could not load the latest plan of Order #${orderNo}. Please try again.`);
+          return;
+        } finally {
+          savingRef.current = false;
+          setSaving(null);
+        }
+      }
       dispatch({ type: 'force', depts });
-      runSave(target, { noBase: depts, onlyDirty: true });
+      runSave(target, { noBase: depts, onlyDirty: true, fresh });
     },
-    [conflictOf, runSave]
+    [conflictOf, runSave, dept, orderNo, showToast]
   );
 
   const handleDiscard = useCallback(

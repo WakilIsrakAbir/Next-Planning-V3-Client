@@ -224,6 +224,101 @@ describe('another user changes the OTHER delivery group', () => {
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Delivery')}`);
     expect(stored(page).delivery[0].limitation).toBe('theirs');
   });
+
+  it('Floor draft, their Lock change, NO read: "Save mine anyway" on Floor keeps their Lock values and status (fresh read)', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+    await page.wait(1000);
+    await someoneElseSaves(
+      page,
+      'delivery',
+      (rows) => {
+        rows[0].limitation = 'theirs';
+        rows[0].remarks = 'their remark';
+      },
+      'Confirm'
+    );
+    await page.saveSection('deliveryFloor');
+    await page.wait(4000);
+    const alert = page.section('deliveryFloor').querySelector('[data-conflict]');
+    expect(alert).not.toBeNull();
+    expect(page.section('deliveryLock').querySelector('[data-conflict]')).toBeNull();
+    const reads = page.server.log.length;
+    await page.click(alert!.querySelector('[data-action="save-mine"]'));
+    // The other group comes from a read past the server cache, made right before the forced save.
+    expect(page.server.log.slice(reads).map((r) => `${r.method} ${r.url}`).slice(0, 2)).toEqual([
+      'GET /api/orders/SYN-S1?dept=delivery&fresh=1',
+      'POST /api/orders/save-plans',
+    ]);
+    const req = lastSave(page);
+    expect(req.body.base).toBeUndefined();
+    expect(req.body.plans[0].orderStatus).toBe('Confirm');
+    expect(req.body.plans[0].fabricItems.map((r: Loose) => [r.limitation, r.remarks, r.floorEndDate])).toEqual([
+      ['theirs', 'their remark', '2026-11-01'],
+      ['', '', '2026-11-04'],
+    ]);
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    const d = stored(page);
+    expect(d.delivery[0].limitation).toBe('theirs');
+    expect(d.delivery[0].remarks).toBe('their remark');
+    expect(d.deliveryStatus).toBe('Confirm');
+    expect(d.delivery[1].floorEndDate).toBe('2026-11-04');
+    await page.wait(4000);
+    expect(document.querySelector('[data-conflict]')).toBeNull();
+    expect(ta(page, 'deliveryLock', 0, 'limitation')).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('Floor and Lock drafts, their Lock change: "Save mine anyway" on Floor keeps their Lock; my Lock draft stays unsaved and refused', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+    const before = fingerprintDept(stored(page), 'delivery');
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+    await page.set('deliveryLock', 1, 'remarks', 'l mine');
+    await page.wait(1000);
+    await someoneElseSaves(page, 'delivery', (rows) => {
+      rows[0].limitation = 'theirs';
+    });
+    await page.saveSection('deliveryFloor');
+    expect(page.section('deliveryLock').querySelector('[data-conflict]')).toBeNull();
+    await page.wait(4000);
+    await page.click(page.section('deliveryFloor').querySelector('[data-conflict] [data-action="save-mine"]'));
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    expect(stored(page).delivery.map((r: Loose) => [r.limitation, r.remarks, r.floorEndDate])).toEqual([
+      ['theirs', '', '2026-11-01'],
+      ['', '', '2026-11-04'],
+    ]);
+    await page.wait(4000);
+    // My Lock work was made before their Lock change: it stays unsaved, and the alert moves to Lock.
+    expect(page.pills('deliveryLock')).toContain('Unsaved');
+    expect(ta(page, 'deliveryLock', 1, 'remarks')).toBe('l mine');
+    expect(page.section('deliveryLock').querySelector('[data-conflict]')).not.toBeNull();
+    expect(page.section('deliveryFloor').querySelector('[data-conflict]')).toBeNull();
+    expect(page.pills('deliveryFloor')).not.toContain('Unsaved');
+    // Saving it is refused (the old base is kept), so their Lock change is not overwritten silently.
+    await page.saveSection('deliveryLock');
+    expect(lastSave(page).body.base).toEqual({ delivery: before });
+    expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Delivery')}`);
+    expect(stored(page).delivery[0].limitation).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('"Save mine anyway" of one Delivery group when the fresh read fails: nothing is sent, the draft and the alert stay', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+    await someoneElseSaves(page, 'delivery', (rows) => {
+      rows[0].limitation = 'theirs';
+    });
+    await page.saveSection('deliveryFloor');
+    await page.wait(4000);
+    page.server.scriptNext('detail', { networkError: true });
+    await page.click(page.section('deliveryFloor').querySelector('[data-conflict] [data-action="save-mine"]'));
+    expect(page.toasts.at(-1)).toBe('error: Could not load the latest plan of Order #SYN-S1. Please try again.');
+    expect(page.savePlansRequests()).toHaveLength(1);
+    expect(page.section('deliveryFloor').querySelector('[data-conflict]')).not.toBeNull();
+    expect(page.field('deliveryFloor', 1, 'floorEndDate').value).toBe('2026-11-04');
+    expect(stored(page).delivery[0].limitation).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
 });
 
 describe('items added or removed by an upload', () => {

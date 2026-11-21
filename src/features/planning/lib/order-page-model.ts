@@ -279,19 +279,36 @@ export function withFieldsFrom(rows: Loose[], source: Loose[] | undefined, field
   });
 }
 
+/** A department's rows and Order Status as a read shows them (what is stored now). */
+export interface StoredDept {
+  rows: Loose[];
+  status: string;
+}
+
+/** The department's rows and Order Status in a detail read (`order` and `planData` of the answer). */
+export function storedDept(order: Loose, planData: Loose, dept: string): StoredDept {
+  return { rows: buildMergedItems(order || {}, planData || {}, dept), status: statusOf(planData, dept) };
+}
+
 /**
  * What a save of these groups sends (plan D3): saving one delivery group sends that group's fields from the draft and
  * the other group's fields from its baseline; the status is the draft status when the status group is saved, else
  * the baseline status.
+ * `fresh` (plan D7 "Save mine anyway" of one delivery group): the other group's fields and, when the status group is
+ * not saved, the status come from a fresh read instead, so someone else's changes there are kept (rows the read does
+ * not have keep their baseline values).
  */
-export function rowsForSave(draft: DeptDraft, dept: string, groups: GroupKey[]): { rows: Loose[]; status: string } {
+export function rowsForSave(draft: DeptDraft, dept: string, groups: GroupKey[], fresh?: StoredDept): { rows: Loose[]; status: string } {
   if (dept !== 'delivery' || (groups.includes('floor') && groups.includes('lock'))) {
     return { rows: draft.rows, status: draft.status };
   }
   if (groups.includes('floor')) {
-    return { rows: withFieldsFrom(draft.rows, draft.base.lock, LOCK_FIELDS), status: draft.baseStatus };
+    const rows = withFieldsFrom(draft.rows, draft.base.lock, LOCK_FIELDS);
+    if (fresh) return { rows: withFieldsFrom(rows, fresh.rows, LOCK_FIELDS), status: fresh.status };
+    return { rows, status: draft.baseStatus };
   }
-  return { rows: withFieldsFrom(draft.rows, draft.base.floor, FLOOR_FIELDS), status: draft.status };
+  const rows = withFieldsFrom(draft.rows, draft.base.floor, FLOOR_FIELDS);
+  return { rows: fresh ? withFieldsFrom(rows, fresh.rows, FLOOR_FIELDS) : rows, status: draft.status };
 }
 
 /**
@@ -474,9 +491,21 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
       action.saved.forEach(({ dept, groups }) => {
         const draft = drafts[dept];
         if (!draft) return;
-        drafts[dept] = remergeGroups(draft, dept, groups, buildMergedItems(state.order, planData, dept), statusOf(planData, dept));
+        const merged = buildMergedItems(state.order, planData, dept);
+        const status = statusOf(planData, dept);
+        // The saved groups and the clean ones are merged again; a group this save did not send keeps its unsaved work.
+        const reload = groupsOf(dept).filter((g) => groups.includes(g) || !isGroupDirty(draft, dept, g));
+        const stale = groupsOf(dept).filter((g) => !reload.includes(g) && !baseMatchesRead(draft, dept, g, merged, status));
+        drafts[dept] = remergeGroups(draft, dept, reload, merged, status);
+        if (stale.length > 0) {
+          // That unsaved work was made on other values than the ones stored now (a "Save mine anyway" of the other
+          // delivery group sends this group as a fresh read showed it): the old base stays, so saving the work is
+          // refused instead of overwriting what is stored.
+          conflicts[dept] = { groups: stale, target: { kind: 'dept', dept }, depts: [dept], force: false };
+          return;
+        }
         if (action.fingerprints && action.fingerprints[dept] !== undefined) fingerprints[dept] = action.fingerprints[dept];
-        // What is stored now is what this save sent (its other group from the baseline): nothing left to resolve.
+        // Every group that keeps a draft was made on what is stored now: nothing left to resolve.
         delete conflicts[dept];
       });
       return { ...state, planData, fingerprints, drafts, conflicts };
