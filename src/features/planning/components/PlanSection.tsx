@@ -276,7 +276,7 @@ function PlanSection({
                 data-action="save-mine"
                 onClick={() => onSaveMine(key)}
                 disabled={saving}
-                className="btn btn-xs btn-outline"
+                className="btn btn-xs btn-outline text-warning-content border-warning-content"
               >
                 Save mine anyway
               </button>
