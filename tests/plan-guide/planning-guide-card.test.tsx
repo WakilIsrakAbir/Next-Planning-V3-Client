@@ -385,11 +385,11 @@ describe('saving and showing a saved guide', () => {
     await showCard();
     setYes('Singeing', true);
     answers.push(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard Planning Guide changes' }));
     expect(confirms).toEqual(['Discard the unsaved changes in Planning Guide?']);
     expect(select('Singeing').value).toBe('Yes');
     answers.push(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard Planning Guide changes' }));
     expect(select('Singeing').value).toBe('No');
     expect(shownDates()).toEqual(EXAMPLE_LIVE);
     expect(screen.queryByText('Unsaved')).toBeNull();

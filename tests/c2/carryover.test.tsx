@@ -155,6 +155,17 @@ describe('4. strip status labels and the failed-check ring', () => {
     page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'admin' });
     const labels = Array.from(document.querySelectorAll('[data-plan-section] [data-field="orderStatus"]')).map((s) => s.getAttribute('aria-label'));
     expect(labels).toEqual(['Delivery Plan (Lock) Order Status', 'Knitting Plan Order Status', 'Dyeing Plan Order Status']);
+    // Each strip Discard is named by its section too; the strip selects show a focus ring for the keyboard.
+    const discards = Array.from(document.querySelectorAll('[data-plan-section] [data-action="discard"]')).map((b) => b.getAttribute('aria-label'));
+    expect(discards).toEqual([
+      'Discard Delivery Plan (Floor) changes',
+      'Discard Delivery Plan (Lock) changes',
+      'Discard Knitting Plan changes',
+      'Discard Dyeing Plan changes',
+    ]);
+    document.querySelectorAll('[data-plan-section] [data-c2-chrome] [data-field="orderStatus"]').forEach((el) => {
+      expect(el.className).toContain('focus-visible:ring-2');
+    });
   });
 
   it('the ring uses the error token and stays until its own section is edited (another section does not clear it)', async () => {

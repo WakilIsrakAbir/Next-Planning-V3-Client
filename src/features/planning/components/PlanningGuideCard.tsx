@@ -72,9 +72,9 @@ const TOAST_MS = 3800;
 // Same look as the order page's other controls (OrderPlanningScreen.tsx).
 const LABEL_CLS = 'w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate';
 const SELECT_CLS =
-  'flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed';
+  'flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed';
 const DATE_CLS =
-  'p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[110px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]';
+  'p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[110px] focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 outline-none bg-white dark:bg-[#151921]';
 const HEADING_CLS =
   'p-1 bg-gray-100 dark:bg-[#1f2637] text-center font-bold text-xs border border-gray-200 dark:border-[#2a3346] text-gray-700 dark:text-gray-300';
 const CELL_CLS = 'p-2 border-r border-gray-300 dark:border-[#2a3346]';
@@ -265,7 +265,14 @@ function GuideCard({
         </div>
         <div className="flex items-center flex-wrap gap-2 justify-end">
           {g.dirty && (
-            <button type="button" data-action="discard-guide" onClick={discard} disabled={busy || pageSaving} className={STRIP_BTN}>
+            <button
+              type="button"
+              data-action="discard-guide"
+              aria-label="Discard Planning Guide changes"
+              onClick={discard}
+              disabled={busy || pageSaving}
+              className={STRIP_BTN}
+            >
               Discard
             </button>
           )}

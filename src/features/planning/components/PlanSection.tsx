@@ -203,7 +203,7 @@ function PlanSection({
                 disabled={statusDisabled || !loaded}
                 title={!editable ? readOnlyTitle || undefined : undefined}
                 onChange={(e) => setOrderStatus(e.target.value)}
-                className="px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {ORDER_STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -218,6 +218,7 @@ function PlanSection({
               <button
                 type="button"
                 data-action="discard"
+                aria-label={`Discard ${def.title} changes`}
                 onClick={() => onDiscard(key)}
                 disabled={!dirty || saving}
                 className={STRIP_BTN}
