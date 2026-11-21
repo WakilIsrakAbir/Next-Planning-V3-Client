@@ -21,6 +21,8 @@ const stored = (p: PageDriver) => p.server.db.orderDates.find((d) => d.orderNo =
 const textarea = (p: PageDriver, key: string, row: number, name: string) => (p.field(key, row, name) as HTMLTextAreaElement).value;
 const offer = () => document.querySelector('[data-restore-offer]') as HTMLElement | null;
 const offerText = (labels: string[]) => `Unsaved changes in: ${labels.join(', ')} were kept from your last visit. Restore them?`;
+const staleLine = () => document.querySelector('[data-restore-stale]') as HTMLElement | null;
+const staleText = (labels: string) => `${labels} work from your last visit could not be restored: it was saved by someone else since.`;
 
 function backupKeys(): string[] {
   const keys: string[] = [];
@@ -172,8 +174,65 @@ describe('when the backup is not offered', () => {
     });
     expect(res.status).toBe(200);
     await page.reload();
-    // Knitting is still offered; Dyeing was saved by someone else, so its old work is not.
+    // Knitting is still offered; Dyeing was saved by someone else, so its old work is not: one line says so.
     expect(offer()?.textContent).toContain(offerText(['Knitting Plan']));
+    expect(offer()?.textContent).not.toContain('Dyeing');
+    expect(staleLine()?.textContent).toBe(staleText('Dyeing Plan'));
+  });
+
+  it('saved since: the line is shown, then that backup is removed (not before); Close hides the line', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    await page.set('dyeing', 1, 'remarks', 'd mine');
+    await page.wait(600);
+    const old = fingerprintDept(stored(page), 'dyeing');
+    const rows = JSON.parse(JSON.stringify(stored(page).dyeing));
+    rows[0].remarks = 'theirs';
+    const res = await page.server.fetch(`${API_BASE}/api/orders/save-plans`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TEST_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNo: 'SYN-S1', plans: [{ department: 'dyeing', fabricItems: rows, orderStatus: 'Pending' }] }),
+    });
+    expect(res.status).toBe(200);
+    // A slow first read: until it answers, nothing is decided, shown or removed.
+    page.server.scriptNext('detail', { hold: true });
+    await page.reload();
+    await page.wait(3000);
+    expect(staleLine()).toBeNull();
+    expect(backupKeys()).toEqual([keyOf('admin', 'dyeing', old)]);
+    page.server.releaseHeld();
+    await page.settle();
+    expect(staleLine()?.textContent).toBe(staleText('Dyeing Plan'));
+    expect(staleLine()?.getAttribute('role')).toBe('status');
+    expect(offer()).toBeNull();
+    expect(textarea(page, 'dyeing', 1, 'remarks')).toBe('');
+    expect(textarea(page, 'dyeing', 0, 'remarks')).toBe('theirs');
+    expect(backupKeys()).toEqual([]);
+    await page.click(staleLine()!.querySelector('[aria-label="Close message"]'));
+    expect(staleLine()).toBeNull();
+    await page.reload();
+    expect(staleLine()).toBeNull();
+    expect(page.errors).toEqual([]);
+  });
+
+  it('saved since, for a section that is View only on this page: no line there, and the backup is left for its own page', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'dyeing', role: 'planner' });
+    await page.set('dyeing', 1, 'remarks', 'd mine');
+    await page.wait(600);
+    const rows = JSON.parse(JSON.stringify(stored(page).dyeing));
+    rows[0].remarks = 'theirs';
+    const res = await page.server.fetch(`${API_BASE}/api/orders/save-plans`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TEST_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNo: 'SYN-S1', plans: [{ department: 'dyeing', fabricItems: rows, orderStatus: 'Pending' }] }),
+    });
+    expect(res.status).toBe(200);
+    await page.reload('knitting');
+    expect(staleLine()).toBeNull();
+    await page.wait(600);
+    expect(backupKeys()).toHaveLength(1);
+    await page.reload('dyeing');
+    expect(staleLine()?.textContent).toBe(staleText('Dyeing Plan'));
+    expect(backupKeys()).toEqual([]);
   });
 
   it('another user signed in in this tab: not offered, and the first user keeps it', async () => {

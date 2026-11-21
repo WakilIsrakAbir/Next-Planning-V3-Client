@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertCircle,
   History,
+  X,
 } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import {
@@ -59,7 +60,9 @@ import {
   backupFits,
   buildBackup,
   readBackup,
+  readStaleBackups,
   readStoredUser,
+  removeBackupKeys,
   removeBackups,
   writeBackup,
   type DeptBackup,
@@ -138,6 +141,8 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   const [scrollTo, setScrollTo] = useState<{ key: string } | null>(null);
   // Unsaved work of an earlier visit (sessionStorage backup) that may be restored.
   const [restoreOffer, setRestoreOffer] = useState<DeptBackup[] | null>(null);
+  // Unsaved work of an earlier visit that cannot be offered because its department was saved since: one line names it.
+  const [staleBackup, setStaleBackup] = useState<{ labels: string[]; depts: number } | null>(null);
   // 1. Resolve Admin / Approver Role from localStorage (false during SSR / hydration, then the stored role)
   const isAdmin = useSyncExternalStore(subscribeToNothing, readIsAdminRole, () => false);
   // Plan D4: sections of other departments are editable only for the role 'Admin' (the Sidebar's admin rule).
@@ -203,6 +208,8 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   // offer: a restore is offered (its departments are left alone); armed: the backup follows the unsaved work.
   const backupPhaseRef = useRef<'waiting' | 'offer' | 'armed'>('waiting');
   const offeredDeptsRef = useRef<Set<string>>(new Set());
+  // Backups that can no longer be offered (saved since): left alone until the line naming them has been shown.
+  const staleBackupsRef = useRef<{ keys: string[]; depts: Set<string> }>({ keys: [], depts: new Set() });
   // The user the page was opened by (a forced sign-out removes the stored user before the page goes away).
   const backupUserRef = useRef<string | null>(null);
   useEffect(() => {
@@ -220,6 +227,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     const user = backupUserRef.current ?? readStoredUser();
     pageDepts.forEach((d) => {
       if (phase === 'offer' && offeredDeptsRef.current.has(d)) return;
+      if (staleBackupsRef.current.depts.has(d)) return;
       if (!sections.some((def) => def.dept === d && changeable(m, def, canEditOthersRef.current))) return;
       const groups = sections.filter((def) => def.dept === d && dirtyIn(m, def, canEditOthersRef.current)).map((def) => def.group);
       const base = m.fingerprints[d];
@@ -246,21 +254,37 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     };
   }, []);
 
-  /** After the first read: offer the backups still made on the stored data, for sections the user may change. */
+  /**
+   * After the first read: offer the backups still made on the stored data, for sections the user may change. Backups
+   * of those sections made on data saved since are named in one line instead (and removed once it is shown).
+   */
   const decideRestoreOffer = useCallback(
     (m: OrderPageModel) => {
       if (backupPhaseRef.current !== 'waiting') return;
       const user = backupUserRef.current ?? readStoredUser();
       const found: DeptBackup[] = [];
+      const stale = { keys: [] as string[], depts: new Set<string>(), groups: [] as GroupRef[] };
       pageDepts.forEach((d) => {
         const base = m.fingerprints[d];
-        const backup = base ? readBackup(user, orderNo, d, base) : null;
+        if (!base) return;
+        const mine = (g: GroupKey) => sections.some((def) => def.dept === d && def.group === g && changeable(m, def, canEditOthersRef.current));
+        readStaleBackups(user, orderNo, d, base).forEach(({ key, backup }) => {
+          const groups = backup.groups.filter(mine);
+          if (groups.length === 0) return;
+          stale.keys.push(key);
+          stale.depts.add(d);
+          groups.forEach((group) => stale.groups.push({ dept: d, group }));
+        });
+        const backup = readBackup(user, orderNo, d, base);
         if (!backup || !backupFits(backup, m.drafts[d])) return;
-        const groups = backup.groups.filter((g) =>
-          sections.some((def) => def.dept === d && def.group === g && changeable(m, def, canEditOthersRef.current))
-        );
+        const groups = backup.groups.filter(mine);
         if (groups.length > 0) found.push({ ...backup, groups });
       });
+      if (stale.keys.length > 0) {
+        staleBackupsRef.current = { keys: stale.keys, depts: stale.depts };
+        const labels = sections.filter((def) => stale.groups.some((s) => s.dept === def.dept && s.group === def.group)).map((def) => def.title);
+        setStaleBackup({ labels, depts: stale.depts.size });
+      }
       if (found.length === 0) {
         backupPhaseRef.current = 'armed';
         return;
@@ -271,6 +295,13 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     },
     [pageDepts, sections, orderNo]
   );
+
+  // Backups made on data saved since are removed only after the line naming them has been shown.
+  useEffect(() => {
+    if (!staleBackup) return;
+    removeBackupKeys(staleBackupsRef.current.keys);
+    staleBackupsRef.current = { keys: [], depts: new Set() };
+  }, [staleBackup]);
 
   /* ---------------- reads ---------------- */
 
@@ -796,6 +827,29 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
               Discard
             </button>
           </div>
+        </div>
+      )}
+      {staleBackup && (
+        <div
+          data-c2-chrome
+          data-restore-stale
+          role="status"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
+        >
+          <History className="h-3.5 w-3.5 shrink-0" />
+          <p className="flex-1 min-w-0">
+            {staleBackup.labels.join(', ')} work from your last visit could not be restored:{' '}
+            {staleBackup.depts > 1 ? 'they were' : 'it was'} saved by someone else since.
+          </p>
+          <button
+            type="button"
+            data-action="close-restore-stale"
+            onClick={() => setStaleBackup(null)}
+            aria-label="Close message"
+            className="p-0.5 rounded cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-amber-700 dark:focus-visible:outline-amber-300"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 

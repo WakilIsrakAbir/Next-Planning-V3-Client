@@ -97,27 +97,66 @@ export function removeBackups(user: string, orderNo: string, dept: string): void
   }
 }
 
+/** A stored backup of `dept` made on `fingerprint`, or null when `raw` is not one. */
+function parseBackup(raw: string | null, dept: string, fingerprint: string): DeptBackup | null {
+  if (!raw) return null;
+  const b = JSON.parse(raw);
+  const known = groupsOf(dept);
+  const valid =
+    b &&
+    b.v === 1 &&
+    b.dept === dept &&
+    b.base === fingerprint &&
+    Array.isArray(b.rows) &&
+    Array.isArray(b.groups) &&
+    b.groups.length > 0 &&
+    b.groups.every((g: unknown) => known.includes(g as GroupKey)) &&
+    (b.status === undefined || typeof b.status === 'string');
+  return valid ? (b as DeptBackup) : null;
+}
+
 /** The backup made on `fingerprint`, or null (none, unreadable, or not a backup of that department). */
 export function readBackup(user: string, orderNo: string, dept: string, fingerprint: string): DeptBackup | null {
   try {
-    const raw = sessionStorage.getItem(backupKey(user, orderNo, dept, fingerprint));
-    if (!raw) return null;
-    const b = JSON.parse(raw);
-    const known = groupsOf(dept);
-    const valid =
-      b &&
-      b.v === 1 &&
-      b.dept === dept &&
-      b.base === fingerprint &&
-      Array.isArray(b.rows) &&
-      Array.isArray(b.groups) &&
-      b.groups.length > 0 &&
-      b.groups.every((g: unknown) => known.includes(g as GroupKey)) &&
-      (b.status === undefined || typeof b.status === 'string');
-    return valid ? (b as DeptBackup) : null;
+    return parseBackup(sessionStorage.getItem(backupKey(user, orderNo, dept, fingerprint)), dept, fingerprint);
   } catch {
     return null;
   }
+}
+
+/**
+ * The department's backups made on another fingerprint than `fingerprint`: the department was saved since (by someone
+ * else, another tab or V2), so that work can no longer be restored. Each comes with its storage key.
+ */
+export function readStaleBackups(user: string, orderNo: string, dept: string, fingerprint: string): Array<{ key: string; backup: DeptBackup }> {
+  const found: Array<{ key: string; backup: DeptBackup }> = [];
+  try {
+    keysStartingWith(deptPrefix(user, orderNo, dept)).forEach((key) => {
+      if (key === backupKey(user, orderNo, dept, fingerprint)) return;
+      try {
+        const raw = sessionStorage.getItem(key);
+        const base = raw ? JSON.parse(raw)?.base : undefined;
+        const backup = typeof base === 'string' && key === backupKey(user, orderNo, dept, base) ? parseBackup(raw, dept, base) : null;
+        if (backup) found.push({ key, backup });
+      } catch {
+        /* not a backup */
+      }
+    });
+  } catch {
+    /* nothing stored */
+  }
+  return found;
+}
+
+/** Removes the backups stored under these keys. */
+export function removeBackupKeys(keys: string[]): void {
+  keys.forEach((key) => {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      /* nothing stored */
+    }
+  });
 }
 
 /** The backup belongs to these rows: the same items in the same order. */
