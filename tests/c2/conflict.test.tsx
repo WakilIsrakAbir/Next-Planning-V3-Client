@@ -103,20 +103,26 @@ describe('a refused section Save', () => {
     expect(page.errors).toEqual([]);
   });
 
-  it('Save mine anyway sends the section again without base and overwrites their change', async () => {
+  it('Save mine anyway reads the latest, then sends the section again based on that read and overwrites their change', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
     await page.set('knitting', 1, 'remarks', 'k mine');
     await page.set('dyeing', 1, 'remarks', 'd mine');
-    await someoneElseSaves(page, 'dyeing', (rows) => {
+    const theirs = await someoneElseSaves(page, 'dyeing', (rows) => {
       rows[0].remarks = 'theirs';
     });
     await page.saveSection('dyeing');
     const refused = lastSave(page);
 
+    const from = page.server.log.length;
     await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
+    // Plan D7 (refined): a save rebased on a fresh read, with that read's fingerprint as its base.
+    expect(page.server.log.slice(from, from + 2).map((r) => `${r.method} ${r.url}`)).toEqual([
+      'GET /api/orders/SYN-S1?dept=knitting&fresh=1',
+      'POST /api/orders/save-plans',
+    ]);
     const again = lastSave(page);
     expect(page.savePlansRequests()).toHaveLength(2);
-    expect(again.body.base).toBeUndefined();
+    expect(again.body.base).toEqual({ dyeing: theirs });
     expect(again.body.plans).toEqual(refused.body.plans);
     expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
     expect(stored(page).dyeing.map((r: Loose) => r.remarks)).toEqual(['', 'd mine']);
@@ -181,10 +187,11 @@ describe('a refused Save Data', () => {
     await p.set('dyeing', 1, 'remarks', 'd mine');
     await p.set('deliveryLock', 1, 'remarks', 'l mine');
     const bases = { knitting: fingerprintDept(stored(p), 'knitting'), delivery: fingerprintDept(stored(p), 'delivery') };
-    await someoneElseSaves(p, 'dyeing', (rows) => {
+    const oldDyeing = fingerprintDept(stored(p), 'dyeing');
+    const theirs = await someoneElseSaves(p, 'dyeing', (rows) => {
       rows[0].remarks = 'theirs';
     });
-    return { p, bases };
+    return { p, bases, oldDyeing, theirs };
   }
 
   it('nothing is saved; only the refused section shows the alert and is brought into view', async () => {
@@ -208,14 +215,14 @@ describe('a refused Save Data', () => {
     expect(page.saveDataButton().textContent).toBe('Save Data (3)');
   });
 
-  it('Save mine anyway: Save Data again, without base for the refused department only', async () => {
-    const { p, bases } = await refusedSaveData();
+  it('Save mine anyway: Save Data again, rebased on a fresh read for the refused department only', async () => {
+    const { p, bases, theirs } = await refusedSaveData();
     page = p;
     await page.saveData();
     await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
     const again = lastSave(page);
     expect(again.body.plans.map((pl: Loose) => pl.department)).toEqual(['knitting', 'dyeing', 'delivery']);
-    expect(again.body.base).toEqual(bases);
+    expect(again.body.base).toEqual({ ...bases, dyeing: theirs });
     expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
     expect(stored(page).knitting[1].remarks).toBe('k mine');
     expect(stored(page).dyeing.map((r: Loose) => r.remarks)).toEqual(['', 'd mine']);
@@ -241,27 +248,51 @@ describe('a refused Save Data', () => {
     expect(stored(page).dyeing[0].remarks).toBe('theirs');
   });
 
-  it('"Save mine anyway" holds for its department until it is saved, also when another department is refused next', async () => {
-    const { p } = await refusedSaveData();
+  it('"Save mine anyway" is one click: refused again for another department, Dyeing keeps its old base and its alert', async () => {
+    const { p, bases, oldDyeing, theirs } = await refusedSaveData();
     page = p;
     await page.saveData();
-    // Meanwhile someone else saves Delivery too: the forced Save Data is refused for Delivery.
+    // Meanwhile someone else saves Delivery too: the rebased Save Data is refused for Delivery.
     await someoneElseSaves(page, 'delivery', (rows) => {
       rows[0].limitation = 'theirs';
     });
     await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
-    expect(Object.keys(lastSave(page).body.base)).toEqual(['knitting', 'delivery']);
+    expect(lastSave(page).body.base).toEqual({ ...bases, dyeing: theirs });
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Delivery')}`);
     expect(alertOf(page, 'dyeing')).not.toBeNull();
     expect(alertOf(page, 'deliveryLock')).not.toBeNull();
     expect(alertOf(page, 'deliveryFloor')).toBeNull();
-    // Save mine anyway for Delivery: neither Dyeing nor Delivery has a base now.
+    expect(stored(page).dyeing[0].remarks).toBe('theirs');
+    // Nothing was saved, so nothing was settled: a plain Save Data sends the old bases and is refused again.
     await page.wait(4000);
+    await page.saveData();
+    expect(lastSave(page).body.base).toEqual({ ...bases, dyeing: oldDyeing });
+    expect(page.toasts.at(-1)).toBe('error: Dyeing and Delivery were changed by someone else after this order was opened.');
+    expect(stored(page).dyeing[0].remarks).toBe('theirs');
+    expect(stored(page).delivery[0].limitation).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('"Save mine anyway" after a refusal of the rebased save rebases both refused departments (no back and forth)', async () => {
+    const { p, bases } = await refusedSaveData();
+    page = p;
+    await page.saveData();
+    await someoneElseSaves(page, 'delivery', (rows) => {
+      rows[0].limitation = 'theirs';
+    });
+    await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
+    expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Delivery')}`);
+    // Save mine anyway in the Delivery alert: Dyeing (still refused) and Delivery are both rebased on a new read.
+    await page.wait(4000);
+    const theirDyeing = fingerprintDept(stored(page), 'dyeing');
+    const theirDelivery = fingerprintDept(stored(page), 'delivery');
     await page.click(alertOf(page, 'deliveryLock')!.querySelector('[data-action="save-mine"]'));
-    expect(Object.keys(lastSave(page).body.base)).toEqual(['knitting']);
+    expect(lastSave(page).body.base).toEqual({ knitting: bases.knitting, dyeing: theirDyeing, delivery: theirDelivery });
     expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
     expect(document.querySelector('[data-conflict]')).toBeNull();
+    expect(stored(page).dyeing.map((r: Loose) => r.remarks)).toEqual(['', 'd mine']);
     expect(stored(page).delivery[0].limitation).toBe('');
+    expect(stored(page).delivery[1].remarks).toBe('l mine');
     expect(page.errors).toEqual([]);
   });
 });
@@ -323,7 +354,7 @@ describe('Delivery Floor and Lock (one fingerprint, two sections)', () => {
     page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
     await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
     await page.set('deliveryLock', 1, 'remarks', 'l mine');
-    await someoneElseSaves(page, 'delivery', (rows) => {
+    const theirs = await someoneElseSaves(page, 'delivery', (rows) => {
       rows[0].limitation = 'theirs';
     });
     await page.saveSection('deliveryFloor');
@@ -334,11 +365,11 @@ describe('Delivery Floor and Lock (one fingerprint, two sections)', () => {
     expect(alertOf(page, 'deliveryLock')).not.toBeNull();
     expect(textarea(page, 'deliveryLock', 0, 'limitation')).toBe('');
 
-    // Save mine anyway on Lock: the Lock section without base (mine overwrites theirs).
+    // Save mine anyway on Lock: the Lock section rebased on a fresh read (mine overwrites theirs, as stored now).
     await page.wait(4000);
     await page.click(alertOf(page, 'deliveryLock')!.querySelector('[data-action="save-mine"]'));
     const req = lastSave(page);
-    expect(req.body.base).toBeUndefined();
+    expect(req.body.base).toEqual({ delivery: theirs });
     expect(req.body.plans[0].fabricItems.map((r: Loose) => [r.limitation, r.remarks, r.floorEndDate])).toEqual([
       ['', '', '2026-11-01'],
       ['', 'l mine', '2026-11-02'],

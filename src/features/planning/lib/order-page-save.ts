@@ -90,17 +90,19 @@ export function findFailingEntry(entries: PlanSaveEntry[], ctx: CheckContext): P
 /**
  * Today's Completed prompt for each department of the save, in pipeline order. Cancel restores that department's
  * saved status (`restoreStatus`) and returns false: nothing is saved.
+ * `storedPlan` (a "Save mine anyway" rebased on a fresh read): the plan whose stored status the prompt compares with,
+ * so it asks only when the user changed the status to Completed, never for a Completed status someone else stored.
  */
 export function confirmCompletions(
   entries: PlanSaveEntry[],
-  ctx: CheckContext & { restoreStatus: (dept: string, status: string) => void }
+  ctx: CheckContext & { restoreStatus: (dept: string, status: string) => void; storedPlan?: (dept: string) => Loose }
 ): boolean {
   for (const entry of inPipelineOrder(entries)) {
     const logic = createDeptPlanLogic({
       dept: entry.dept,
       orderNo: ctx.orderNo,
       order: ctx.order,
-      planData: ctx.planData,
+      planData: ctx.storedPlan ? ctx.storedPlan(entry.dept) : ctx.planData,
       planItems: entry.rows,
       setPlanItems: noop,
       orderStatus: entry.status,

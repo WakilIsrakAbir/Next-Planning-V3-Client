@@ -231,7 +231,7 @@ describe('another user changes the OTHER delivery group', () => {
     page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
     await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
     await page.wait(1000);
-    await someoneElseSaves(
+    const theirs = await someoneElseSaves(
       page,
       'delivery',
       (rows) => {
@@ -253,7 +253,7 @@ describe('another user changes the OTHER delivery group', () => {
       'POST /api/orders/save-plans',
     ]);
     const req = lastSave(page);
-    expect(req.body.base).toBeUndefined();
+    expect(req.body.base).toEqual({ delivery: theirs });
     expect(req.body.plans[0].orderStatus).toBe('Confirm');
     expect(req.body.plans[0].fabricItems.map((r: Loose) => [r.limitation, r.remarks, r.floorEndDate])).toEqual([
       ['theirs', 'their remark', '2026-11-01'],

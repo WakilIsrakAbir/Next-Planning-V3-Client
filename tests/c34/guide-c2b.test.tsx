@@ -8,8 +8,8 @@ import type { Loose } from '../harness/types';
 import type { StoredGuide } from '../plan-guide/guide-server';
 
 // The Planning Guide card together with the C2b protection of the order page (final integration):
-// - "Save mine anyway" of a refused Save Data is a whole Save Data: the plans first (without base), then the guide,
-//   with the same messages (SPEC C2 10a, D7);
+// - "Save mine anyway" of a refused Save Data is a whole Save Data: the plans first (rebased on a fresh read), then
+//   the guide, with the same messages (SPEC C2 10a, D7);
 // - every read keeps the newest guide by guide.version, "Load latest" included;
 // - the leave guard names the Planning Guide next to the sections;
 // - the sessionStorage backup of the sections leaves the card working.
@@ -100,16 +100,18 @@ async function refusedSaveData(p: GuidePage): Promise<void> {
 }
 
 describe('"Save mine anyway" with unsaved Planning Guide changes', () => {
-  it('after a refused Save Data it is a whole Save Data: the plans again without base, then the guide', async () => {
+  it('after a refused Save Data it is a whole Save Data: the plans again rebased on a fresh read, then the guide', async () => {
     page = await openGuidePage({ fixture: savedOrder(), dept: 'knitting' });
     await refusedSaveData(page);
+    const theirs = fingerprintAllDepts(storedPlan(page)).dyeing;
 
     const from = page.server.log.length;
     await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
-    expect(page.server.log.slice(from)).toEqual([SAVE_PLANS, ...GUIDE_CHECK, PUT, `GET /api/orders/${ORDER}?dept=knitting&fresh=1`]);
+    const read = `GET /api/orders/${ORDER}?dept=knitting&fresh=1`;
+    expect(page.server.log.slice(from)).toEqual([read, SAVE_PLANS, ...GUIDE_CHECK, PUT, read]);
     const [refused, again] = posts(page);
     expect(refused.body.base).toHaveProperty('dyeing');
-    expect(again.body.base).toBeUndefined();
+    expect(again.body.base).toEqual({ ...refused.body.base, dyeing: theirs });
     expect(again.body.plans).toEqual(refused.body.plans);
     expect(lastPut(page)?.body).toEqual({ yesIds: ['heatset'], dates: HEATSET_DATES });
 
@@ -163,11 +165,13 @@ describe('"Save mine anyway" with unsaved Planning Guide changes', () => {
     await page.saveSection('dyeing');
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Dyeing')}`);
     await page.wait(4000);
+    const theirs = fingerprintAllDepts(storedPlan(page)).dyeing;
 
     const from = page.server.log.length;
     await page.click(alertOf(page, 'dyeing')!.querySelector('[data-action="save-mine"]'));
-    expect(page.server.log.slice(from)).toEqual([SAVE_PLANS, `GET /api/orders/${ORDER}?dept=knitting&fresh=1`]);
-    expect(posts(page).at(-1)?.body.base).toBeUndefined();
+    const read = `GET /api/orders/${ORDER}?dept=knitting&fresh=1`;
+    expect(page.server.log.slice(from)).toEqual([read, SAVE_PLANS, read]);
+    expect(posts(page).at(-1)?.body.base).toEqual({ dyeing: theirs });
     expect(page.toasts.at(-1)).toBe(`success: ${T.saved(ORDER)}`);
     expect(page.server.guides.requests('PUT')).toEqual([]);
     expect(page.cardPills()).toEqual(['1 Yes', 'Unsaved']);

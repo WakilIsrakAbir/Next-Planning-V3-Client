@@ -36,6 +36,7 @@ import {
   isOlderPlanData,
   orderPageReducer,
   rowsForSave,
+  rowsOnRead,
   sectionAccess,
   sectionsFor,
   storedDept,
@@ -446,7 +447,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   );
 
   const runSave = useCallback(
-    async (target: SaveTarget, opts: { noBase?: string[]; onlyDirty?: boolean; fresh?: Record<string, StoredDept> } = {}) => {
+    async (target: SaveTarget, opts: { onlyDirty?: boolean; rebase?: { depts: string[]; read: Loose } } = {}) => {
       if (savingRef.current) return;
       const m = modelRef.current;
 
@@ -470,13 +471,23 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       const extras = target.kind === 'all' ? saveExtrasRef.current.filter((e) => e.isDirty) : [];
       if (groupsByDept.size === 0 && extras.length === 0) return;
 
-      // `fresh`: "Save mine anyway" of one delivery group sends the other group as a fresh read shows it (plan D7).
-      const entries: PlanSaveEntry[] = [...groupsByDept].map(([d, groups]) => ({ dept: d, groups, ...rowsForSave(m.drafts[d], d, groups, opts.fresh?.[d]) }));
+      // Plan D7 "Save mine anyway" (`rebase`): each refused department is sent as a save rebased on the fresh read made
+      // just before, with that read's fingerprint as its base (rowsOnRead). Every other department is sent as always.
+      const read = opts.rebase?.read;
+      const rebased = new Map<string, StoredDept>();
+      opts.rebase?.depts.forEach((d) => {
+        if (groupsByDept.has(d)) rebased.set(d, storedDept(read.order, read.planData, d));
+      });
+      const entries: PlanSaveEntry[] = [...groupsByDept].map(([d, groups]) => {
+        const stored = rebased.get(d);
+        return { dept: d, groups, ...(stored ? rowsOnRead(m.drafts[d], d, groups, stored) : rowsForSave(m.drafts[d], d, groups)) };
+      });
       const ctx = { orderNo, order: m.order, planData: m.planData, isAdmin, showToast };
 
       if (entries.length > 0) {
-        // Today's checks of each department, downstream first; the first failure stops everything.
-        const failing = findFailingEntry(entries, ctx);
+        // Today's checks of each department, downstream first; the first failure stops everything. A rebased save is
+        // checked against the plan it is rebased on (the fresh read: what is stored now, its items included).
+        const failing = findFailingEntry(entries, rebased.size > 0 ? { ...ctx, order: read.order, planData: read.planData } : ctx);
         if (failing) {
           const failingKeys = sections.filter((s) => s.dept === failing.dept && failing.groups.includes(s.group)).map((s) => s.key);
           failingKeys.forEach((k) => setSectionHidden(hiddenKey(k), false));
@@ -485,14 +496,21 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           return;
         }
         // Today's Completed prompt per department, in pipeline order; Cancel restores that saved status and stops.
-        const restoreStatus = (d: string, status: string) => dispatch({ type: 'status', dept: d, update: status });
-        if (!confirmCompletions(entries, { ...ctx, restoreStatus })) return;
+        // A rebased department is asked only when the user changed its status to Completed (draft vs what the fresh
+        // read stores); Cancel puts back the status this page shows as saved.
+        const restoreStatus = (d: string, status: string) =>
+          dispatch({ type: 'status', dept: d, update: rebased.has(d) ? (m.planData?.[`${d}Status`] || 'On Process') : status });
+        const storedPlan = rebased.size > 0 ? (d: string) => (rebased.has(d) ? read.planData : m.planData) : undefined;
+        if (!confirmCompletions(entries, { ...ctx, restoreStatus, storedPlan })) return;
       }
 
-      // Plan D7: a department settled with "Save mine anyway" is sent without its base (no conflict check).
-      const forced = new Set([...(opts.noBase || []), ...Object.keys(m.conflicts).filter((d) => m.conflicts[d].force)]);
+      // A rebased department's base is the fresh read's fingerprint: a change saved after that read is refused (409).
+      // A save is never sent without its conflict check (a read without a fingerprint leaves the old base).
       const bases = { ...m.fingerprints };
-      forced.forEach((d) => delete bases[d]);
+      rebased.forEach((_, d) => {
+        const fp = read?.fingerprints?.[d];
+        if (typeof fp === 'string' && fp) bases[d] = fp;
+      });
 
       savingRef.current = true;
       setSaving({ keys, all: target.kind === 'all' });
@@ -505,17 +523,20 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           // replaces neither the plan (the reducer checks it too) nor the cache.
           const older = isOlderPlanData(result.planData, newestPlanRef.current);
           if (!older) newestPlanRef.current = result.planData;
-          // Only the saved sections are merged again (and adopt the new fingerprints); others keep their drafts.
+          // Only the saved sections are merged again (and adopt the new fingerprints); others keep their drafts. A
+          // rebased save sent rows of the fresh read's order: they are merged over that order.
+          const savedOrder = rebased.size > 0 ? read.order : undefined;
           dispatch({
             type: 'saved',
             saved: entries.map((e) => ({ dept: e.dept, groups: e.groups })),
             planData: result.planData,
             fingerprints: result.fingerprints,
+            ...(savedOrder ? { order: savedOrder } : {}),
           });
           // Every department page of this order opens with the saved data.
           if (!older) {
             setPrecachedOrderDetailAllDepts(orderNo, {
-              order: m.order,
+              order: savedOrder || m.order,
               planData: result.planData,
               fingerprints: result.fingerprints,
               deptFlags: m.deptFlags || undefined,
@@ -544,11 +565,18 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         }
         if (plansSaved) fetchOrderAndDropdowns(true);
       } catch (err) {
-        // Nothing was saved: every draft stays as it is. A 409 (plan D7): the refused sections show the conflict
-        // alert ("Load latest" / "Save mine anyway"); the toast shows the server's message.
+        // Nothing was saved: every draft stays as it is, and so do the bases (a failed "Save mine anyway" leaves the
+        // refused departments refused). A 409 (plan D7): the refused sections show the conflict alert ("Load latest" /
+        // "Save mine anyway"); the toast shows the server's message.
         const conflictDepts = err instanceof SavePlansError ? err.conflictDepartments : null;
         if (conflictDepts) {
-          dispatch({ type: 'conflict', depts: conflictDepts, sent: entries.map((e) => ({ dept: e.dept, groups: e.groups })), target });
+          dispatch({
+            type: 'conflict',
+            depts: conflictDepts,
+            sent: entries.map((e) => ({ dept: e.dept, groups: e.groups })),
+            target,
+            rebased: [...rebased.keys()],
+          });
           const first = target.kind === 'all' ? sections.find((s) => keys.includes(s.key) && conflictDepts.includes(s.dept)) : undefined;
           if (first) setScrollTo({ key: first.key });
         }
@@ -616,11 +644,15 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     [conflictOf, sectionDirty, loadLatest]
   );
 
-  // Plan D7 "Save mine anyway": the refused save again (Save Data, or the refused sections of this department),
-  // without `base` for the departments it was refused for. Save Data again is a whole Save Data: the plans first,
-  // then its extras (the Planning Guide, when it has unsaved changes), with the same messages.
-  // A save of one delivery group also sends the other group: for a refused Delivery it is taken from a fresh read
-  // (what is stored now), not from this page's baseline, so someone else's changes there are kept.
+  // Plan D7 "Save mine anyway" (refined): overwrite the change the user was warned about, as it is stored NOW, and
+  // nothing that arrives later. It is one click, never a lasting state:
+  // - it reads the order with fresh=1, then sends the refused save again (Save Data, or the refused sections of this
+  //   department) REBASED on that read: the read's rows with the user's own values on top, and the read's
+  //   fingerprint as the base, so a change saved after the read is refused (409) again;
+  // - if the read, the checks, a Completed prompt or the request fails, nothing changes: the old base and the alert
+  //   stay, and the next plain save is a normal checked save.
+  // Save Data again is a whole Save Data: the plans first, then its extras (the Planning Guide, when it has unsaved
+  // changes), with the same messages.
   const handleSaveMine = useCallback(
     async (key: string) => {
       const found = conflictOf(key);
@@ -633,24 +665,21 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           : affected.length === 1
             ? { kind: 'section', key: affected[0].key }
             : { kind: 'dept', dept: affected[0].dept };
-      let fresh: Record<string, StoredDept> | undefined;
-      if (depts.includes('delivery')) {
-        savingRef.current = true;
-        setSaving({ keys: affected.map((s) => s.key), all: target.kind === 'all' });
-        try {
-          const res = await fetchOrderDetail(dept, orderNo, true, true);
-          if (!res.ok || !res.data) throw new Error('not loaded');
-          fresh = { delivery: storedDept(res.data.order, res.data.planData, 'delivery') };
-        } catch {
-          showToast(`Could not load the latest plan of Order #${orderNo}. Please try again.`);
-          return;
-        } finally {
-          savingRef.current = false;
-          setSaving(null);
-        }
+      let read: Loose;
+      savingRef.current = true;
+      setSaving({ keys: affected.map((s) => s.key), all: target.kind === 'all' });
+      try {
+        const res = await fetchOrderDetail(dept, orderNo, true, true);
+        if (!res.ok || !res.data) throw new Error('not loaded');
+        read = res.data;
+      } catch {
+        showToast(`Could not load the latest plan of Order #${orderNo}. Please try again.`);
+        return;
+      } finally {
+        savingRef.current = false;
+        setSaving(null);
       }
-      dispatch({ type: 'force', depts });
-      runSave(target, { noBase: depts, onlyDirty: true, fresh });
+      runSave(target, { onlyDirty: true, rebase: { depts, read } });
     },
     [conflictOf, runSave, dept, orderNo, showToast]
   );
