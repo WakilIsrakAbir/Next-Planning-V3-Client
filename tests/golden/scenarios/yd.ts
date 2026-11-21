@@ -155,4 +155,27 @@ export const ydScenarios: Scenario[] = [
       { step: 1, cell: [0, 16], text: '—' },
     ],
   })),
+
+  // yd-qty-legacy (SYN-Y3): row 0 saved with a top-level barrierQty '30' (none in its saved itemData), row 1 saved
+  // with an itemData without 'Barrier Qty.' (Excel row: 55), row 2 not saved.
+  ...forRoles(() => ({
+    name: 'auto10-legacy-barrier-qty',
+    dept,
+    fixture: 'yd-qty-legacy',
+    rules: ['AUTO-10', 'CAS-01', 'SAVE-16', 'SAVE-17'],
+    note: "Barrier Qty. as older code saved it: a top-level barrierQty is shown, and the save copies it into itemData (row 0); a saved itemData without 'Barrier Qty.' leaves the input empty although the Excel row has 55, and the save still sends 55 (row 1). A Row-1 Matching Option Date is copied into every row.",
+    steps: [{ do: 'load' }, { do: 'set', row: 0, field: 'matchingOptionDate', value: '2026-10-11' }, { do: 'save' }],
+    expect: [
+      { step: 1, field: [0, 'barrierQty'], value: '30' },
+      { step: 1, field: [1, 'barrierQty'], value: '' },
+      { step: 2, field: [1, 'matchingOptionDate'], value: '2026-10-11' },
+      { step: 2, field: [2, 'matchingOptionDate'], value: '2026-10-11' },
+      { step: 3, saved: true },
+      { step: 3, toast: T.saved('SYN-Y3') },
+      { step: 3, body: { item: 0, key: 'barrierQty', equals: '30' } },
+      { step: 3, body: { item: 0, itemData: true, key: 'Barrier Qty.', equals: '30' } },
+      { step: 3, body: { item: 1, key: 'barrierQty', equals: 55 } },
+      { step: 3, body: { item: 2, key: 'matchingOptionDate', equals: '2026-10-11' } },
+    ],
+  })),
 ];

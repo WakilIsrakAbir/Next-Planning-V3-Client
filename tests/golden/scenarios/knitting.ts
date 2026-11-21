@@ -471,4 +471,55 @@ export const knittingScenarios: Scenario[] = [
     steps: [{ do: 'load', replyDetail: { status: 500, json: { message: 'Server error' } } }],
     expect: [{ step: 1, toast: T.loadFailed('SYN-K1') }],
   },
+
+  // knit-legacy (SYN-K3): row 1 Tentative without End, row 2 saved Confirm without Yarn Date, row 3 Start before its
+  // Yarn Date, row 4 Start after End (see the save-ladder scenario above).
+  ...forRoles((role, isAdmin) => ({
+    name: 'save01-first-failure-wins',
+    dept,
+    fixture: 'knit-legacy',
+    rules: isAdmin ? ['SAVE-07', 'AUTO-02'] : ['SAVE-01', 'AUTO-02'],
+    note: isAdmin
+      ? "Row 2's saved Confirm is dropped by clearing its Yarn Date. Admin is exempt from SAVE-01, so the save goes on and stops at row 3 (SAVE-07)."
+      : "Row 2's saved Confirm is dropped by clearing its Yarn Date; rows 3 and 4 fail later checks too (SAVE-07, SAVE-03). The save stops at the first failing row, so only the SAVE-01 toast shows.",
+    steps: [
+      { do: 'load' },
+      { do: 'set', row: 1, field: 'endDate', value: '2026-10-16' },
+      { do: 'set', row: 2, field: 'yarnDate', value: '2026-10-02' },
+      { do: 'set', row: 2, field: 'yarnDate', value: '' },
+      { do: 'save' },
+    ],
+    expect: [
+      { step: 4, toast: T.yarnForConfirm },
+      { step: 4, field: [2, 'planType'], value: '' },
+      { step: 5, saved: false },
+      { step: 5, toast: isAdmin ? T.saveStartBeforeYarn : T.adminOnlyConfirm },
+    ],
+  })),
+
+  // legacy-placeholders (SYN-X1): row 0 Red Tentative 10-05..10-15 (Yarn 10-01), row 1 Blue Tentative 10-06..10-16
+  // with Yarn Date '-', row 2 Green Tentative 10-07..10-17 with Yarn Date 'N/A' (saved by older code).
+  ...forRoles(() => ({
+    name: 'chg07-legacy-yarn-placeholders',
+    dept,
+    fixture: 'legacy-placeholders',
+    rules: ['CHG-07', 'SAVE-16', 'SAVE-17'],
+    note: "A Yarn Date of '-' or 'N/A' counts as no Yarn Date: Confirm is refused on both rows. The save sends the placeholders back unchanged.",
+    steps: [
+      { do: 'load' },
+      { do: 'set', row: 1, field: 'planType', value: 'Confirm' },
+      { do: 'set', row: 2, field: 'planType', value: 'Confirm' },
+      { do: 'save' },
+    ],
+    expect: [
+      { step: 2, toast: T.yarnForConfirm },
+      { step: 2, field: [1, 'planType'], value: '' },
+      { step: 3, toast: T.yarnForConfirm },
+      { step: 3, field: [2, 'planType'], value: '' },
+      { step: 4, saved: true },
+      { step: 4, toast: T.saved('SYN-X1') },
+      { step: 4, body: { item: 1, key: 'yarnDate', equals: '-' } },
+      { step: 4, body: { item: 2, key: 'yarnDate', equals: 'N/A' } },
+    ],
+  })),
 ];

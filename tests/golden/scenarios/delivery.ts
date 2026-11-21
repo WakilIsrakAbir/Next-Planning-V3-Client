@@ -189,4 +189,80 @@ export const deliveryScenarios: Scenario[] = [
       ...(isAdmin ? [{ step: 2, body: { item: 1, key: 'itemId', equals: 'syn-l3__s/j_160' } }] : []),
     ],
   })),
+
+  // deli-saved-plan (SYN-L4): five Green rows; the saved Dyeing row (Green) has a BLANK plan type (10-18..10-27).
+  //   0 S/J        saved Delivery: Floor plan type 'Tentative' only
+  //   1 Rib        saved Delivery: Floor start 10-25 only
+  //   2 Pique      saved Delivery: plan type 'Tentative' only
+  //   3 Interlock  saved Delivery: start 10-26 only
+  //   4 Fleece     no saved Delivery row
+  ...forRoles((role, isAdmin) => ({
+    name: 'gate03-saved-plan-exemption',
+    dept,
+    fixture: 'deli-saved-plan',
+    rules: ['GATE-03', 'SAVE-11', 'SAVE-16', 'SAVE-17'],
+    note: isAdmin
+      ? 'Admin edits every row, whatever the Dyeing plan type. The save is refused while a row has Delivery input other than a Floor plan type (SAVE-11); once rows 1-3 are cleared it goes through.'
+      : 'With a blank Dyeing plan type only a saved Delivery plan keeps a row editable for a non-admin, and any ONE of Floor plan type, Floor start, plan type or start is enough (rows 0-3); row 4, without one, is locked. Rows 1-3 are cleared and saved: their saved plan is then empty, so they lock too.',
+    steps: [
+      { do: 'load' },
+      { do: 'save' },
+      { do: 'set', row: 1, field: 'floorStartDate', value: '' },
+      { do: 'set', row: 2, field: 'planType', value: '' },
+      { do: 'set', row: 3, field: 'startDate', value: '' },
+      { do: 'save' },
+    ],
+    expect: [
+      { step: 1, field: [0, 'floorPlanType'], value: 'Tentative', disabled: false, title: null },
+      { step: 1, field: [0, 'startDate'], value: '', disabled: false, title: null },
+      { step: 1, field: [1, 'floorStartDate'], value: '2026-10-25', disabled: false, title: null },
+      { step: 1, field: [1, 'planType'], value: '', disabled: false, title: null },
+      { step: 1, field: [2, 'planType'], value: 'Tentative', disabled: false, title: null },
+      { step: 1, field: [2, 'floorStartDate'], value: '', disabled: false, title: null },
+      { step: 1, field: [3, 'startDate'], value: '2026-10-26', disabled: false, title: null },
+      { step: 1, field: [3, 'floorPlanType'], value: '', disabled: false, title: null },
+      { step: 1, field: [4, 'floorStartDate'], disabled: !isAdmin, title: isAdmin ? null : T.dyeTypeMandatory },
+      { step: 1, field: [4, 'startDate'], disabled: !isAdmin, title: isAdmin ? null : T.dyeTypeMandatory },
+      { step: 1, cell: [0, 13], text: '-' },
+      { step: 2, toast: T.saveDyeTypeMandatory },
+      { step: 2, saved: false },
+      { step: 6, saved: true },
+      { step: 6, toast: T.saved('SYN-L4') },
+      { step: 6, body: { item: 0, key: 'floorPlanType', equals: 'Tentative' } },
+      { step: 6, body: { item: 1, key: 'floorStartDate', equals: '' } },
+      { step: 6, body: { item: 2, key: 'planType', equals: '' } },
+      { step: 6, body: { item: 3, key: 'startDate', equals: '' } },
+      { step: 6, field: [0, 'floorPlanType'], value: 'Tentative', disabled: false },
+      { step: 6, field: [1, 'floorStartDate'], disabled: !isAdmin },
+      { step: 6, field: [3, 'startDate'], disabled: !isAdmin },
+    ],
+  })),
+
+  // legacy-placeholders (SYN-X1), delivery rows and their saved Dyeing row:
+  //   0 Red S/J    no saved Delivery (Floor defaults +7 days)                  dye Red Confirm 10-16..10-25
+  //   1 Navy S/J   no saved Delivery                                           dye Navy: plan type '-', start '-', end '-'
+  //   2 Black S/J  saved Delivery Tentative 10-26..11-05, Floor 10-25..11-03   dye Black: plan type '-', 10-18..10-27
+  ...forRoles((role, isAdmin) => ({
+    name: 'legacy-dash-dyeing-plan',
+    dept,
+    fixture: 'legacy-placeholders',
+    rules: ['GATE-03', 'GATE-04', 'CHG-11', 'SAVE-11'],
+    note: isAdmin
+      ? "A Dyeing start of '-' counts as missing: row 1's Start/End/Plan Type stay locked for Admin too. A Dyeing plan type of '-' counts as blank: row 2's Confirm is refused, and so is its save."
+      : "A Dyeing plan type of '-' counts as blank: row 1 (no saved Delivery plan) is locked for a non-admin. Row 2 stays editable through its saved Delivery plan, but its Confirm is refused, and so is its save.",
+    steps: [{ do: 'load' }, { do: 'set', row: 2, field: 'planType', value: 'Confirm' }, { do: 'save' }],
+    expect: [
+      { step: 1, field: [1, 'floorStartDate'], value: '', disabled: !isAdmin, title: isAdmin ? null : T.dyeTypeMandatory },
+      { step: 1, field: [1, 'startDate'], disabled: true, title: isAdmin ? T.dyeMissing : T.dyeTypeMandatory },
+      { step: 1, field: [2, 'startDate'], value: '2026-10-26', disabled: false, title: null },
+      { step: 1, field: [0, 'floorStartDate'], value: '2026-10-23' },
+      { step: 1, cell: [1, 11], text: '—' },
+      { step: 1, cell: [1, 13], text: '-' },
+      { step: 1, cell: [2, 13], text: '-' },
+      { step: 2, toast: T.dyeTentativeOrBlank },
+      { step: 2, field: [2, 'planType'], value: '' },
+      { step: 3, toast: T.saveDyeTypeMandatory },
+      { step: 3, saved: false },
+    ],
+  })),
 ];

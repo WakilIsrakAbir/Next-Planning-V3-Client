@@ -1,0 +1,143 @@
+{
+  "about": "Delivery rows of one colour whose saved Dyeing plan type is blank (Green: '' from 10-18 to 10-27). For a non-admin a saved Delivery plan keeps such a row editable; rows 0-3 are each saved with exactly ONE of the four values that count as a saved plan: Floor plan type (row 0), Floor start (row 1), plan type (row 2), start (row 3). Row 4 has no saved Delivery row, so it is locked for non-admins.",
+  "orderNo": "SYN-L4",
+  "orders": [
+    {
+      "_id": "a00000000000000000000043",
+      "orderNo": "SYN-L4",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-L4.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [
+        {"OrderNo":"SYN-L4","Color":"Green","FabricConstruction":"S/J","GSM":160,"RequiredQtyKgs":500,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":520,"Knit Prod.":500,"Knit. Bala.":0,"NetReceivedQtyKgs":450,"NetDeliveryQtyKgs":400,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-L4","Color":"Green","FabricConstruction":"Rib","GSM":200,"RequiredQtyKgs":300,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":320,"Knit Prod.":300,"Knit. Bala.":0,"NetReceivedQtyKgs":250,"NetDeliveryQtyKgs":200,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-L4","Color":"Green","FabricConstruction":"Pique","GSM":220,"RequiredQtyKgs":200,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":220,"Knit Prod.":200,"Knit. Bala.":0,"NetReceivedQtyKgs":150,"NetDeliveryQtyKgs":100,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-L4","Color":"Green","FabricConstruction":"Interlock","GSM":180,"RequiredQtyKgs":150,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":170,"Knit Prod.":150,"Knit. Bala.":0,"NetReceivedQtyKgs":100,"NetDeliveryQtyKgs":50,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100},
+        {"OrderNo":"SYN-L4","Color":"Green","FabricConstruction":"Fleece","GSM":240,"RequiredQtyKgs":100,"Buyer":"Buyer North","Allowance %":5,"Grey Req.":120,"Knit Prod.":100,"Knit. Bala.":0,"NetReceivedQtyKgs":50,"NetDeliveryQtyKgs":0,"RFD":25,"Slowmoving":5,"FF Stock":10,"Deli. Bala.":100}
+      ],
+      "ydItems": [],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Tentative",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000044",
+      "orderNo": "SYN-L4",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [
+        {
+          "itemId": "syn-l4_green_s/j_160",
+          "itemData": {"Color":"Green","FabricConstruction":"S/J"},
+          "startDate": "2026-10-05",
+          "endDate": "2026-10-15",
+          "planType": "Confirm",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "dyeing": [
+        {
+          "itemId": "syn-l4_green_solid",
+          "itemData": {"Color":"Green"},
+          "startDate": "2026-10-18",
+          "endDate": "2026-10-27",
+          "planType": "",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "finishing": [],
+      "delivery": [
+        {
+          "itemId": "syn-l4_green_s/j_160",
+          "itemData": {"Color":"Green","FabricConstruction":"S/J"},
+          "startDate": "",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "",
+          "floorEndDate": "",
+          "floorPlanType": "Tentative"
+        },
+        {
+          "itemId": "syn-l4_green_rib_200",
+          "itemData": {"Color":"Green","FabricConstruction":"Rib"},
+          "startDate": "",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "2026-10-25",
+          "floorEndDate": "",
+          "floorPlanType": ""
+        },
+        {
+          "itemId": "syn-l4_green_pique_220",
+          "itemData": {"Color":"Green","FabricConstruction":"Pique"},
+          "startDate": "",
+          "endDate": "",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "",
+          "floorEndDate": "",
+          "floorPlanType": ""
+        },
+        {
+          "itemId": "syn-l4_green_interlock_180",
+          "itemData": {"Color":"Green","FabricConstruction":"Interlock"},
+          "startDate": "2026-10-26",
+          "endDate": "",
+          "planType": "",
+          "limitation": "",
+          "remarks": "",
+          "floorStartDate": "",
+          "floorEndDate": "",
+          "floorPlanType": ""
+        }
+      ],
+      "yd": [],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

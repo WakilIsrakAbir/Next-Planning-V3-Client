@@ -1,0 +1,269 @@
+{
+  "scenario": "yd/auto10-legacy-barrier-qty/admin",
+  "fixture": "yd-qty-legacy",
+  "dept": "yd",
+  "role": "admin",
+  "orderNo": "SYN-Y3",
+  "rules": ["AUTO-10","CAS-01","SAVE-16","SAVE-17"],
+  "note": "Barrier Qty. as older code saved it: a top-level barrierQty is shown, and the save copies it into itemData (row 0); a saved itemData without 'Barrier Qty.' leaves the input empty although the Excel row has 55, and the save still sends 55 (row 1). A Row-1 Matching Option Date is copied into every row.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-Y3 YD Plan",
+        "general": {
+          "EWO No.": "SYN-Y3",
+          "Booking No.": "SYN-Y3",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [],
+          "message": "Loading YD Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-Y3?dept=yd","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-Y3 YD Plan",
+        "general": {
+          "EWO No.": "SYN-Y3",
+          "Booking No.": "SYN-Y3",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "—",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-Y3."
+        },
+        "section": {"header":"Department Fabric Items 3 Row 1 changes auto-fill all items below","footer":"Total 3 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Solid","YDB-401","05-Sep-2026",null,null,null,null,null,null,null,null,null,null,"03-Oct-2026","12-Oct-2026","02-Oct-2026","21-Oct-2026",null,null,"120","40","80","30","90"],
+              "fields": {
+                "startDate": {"value":"2026-10-10","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-20","disabled":false,"title":null,"min":"2026-10-10"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null},
+                "yarnOkDate": {"value":"","disabled":false,"title":null},
+                "matchingOptionDate": {"value":"","disabled":false,"title":null},
+                "floorStartDate": {"value":"2026-10-06","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-10-16","disabled":false,"title":null,"min":"2026-10-06"},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "barrierQty": {"value":"30","disabled":false,"title":null},
+                "workableQty": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "1",
+              "text": ["Stripe","YDB-402","05-Sep-2026",null,null,null,null,null,null,null,null,null,null,"03-Oct-2026","12-Oct-2026","02-Oct-2026","21-Oct-2026",null,null,"120","40","80","30","90"],
+              "fields": {
+                "startDate": {"value":"2026-10-12","disabled":false,"title":null},
+                "endDate": {"value":"2026-10-22","disabled":false,"title":null,"min":"2026-10-12"},
+                "planType": {"value":"Tentative","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null},
+                "yarnOkDate": {"value":"","disabled":false,"title":null},
+                "matchingOptionDate": {"value":"","disabled":false,"title":null},
+                "floorStartDate": {"value":"2026-10-08","disabled":false,"title":null},
+                "floorEndDate": {"value":"2026-10-18","disabled":false,"title":null,"min":"2026-10-08"},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "barrierQty": {"value":"","disabled":false,"title":null},
+                "workableQty": {"value":"","disabled":false,"title":null}
+              }
+            },
+            {
+              "row": "2",
+              "text": ["Solid","YDB-403","05-Sep-2026",null,null,null,null,null,null,null,null,null,null,"03-Oct-2026","12-Oct-2026","02-Oct-2026","21-Oct-2026",null,null,"120","40","80","30","90"],
+              "fields": {
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null},
+                "yarnOkDate": {"value":"","disabled":false,"title":null},
+                "matchingOptionDate": {"value":"","disabled":false,"title":null},
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "barrierQty": {"value":"","disabled":false,"title":null},
+                "workableQty": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "step": {"do":"set","row":0,"field":"matchingOptionDate","value":"2026-10-11"},
+      "changes": {"table.rows[0].fields.matchingOptionDate.value":"2026-10-11","table.rows[1].fields.matchingOptionDate.value":"2026-10-11","table.rows[2].fields.matchingOptionDate.value":"2026-10-11"}
+    },
+    {
+      "n": 3,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-Y3!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-Y3",
+              "department": "yd",
+              "fabricItems": [
+                {
+                  "itemId": "syn-y3_solid_ydb-401",
+                  "itemData": {"OrderNo":"SYN-Y3","Booking Type":"Solid","YDB":"YDB-401","YD Booking Date":46270,"YD T&A Start":"2026-10-03","YD T&A End":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD Delivered":30,"YD DELIVERY BALANCE":90,"Barrier Qty.":"30","Workable Qty.":""},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-10",
+                  "endDate": "2026-10-20",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-06",
+                  "floorEndDate": "2026-10-16",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "2026-10-11",
+                  "unit": "",
+                  "processName": "",
+                  "barrierQty": "30",
+                  "workableQty": ""
+                },
+                {
+                  "itemId": "syn-y3_stripe_ydb-402",
+                  "itemData": {"OrderNo":"SYN-Y3","Booking Type":"Stripe","YDB":"YDB-402","YD Booking Date":46270,"YD T&A Start":"2026-10-03","YD T&A End":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD Delivered":30,"YD DELIVERY BALANCE":90,"Barrier Qty.":55,"Workable Qty.":""},
+                  "planType": "Tentative",
+                  "startDate": "2026-10-12",
+                  "endDate": "2026-10-22",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "2026-10-08",
+                  "floorEndDate": "2026-10-18",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "2026-10-11",
+                  "unit": "",
+                  "processName": "",
+                  "barrierQty": 55,
+                  "workableQty": ""
+                },
+                {
+                  "itemId": "syn-y3_solid_ydb-403",
+                  "itemData": {"OrderNo":"SYN-Y3","Booking Type":"Solid","YDB":"YDB-403","YD Booking Date":46270,"YD T&A Start":"2026-10-03","YD T&A End":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD Delivered":30,"YD DELIVERY BALANCE":90,"Barrier Qty.":"","Workable Qty.":""},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "2026-10-11",
+                  "unit": "",
+                  "processName": "",
+                  "barrierQty": "",
+                  "workableQty": ""
+                }
+              ],
+              "orderStatus": "On Process"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-Y3?dept=yd","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-Y3!","table.rows[1].fields.barrierQty.value":"55"}
+    }
+  ]
+}

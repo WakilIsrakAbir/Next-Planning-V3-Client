@@ -1,0 +1,92 @@
+{
+  "about": "YD Barrier Qty. as older code saved it: row 0 has a top-level barrierQty '30' but no 'Barrier Qty.' in its saved itemData (a save copies '30' into itemData); row 1's saved itemData has no 'Barrier Qty.' while its Excel row has 55 (the input stays empty, the save still sends 55); row 2 is not saved. Rows 0 and 1 are saved Tentative with valid dates, so a save goes through.",
+  "orderNo": "SYN-Y3",
+  "orders": [
+    {
+      "_id": "a00000000000000000000047",
+      "orderNo": "SYN-Y3",
+      "__v": 0,
+      "bookingBy": "Booker One",
+      "bookingDate": 46265,
+      "buyer": "Buyer North",
+      "buyerTeam": "Team A",
+      "createdAt": "2026-09-01T00:00:00.000Z",
+      "deliEnd": "2026-11-10",
+      "deliStart": "2026-10-25",
+      "dyeEnd": "2026-10-30",
+      "dyeStart": "2026-10-12",
+      "eventDay": "Day 3",
+      "fabricNotes": "Synthetic order SYN-Y3.",
+      "finalConfirmation": "Yes",
+      "bpStatus": "Approved",
+      "pmc": "PMC-1",
+      "style": "Polo Basic",
+      "knitEnd": "2026-10-21",
+      "knitStart": "2026-10-02",
+      "requiredQtyKgs": "",
+      "ship1": "2026-12-01",
+      "shipLast": "N/A",
+      "status": "Running",
+      "yarnDate": "2026-10-01",
+      "knittingItems": [],
+      "dyeingItems": [],
+      "finishingItems": [],
+      "deliveryItems": [],
+      "ydItems": [
+        {"Booking Type":"Solid","YD Booking Date":46270,"Buyer":"Buyer North","Booking No.":"SYN-Y3","YDB":"YDB-401","YD T&A\nStart":"2026-10-03","YD T&A\nEnd":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD DELIVERY REQ.":120,"YD DELIVERED":30,"YD DELIVERY BALANCE":90},
+        {"Booking Type":"Stripe","YD Booking Date":46270,"Buyer":"Buyer North","Booking No.":"SYN-Y3","YDB":"YDB-402","YD T&A\nStart":"2026-10-03","YD T&A\nEnd":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD DELIVERY REQ.":120,"YD DELIVERED":30,"YD DELIVERY BALANCE":90,"Barrier Qty.":55},
+        {"Booking Type":"Solid","YD Booking Date":46270,"Buyer":"Buyer North","Booking No.":"SYN-Y3","YDB":"YDB-403","YD T&A\nStart":"2026-10-03","YD T&A\nEnd":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD DELIVERY REQ.":120,"YD DELIVERED":30,"YD DELIVERY BALANCE":90}
+      ],
+      "knittingPlanStatus": "Pending",
+      "dyeingPlanStatus": "Pending",
+      "finishingPlanStatus": "Pending",
+      "deliveryPlanStatus": "Pending",
+      "ydPlanStatus": "Pending",
+      "updatedAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
+  "orderDates": [
+    {
+      "_id": "b00000000000000000000048",
+      "orderNo": "SYN-Y3",
+      "__v": 0,
+      "createdAt": "2026-09-10T00:00:00.000Z",
+      "knitting": [],
+      "dyeing": [],
+      "finishing": [],
+      "delivery": [],
+      "yd": [
+        {
+          "itemId": "syn-y3_solid_ydb-401",
+          "itemData": {"YDB":"YDB-401","Booking Type":"Solid"},
+          "startDate": "2026-10-10",
+          "endDate": "2026-10-20",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": "",
+          "barrierQty": "30"
+        },
+        {
+          "itemId": "syn-y3_stripe_ydb-402",
+          "itemData": {"YDB":"YDB-402","Booking Type":"Stripe"},
+          "startDate": "2026-10-12",
+          "endDate": "2026-10-22",
+          "planType": "Tentative",
+          "limitation": "",
+          "remarks": ""
+        }
+      ],
+      "knittingStatus": "On Process",
+      "dyeingStatus": "On Process",
+      "finishingStatus": "On Process",
+      "deliveryStatus": "On Process",
+      "ydStatus": "On Process",
+      "knittingCompletedDate": null,
+      "dyeingCompletedDate": null,
+      "finishingCompletedDate": null,
+      "deliveryCompletedDate": null,
+      "ydCompletedDate": null,
+      "updatedAt": "2026-09-10T00:00:00.000Z"
+    }
+  ]
+}

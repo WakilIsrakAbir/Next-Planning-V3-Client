@@ -287,4 +287,30 @@ export const dyeingScenarios: Scenario[] = [
       { step: 1, field: [5, 'startDate'], disabled: false },
     ],
   },
+
+  // dye-match (SYN-D4) row 1: Blue 'd4-blue-own', Dyeing Tentative 10-17..10-26, its saved Delivery row is Confirm.
+  ...forRoles((role, isAdmin) => ({
+    name: 'save02-plan-type-only',
+    dept,
+    fixture: 'dye-match',
+    rules: isAdmin ? ['SAVE-02', 'SAVE-16'] : ['SAVE-02'],
+    note: isAdmin
+      ? 'Admin is exempt from the next-department lock: a change of only the plan type is saved.'
+      : "Only row 1's plan type changes (Tentative to blank); its dates stay as saved. The next-department lock compares the plan type too, so a non-admin's save is refused.",
+    steps: [{ do: 'load' }, { do: 'set', row: 1, field: 'planType', value: '' }, { do: 'save' }],
+    expect: [
+      { step: 2, field: [1, 'planType'], value: '' },
+      { step: 2, field: [1, 'startDate'], value: '2026-10-17' },
+      { step: 2, field: [1, 'endDate'], value: '2026-10-26' },
+      ...(isAdmin
+        ? [
+            { step: 3, saved: true },
+            { step: 3, body: { item: 1, key: 'planType', equals: '' } },
+          ]
+        : [
+            { step: 3, saved: false },
+            { step: 3, toast: T.nextConfirmed('dyeing') },
+          ]),
+    ],
+  })),
 ];

@@ -73,4 +73,21 @@ export const finishingScenarios: Scenario[] = [
       ...(isAdmin ? [{ step: 3, saved: true }] : [{ step: 3, saved: false }, { step: 3, toast: T.adminOnlyConfirm }]),
     ],
   })),
+
+  // legacy-placeholders (SYN-X1): one unsaved Finishing row, Red EFL, Excel Process Name '-'.
+  ...forRoles(() => ({
+    name: 'match01-dash-process-name',
+    dept,
+    fixture: 'legacy-placeholders',
+    rules: ['MATCH-01', 'SAVE-16', 'SAVE-17'],
+    note: "An Excel Process Name of '-' counts as empty in the generated itemId ('syn-x1_red_'), while the row still shows and saves '-' as its Process Name.",
+    steps: [{ do: 'load' }, { do: 'save' }],
+    expect: [
+      { step: 1, field: [0, 'processName'], value: '-' },
+      { step: 2, saved: true },
+      { step: 2, toast: T.saved('SYN-X1') },
+      { step: 2, body: { item: 0, key: 'itemId', equals: 'syn-x1_red_' } },
+      { step: 2, body: { item: 0, key: 'processName', equals: '-' } },
+    ],
+  })),
 ];

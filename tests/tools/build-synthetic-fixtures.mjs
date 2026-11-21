@@ -715,6 +715,102 @@ fixtures['empty-order'] = {
   };
 }
 
+// ---- delivery: a saved Delivery plan keeps a row editable while the Dyeing plan type is blank (GATE-03) ----
+{
+  const no = 'SYN-L4';
+  const id = no.toLowerCase();
+  const noFloor = { floorStartDate: '', floorEndDate: '', floorPlanType: '' };
+  fixtures['deli-saved-plan'] = {
+    about:
+      "Delivery rows of one colour whose saved Dyeing plan type is blank (Green: '' from 10-18 to 10-27). For a non-admin a saved Delivery plan keeps such a row editable; rows 0-3 are each saved with exactly ONE of the four values that count as a saved plan: Floor plan type (row 0), Floor start (row 1), plan type (row 2), start (row 3). Row 4 has no saved Delivery row, so it is locked for non-admins.",
+    orderNo: no,
+    orders: [
+      order(no, {
+        deliveryItems: [
+          deliRow(no, 'Green', 'S/J', 160, 500),
+          deliRow(no, 'Green', 'Rib', 200, 300),
+          deliRow(no, 'Green', 'Pique', 220, 200),
+          deliRow(no, 'Green', 'Interlock', 180, 150),
+          deliRow(no, 'Green', 'Fleece', 240, 100),
+        ],
+        deliveryPlanStatus: 'Tentative',
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        knitting: [plan(`${id}_green_s/j_160`, { Color: 'Green', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Confirm')],
+        dyeing: [plan(`${id}_green_solid`, { Color: 'Green' }, '2026-10-18', '2026-10-27', '')],
+        delivery: [
+          plan(`${id}_green_s/j_160`, { Color: 'Green', FabricConstruction: 'S/J' }, '', '', '', { ...noFloor, floorPlanType: 'Tentative' }),
+          plan(`${id}_green_rib_200`, { Color: 'Green', FabricConstruction: 'Rib' }, '', '', '', { ...noFloor, floorStartDate: '2026-10-25' }),
+          plan(`${id}_green_pique_220`, { Color: 'Green', FabricConstruction: 'Pique' }, '', '', 'Tentative', noFloor),
+          plan(`${id}_green_interlock_180`, { Color: 'Green', FabricConstruction: 'Interlock' }, '2026-10-26', '', '', noFloor),
+        ],
+      }),
+    ],
+  };
+}
+
+// ---- placeholders saved by older code: '-' / 'N/A' plan values, a '-' Process Name, a numeric-string date ----
+{
+  const no = 'SYN-X1';
+  const id = no.toLowerCase();
+  fixtures['legacy-placeholders'] = {
+    about:
+      "Placeholders saved by older code. Knitting (all Tentative with dates): row 1's Yarn Date is '-', row 2's is 'N/A'. Delivery against saved Dyeing rows: row 0 Red (Dyeing Confirm), row 1 Navy (Dyeing plan type '-' and start '-', no saved Delivery row), row 2 Black (Dyeing plan type '-' with real dates, saved Delivery Tentative). Finishing: one row whose Excel Process Name is '-'. General: the booking date is a numeric string (an Excel serial).",
+    orderNo: no,
+    orders: [
+      order(no, {
+        bookingDate: '46265',
+        knittingItems: [knitRow(no, 'Red', 'S/J', 160, 500), knitRow(no, 'Blue', 'S/J', 180, 300), knitRow(no, 'Green', 'Rib', 200, 200)],
+        finishingItems: [dyeRow(no, 'Red', 'EFL', '-', 500)],
+        deliveryItems: [deliRow(no, 'Red', 'S/J', 160, 500), deliRow(no, 'Navy', 'S/J', 160, 120), deliRow(no, 'Black', 'S/J', 160, 100)],
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        knitting: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Tentative', { yarnDate: '2026-10-01' }),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-06', '2026-10-16', 'Tentative', { yarnDate: '-' }),
+          plan(`${id}_green_rib_200`, { Color: 'Green', FabricConstruction: 'Rib' }, '2026-10-07', '2026-10-17', 'Tentative', { yarnDate: 'N/A' }),
+        ],
+        dyeing: [
+          plan(`${id}_red_solid`, { Color: 'Red' }, '2026-10-16', '2026-10-25', 'Confirm'),
+          plan(`${id}_navy_solid`, { Color: 'Navy' }, '-', '-', '-'),
+          plan(`${id}_black_solid`, { Color: 'Black' }, '2026-10-18', '2026-10-27', '-'),
+        ],
+        delivery: [
+          plan(`${id}_black_s/j_160`, { Color: 'Black', FabricConstruction: 'S/J' }, '2026-10-26', '2026-11-05', 'Tentative', {
+            floorStartDate: '2026-10-25',
+            floorEndDate: '2026-11-03',
+            floorPlanType: 'Tentative',
+          }),
+        ],
+      }),
+    ],
+  };
+}
+
+// ---- yd: Barrier Qty. as older code saved it ----
+{
+  const no = 'SYN-Y3';
+  const id = no.toLowerCase();
+  fixtures['yd-qty-legacy'] = {
+    about:
+      "YD Barrier Qty. as older code saved it: row 0 has a top-level barrierQty '30' but no 'Barrier Qty.' in its saved itemData (a save copies '30' into itemData); row 1's saved itemData has no 'Barrier Qty.' while its Excel row has 55 (the input stays empty, the save still sends 55); row 2 is not saved. Rows 0 and 1 are saved Tentative with valid dates, so a save goes through.",
+    orderNo: no,
+    orders: [order(no, { ydItems: [ydRow(no, 'Solid', 'YDB-401'), ydRow(no, 'Stripe', 'YDB-402', { 'Barrier Qty.': 55 }), ydRow(no, 'Solid', 'YDB-403')] })],
+    orderDates: [
+      orderDate(no, {
+        yd: [
+          plan(`${id}_solid_ydb-401`, { YDB: 'YDB-401', 'Booking Type': 'Solid' }, '2026-10-10', '2026-10-20', 'Tentative', { barrierQty: '30' }),
+          plan(`${id}_stripe_ydb-402`, { YDB: 'YDB-402', 'Booking Type': 'Stripe' }, '2026-10-12', '2026-10-22', 'Tentative'),
+        ],
+      }),
+    ],
+  };
+}
+
 /* ---------------- write ---------------- */
 
 const isPrimitive = (v) => v === null || typeof v !== 'object';

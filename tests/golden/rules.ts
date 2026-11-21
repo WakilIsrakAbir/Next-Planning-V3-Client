@@ -94,14 +94,24 @@ export const RULES: RuleInfo[] = [
 
 /** Notes on covered rules: branches that cannot be reached from the UI, and which scenario covers which branch. */
 export const RULE_NOTES: Record<string, string> = {
+  'GATE-03':
+    "A saved Delivery plan keeps the row editable for non-admins, and any ONE of Floor plan type, Floor start, plan type or start counts as saved: `delivery/gate03-saved-plan-exemption` (deli-saved-plan) saves each of the four alone on its own row, next to a row without a saved plan. A Dyeing plan type of '-' counts as blank (`delivery/legacy-dash-dyeing-plan`).",
+  'GATE-04': "A Dyeing start of '-' counts as missing (`delivery/legacy-dash-dyeing-plan`, row 1, Admin).",
+  'GATE-06':
+    "The YD 'Knit Plan' columns show the same blank mark for a blank, '-' or 'N/A' T&A Knit date (formatExcelDate), so the '-' / 'N/A' filter in ydKnitPlan has no visible effect today.",
+  'CHG-07': "A Yarn Date of '-' or 'N/A' (saved by older code) counts as none (`knitting/chg07-legacy-yarn-placeholders`).",
+  'AUTO-10':
+    "Older saves: a top-level barrierQty is shown and copied into itemData at save; a saved itemData without 'Barrier Qty.' leaves the input empty while the save still sends the Excel value (`yd/auto10-legacy-barrier-qty`).",
   'MATCH-01':
-    "The `item_${idx}` fallback is unreachable: generateItemId always returns a non-empty id (getColData returns '' for missing columns, so even an empty row gives '<order>_..._'). The 'N/A' parts are unreachable for the same reason.",
+    "The `item_${idx}` fallback is unreachable: generateItemId always returns a non-empty id (getColData returns '' for missing columns, so even an empty row gives '<order>_..._'). The 'N/A' parts are unreachable for the same reason. A Dyeing / Finishing Process Name of '-' counts as empty in the id (`finishing/match01-dash-process-name`).",
+  'SAVE-01':
+    'The save stops at the first failing row: in `knitting/save01-first-failure-wins` later rows fail other checks too, and a non-admin sees only the SAVE-01 toast.',
   'SAVE-02':
-    "Fires only when an Excel row carries its own itemId equal to the next department's saved row (knit-match for Knitting -> Dyeing, dye-match for Dyeing -> Delivery); with generated ids the departments never share ids. The Dyeing check reads the Delivery main plan type, not the Floor plan type, and the exact itemId only (dye-match rows 2 and 3).",
+    "Fires only when an Excel row carries its own itemId equal to the next department's saved row (knit-match for Knitting -> Dyeing, dye-match for Dyeing -> Delivery); with generated ids the departments never share ids. The Dyeing check reads the Delivery main plan type, not the Floor plan type, and the exact itemId only (dye-match rows 2 and 3). A change of the plan type alone is enough (`dyeing/save02-plan-type-only`).",
   'SAVE-04':
     'Applies to every department, not only YD / Delivery Floor: a knitting row saved with floor dates is checked (and sent) although the knitting table has no floor inputs (knit-floor-legacy).',
   'SAVE-15':
-    "Cancel returns the select to the department's SAVED status: `save15-cancel-restores-saved-status` (status-saved) proves it for every department on saved statuses other than 'On Process', after another value was picked. generic-rules and knitting/save15 start from 'On Process', which V2's reset to 'On Process' would also give.",
+    "Cancel returns the select to the department's SAVED status: `save15-cancel-restores-saved-status` (status-saved) proves it for every department on saved statuses other than 'On Process', after another value was picked. generic-rules and knitting/save15 start from 'On Process', which V2's reset to 'On Process' would also give. The save checks run BEFORE the prompt: `save15-checks-before-completed-prompt` (every department) shows a failing check's toast, no prompt (an unscripted prompt is a harness error), no request, and the select keeping Completed.",
 };
 
 export const IN_SCOPE = RULES.filter((r) => !r.uncovered).map((r) => r.id);

@@ -11,12 +11,15 @@ const NAMES: Record<Dept, string> = {
   delivery: 'Delivery Plan',
 };
 
+/** Order number of each department's generic fixture (tests/fixtures/synthetic/gen-<dept>.json). */
+const GEN_ORDER: Record<Dept, string> = { yd: 'SYN-GY', knitting: 'SYN-GK', dyeing: 'SYN-GD', finishing: 'SYN-GF', delivery: 'SYN-GL' };
+
 /**
  * The same script on a small 3-row fixture of every department (tests/fixtures/synthetic/gen-<dept>.json):
  * the department-independent rules, recorded once per department and role.
  */
 function generic(dept: Dept): Scenario[] {
-  const orderNo = { yd: 'SYN-GY', knitting: 'SYN-GK', dyeing: 'SYN-GD', finishing: 'SYN-GF', delivery: 'SYN-GL' }[dept];
+  const orderNo = GEN_ORDER[dept];
   return forRoles(() => ({
     name: 'generic-rules',
     dept,
@@ -117,6 +120,39 @@ function cancelRestoresSavedStatus(dept: Dept): Scenario[] {
   }));
 }
 
+/**
+ * The save checks run BEFORE the Completed prompt (the order C2's Save Data must keep): with Completed picked, a save
+ * that fails a check shows the check's toast, asks nothing (an unscripted window.confirm is a harness error) and
+ * sends nothing, and the select keeps Completed. Once the row is fixed, the next save asks and saves Completed.
+ */
+function checksBeforeCompletedPrompt(dept: Dept): Scenario[] {
+  const orderNo = GEN_ORDER[dept];
+  return forRoles(() => ({
+    name: 'save15-checks-before-completed-prompt',
+    dept,
+    fixture: `gen-${dept}`,
+    rules: ['SAVE-05', 'SAVE-15', 'STAT-01', 'SAVE-16', 'SAVE-17'],
+    note: 'Row 2 was saved Tentative without an end date. With Completed picked, the save stops at that check: its toast, no prompt, no request, and the select keeps Completed. With the end date filled in, the save asks, then saves Completed.',
+    steps: [
+      { do: 'load' },
+      { do: 'status', value: 'Completed' },
+      { do: 'save' },
+      { do: 'set', row: 2, field: 'endDate', value: '2026-10-28' },
+      { do: 'save', confirm: [true] },
+    ],
+    expect: [
+      { step: 3, toast: T.typeWithoutDates },
+      { step: 3, saved: false },
+      { step: 3, status: 'Completed' },
+      { step: 5, confirm: T.completedConfirm(orderNo) },
+      { step: 5, saved: true },
+      { step: 5, toast: T.saved(orderNo) },
+      { step: 5, body: { key: 'orderStatus', equals: 'Completed' } },
+      { step: 5, status: 'Completed' },
+    ],
+  }));
+}
+
 /** An order without rows for the department: the empty table, and the save refused (SAVE-00). */
 function noItems(dept: Dept): Scenario[] {
   return forRoles(() => ({
@@ -153,4 +189,5 @@ export const commonScenarios: Scenario[] = DEPTS.flatMap((dept) => [
   ...cancelRestoresSavedStatus(dept),
   ...noItems(dept),
   ...notFound(dept),
+  ...checksBeforeCompletedPrompt(dept),
 ]);
