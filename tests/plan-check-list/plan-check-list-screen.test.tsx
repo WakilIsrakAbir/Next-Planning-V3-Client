@@ -432,7 +432,7 @@ describe('editing and saving', () => {
     // Reload asks first; Cancel keeps the draft and sends nothing
     const gets = server.requests('GET').length;
     fireEvent.click(within(alertBox()).getByRole('button', { name: 'Reload' }));
-    expect(confirms).toEqual(['Discard the unsaved changes in Plan Check List and load the latest Plan Check List?']);
+    expect(confirms).toEqual(['Discard your unsaved changes and load the latest Plan Check List?']);
     await settle();
     expect(server.requests('GET')).toHaveLength(gets);
     expect(field('End days, row 3').value).toBe('10');
@@ -671,7 +671,7 @@ describe('unsaved-work guard (src/lib/unsaved-changes.ts)', () => {
 
     type('Start days, row 2', '1');
     fireEvent.click(button('Reload'));
-    expect(confirms).toEqual(['Discard the unsaved changes in Plan Check List and load the latest Plan Check List?']);
+    expect(confirms).toEqual(['Discard your unsaved changes and load the latest Plan Check List?']);
     await settle();
     expect(server.requests('GET')).toHaveLength(2);
     expect(field('Start days, row 2').value).toBe('1');

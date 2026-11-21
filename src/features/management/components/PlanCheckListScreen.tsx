@@ -235,7 +235,7 @@ export default function PlanCheckListScreen() {
   };
 
   const reload = () => {
-    if (dirty && !window.confirm('Discard the unsaved changes in Plan Check List and load the latest Plan Check List?')) return;
+    if (dirty && !window.confirm('Discard your unsaved changes and load the latest Plan Check List?')) return;
     setLoading(true);
     setNotice(null);
     loadPlanCheckList({ fresh: true })
