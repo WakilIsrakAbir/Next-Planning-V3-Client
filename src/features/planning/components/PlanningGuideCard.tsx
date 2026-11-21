@@ -7,7 +7,7 @@
  * it never changes plan rows, the Order's T&A fields or any validation (D13). State: usePlanningGuide.
  */
 
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -31,6 +31,11 @@ import {
   type SaveExtra,
 } from '@/features/planning/lib/use-planning-guide';
 
+/**
+ * The card is memoized (React.memo): pass stable props, so typing in a plan section does not draw it again. `order`
+ * and `guide` should keep their identity between renders (the page's state), and the callbacks should be stable
+ * (useCallback). The card itself always calls the latest callbacks.
+ */
 export interface PlanningGuideCardProps {
   orderNo: string;
   /** The order from the FULL detail answer (its T&A values); null while that answer is loading. */
@@ -67,7 +72,14 @@ const AMBER_PILL =
 const GRAY_PILL =
   'px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-[#283347] text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] text-[9px] font-bold uppercase';
 
+// Read through useSyncExternalStore with a server value of false: the server and the first (hydrating) client render
+// both draw the card open, then a hidden card closes, so a remembered Hide never breaks hydration.
+const hiddenListeners = new Set<() => void>();
+// The last Hide / Show in this tab: it holds also where the browser storage is not available.
+let hiddenInTab: boolean | null = null;
+
 function readHidden(): boolean {
+  if (hiddenInTab !== null) return hiddenInTab;
   try {
     return localStorage.getItem(HIDDEN_KEY) === '1';
   } catch {
@@ -75,13 +87,24 @@ function readHidden(): boolean {
   }
 }
 
+const readHiddenOnServer = (): boolean => false;
+
+function subscribeHidden(listener: () => void): () => void {
+  hiddenListeners.add(listener);
+  return () => {
+    hiddenListeners.delete(listener);
+  };
+}
+
 function writeHidden(hidden: boolean): void {
+  hiddenInTab = hidden;
   try {
     if (hidden) localStorage.setItem(HIDDEN_KEY, '1');
     else localStorage.removeItem(HIDDEN_KEY);
   } catch {
     /* ignore */
   }
+  hiddenListeners.forEach((listener) => listener());
 }
 
 /** 'YYYY-MM-DD' as '12-Oct-2026' (split, never `new Date(text)`); '—' when blank. */
@@ -108,13 +131,15 @@ function savedText(stored: PlanGuide | null): string {
 }
 
 /** The card, started again for every order number. */
-export default function PlanningGuideCard(props: PlanningGuideCardProps) {
+function PlanningGuideCard(props: PlanningGuideCardProps) {
   return <GuideCard key={props.orderNo} {...props} />;
 }
 
+export default memo(PlanningGuideCard);
+
 function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: PlanningGuideCardProps) {
   const g = usePlanningGuide({ orderNo, order, guide, onGuideChange });
-  const [hidden, setHidden] = useState(readHidden);
+  const hidden = useSyncExternalStore(subscribeHidden, readHidden, readHiddenOnServer);
   const [toast, setToast] = useState('');
   const bodyId = useId();
 
@@ -136,11 +161,7 @@ function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: 
 
   const busy = g.saving || g.reloading;
 
-  const toggleHidden = () => {
-    const next = !hidden;
-    setHidden(next);
-    writeHidden(next);
-  };
+  const toggleHidden = () => writeHidden(!hidden);
 
   // A failed save shows its message on the card (g.notice).
   const saveGuide = () => {
@@ -224,7 +245,7 @@ function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: 
               role="alert"
               className={cn(
                 'alert text-xs font-semibold py-2 flex flex-wrap items-center gap-2 rounded-sm',
-                g.notice.kind === 'conflict' ? 'alert-warning' : 'alert-error'
+                g.notice.kind === 'error' ? 'alert-error' : 'alert-warning'
               )}
             >
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -358,7 +379,10 @@ function GuideDates({ g }: { g: PlanningGuide }) {
                 data-guide-row={row.row}
                 className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
               >
-                <td className={cn(CELL_CLS, 'text-center font-bold text-gray-800 dark:text-gray-100')}>{row.label}</td>
+                <td className={cn(CELL_CLS, 'text-center font-bold text-gray-800 dark:text-gray-100')}>
+                  {row.label}
+                  {row.changed && <ChangedMarker row={row} />}
+                </td>
                 <DateCell g={g} row={row} edge="start" />
                 <DateCell g={g} row={row} edge="end" />
                 <td className="p-2 align-top whitespace-normal min-w-[180px]">
@@ -378,7 +402,10 @@ function GuideDates({ g }: { g: PlanningGuide }) {
                   {row.changed && (
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300" data-guide-hint={row.row}>
                       <span>
-                        T&amp;A / Check List changed since saved: now {isoToDisplay(row.liveStart)} to {isoToDisplay(row.liveEnd)}
+                        T&amp;A / Check List changed since saved: now{' '}
+                        {row.endFromTna
+                          ? `${isoToDisplay(row.liveStart)} to ${isoToDisplay(row.liveEnd)}`
+                          : `Start ${isoToDisplay(row.liveStart)}`}
                       </span>
                       <button
                         type="button"
@@ -407,6 +434,32 @@ function GuideDates({ g }: { g: PlanningGuide }) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Below `sm` the table scrolls sideways and its Source column (the hint and Apply) starts out of view: this marker
+ * on the always-visible row label shows the pending change and scrolls to it. Not drawn from `sm` up.
+ */
+function ChangedMarker({ row }: { row: GuideRowView }) {
+  const showHint = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const hint = e.currentTarget.closest('tr')?.querySelector<HTMLElement>('[data-guide-hint]');
+    if (!hint) return;
+    if (typeof hint.scrollIntoView === 'function') hint.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    hint.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+  };
+  return (
+    <button
+      type="button"
+      onClick={showHint}
+      data-guide-changed-marker={row.row}
+      title="T&A / Check List changed since saved: show the new dates and Apply"
+      aria-label={`${row.label}: T&A / Check List changed since saved. Show the new dates`}
+      className={cn(AMBER_PILL, 'sm:hidden mt-1 mx-auto flex items-center gap-0.5 cursor-pointer')}
+    >
+      <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+      Changed
+    </button>
   );
 }
 

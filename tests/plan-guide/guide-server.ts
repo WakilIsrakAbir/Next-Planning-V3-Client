@@ -43,6 +43,8 @@ export interface LoggedRequest {
 }
 
 export interface ScriptedReply {
+  /** Only for the next request with this method (GET, PUT); any request when left out. */
+  method?: string;
   status?: number;
   json?: unknown;
   text?: string;
@@ -93,6 +95,8 @@ export class GuideServer {
   oldServer = false;
   private readonly users = new Map<string, MockUser>();
   private readonly scripted: ScriptedReply[] = [];
+  // Held answers: the next request with the method waits for the gate before its answer is delivered.
+  private readonly gates: Array<{ method: string; gate: Promise<void> }> = [];
   private clock = new Date('2026-11-21T00:00:00.000Z').getTime();
 
   constructor(options: { list?: Item[] } = {}) {
@@ -119,6 +123,17 @@ export class GuideServer {
     this.scripted.push(answer);
   }
 
+  /**
+   * The answer of the next `method` request waits until the returned function is called. The request is still
+   * handled when it arrives (a PUT is stored then), as a slow network delays only the answer.
+   */
+  holdNext(method: string): () => void {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    this.gates.push({ method, gate });
+    return () => release();
+  }
+
   requests(method?: string, pathStart = '/api/orders/'): LoggedRequest[] {
     return this.log.filter((r) => (!method || r.method === method) && r.path.startsWith(pathStart));
   }
@@ -140,10 +155,19 @@ export class GuideServer {
     if (body !== undefined) entry.body = body;
     this.log.push(entry);
 
-    const scripted = this.scripted.shift();
-    if (scripted?.networkError) throw new TypeError('Failed to fetch');
-    if (scripted) return reply(scripted.status ?? 200, scripted.text !== undefined ? { text: scripted.text } : { json: scripted.json });
-    return this.route(method, url, auth, body);
+    const scriptedAt = this.scripted.findIndex((answer) => !answer.method || answer.method === method);
+    const scripted = scriptedAt >= 0 ? this.scripted.splice(scriptedAt, 1)[0] : undefined;
+    const gateAt = this.gates.findIndex((held) => held.method === method);
+    const gate = gateAt >= 0 ? this.gates.splice(gateAt, 1)[0].gate : undefined;
+    if (scripted?.networkError) {
+      await gate;
+      throw new TypeError('Failed to fetch');
+    }
+    const answer = scripted
+      ? reply(scripted.status ?? 200, scripted.text !== undefined ? { text: scripted.text } : { json: scripted.json })
+      : this.route(method, url, auth, body);
+    await gate;
+    return answer;
   }
 
   private route(method: string, url: URL, auth: string | null, body: unknown): FakeResponse {

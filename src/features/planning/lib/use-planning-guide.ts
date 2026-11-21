@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useUnsavedChanges } from '@/lib/unsaved-changes';
 import {
+  PlanCheckListError,
   loadPlanCheckList,
   planCheckListErrorText,
   usePlanCheckList,
@@ -26,7 +27,7 @@ import {
 } from '@/features/planning/lib/plan-guide';
 import {
   PlanGuideError,
-  fetchLatestPlanGuide,
+  fetchLatestGuideInputs,
   isNewerGuide,
   readPlanGuide,
   savePlanGuide,
@@ -45,7 +46,11 @@ import {
  * - Changing a Yes/No recomputes Knit Start/End from the T&A plus the lead (replacing manual Knit edits). The lead
  *   is the largest Start days and, separately, the largest End days of the criteria that are Yes AND Active.
  * - A stored row whose T&A or Check List input changed since the save, and that now differs from what they give,
- *   shows "T&A / Check List changed since saved" with Apply (see `changedRows`).
+ *   shows "T&A / Check List changed since saved" with Apply (see `changedRows`). "Since the save" means against the
+ *   T&A and the lead the SERVER stored with the guide: it takes them from the Order and the Plan Check List at the
+ *   moment of the save. So before every save the card reads both again (save check): when they give other dates or
+ *   another lead than the card computed with, nothing is sent, the card takes the latest values and asks the user to
+ *   check and save again (PlanGuideError code INPUTS_CHANGED). What is stored is then always based on what was shown.
  * - The guide never changes plan rows, the Order's T&A fields or any validation (D13).
  */
 
@@ -57,7 +62,9 @@ export const PLANNING_GUIDE_SOURCE_ID = 'planning-guide';
 /**
  * One extra step of the order page's Save Data (SPEC C2 10a), run after the plan saves: the guide is `{key: 'guide',
  * label: 'Planning Guide', isDirty, save}`. `save` resolves when the guide is saved and rejects with an Error whose
- * message is the reason otherwise (the guide then stays unsaved).
+ * message is the reason otherwise (the guide then stays unsaved). When a save of the guide is already running (Save
+ * Guide), it waits for that one and then also sends the changes made since it started, so it resolves only when what
+ * is shown is saved.
  */
 export interface SaveExtra {
   key: string;
@@ -103,10 +110,13 @@ export interface GuideRowView {
   /** The shown dates ('YYYY-MM-DD' or ''). */
   start: string;
   end: string;
-  /** What the T&A and the current lead give now. */
+  /** What the T&A and the current lead give now ('' for a cell that does not come from the T&A). */
   liveStart: string;
   liveEnd: string;
-  /** "T&A / Check List changed since saved": Apply sets the row to liveStart / liveEnd. */
+  /** The cells that come from the T&A (YD: Start only, its End is entered by hand; Lock: neither). */
+  startFromTna: boolean;
+  endFromTna: boolean;
+  /** "T&A / Check List changed since saved": Apply sets the row's T&A cells to liveStart / liveEnd. */
   changed: boolean;
   /** A date taken from the T&A differs from what the T&A (plus the lead) gives, without a change since the save. */
   edited: boolean;
@@ -115,9 +125,13 @@ export interface GuideRowView {
   rawEnd: string;
 }
 
-/** A message on the card: a refused save or reload, or a save someone else's save overtook (with Reload). */
+/**
+ * A message on the card: a refused save or reload ('error'), a save someone else's save overtook ('conflict', with
+ * Reload), or a save held back because the order's T&A or the Plan Check List changed after the page loaded them
+ * ('changed': the card now uses the latest values).
+ */
 export interface GuideNotice {
-  kind: 'error' | 'conflict';
+  kind: 'error' | 'conflict' | 'changed';
   text: string;
 }
 
@@ -151,13 +165,17 @@ export interface PlanningGuide {
   notice: GuideNotice | null;
   setYes: (id: string, yes: boolean) => void;
   setDate: (key: GuideDateKey, value: string) => void;
-  /** Takes the dates the T&A and the current lead give now for one row. */
+  /** Takes the dates the T&A and the current lead give now for one row (its T&A cells only). */
   applyRow: (row: GuideRow) => void;
   /** Drops the unsaved changes (the caller asks first). */
   discard: () => void;
-  /** Saves what is shown (also when nothing changed). Rejects with PlanGuideError; the changes then stay unsaved. */
+  /**
+   * Saves what is shown (also when nothing changed), after the save check (see the top of this file). Rejects with
+   * PlanGuideError; the changes then stay unsaved. While a save runs, waits for it and then sends the changes made
+   * since it started, if there are any.
+   */
   save: () => Promise<PlanGuide>;
-  /** Drops the unsaved changes and loads the latest stored guide and Plan Check List (the caller asks first). */
+  /** Drops the unsaved changes and loads the latest stored guide, T&A and Plan Check List (the caller asks first). */
   reload: () => Promise<void>;
   dismissNotice: () => void;
   /** The guide's Save Data step (SPEC C2 10a). */
@@ -182,11 +200,20 @@ interface GuideDraft extends GuideValues {
   base: PlanGuide | null;
 }
 
+/** The order's T&A as a save check or Reload read it from the server, and the page's T&A it replaces. */
+interface LatestTna {
+  /** `tnaText` of the page's order then: the latest T&A is used while the page still passes that T&A. */
+  basis: string;
+  order: GuideOrder;
+}
+
 interface GuideState {
   orderNo: string;
   /** The newest guide this card got from its own save or reload. */
   local: PlanGuide | null;
   draft: GuideDraft | null;
+  /** The T&A the server had at the last save check or Reload (null: the page's T&A is used). */
+  tna: LatestTna | null;
   saving: boolean;
   reloading: boolean;
   notice: GuideNotice | null;
@@ -201,10 +228,18 @@ interface GuideInputs {
   listItems: PlanCheck[] | null;
 }
 
+/** A save that is running: what it sends, for the callers that wait for it. */
+interface SaveRun {
+  forOrder: string;
+  sent: GuideValues;
+  promise: Promise<PlanGuide>;
+}
+
 const initialState = (orderNo: string): GuideState => ({
   orderNo,
   local: null,
   draft: null,
+  tna: null,
   saving: false,
   reloading: false,
   notice: null,
@@ -212,6 +247,11 @@ const initialState = (orderNo: string): GuideState => ({
 
 const startKey = (row: GuideRow): GuideDateKey => `${row}Start`;
 const endKey = (row: GuideRow): GuideDateKey => `${row}End`;
+/** The date cells that come from the order's T&A; YD End and the Lock row are entered by hand. */
+const TNA_CELLS: GuideDateKey[] = GUIDE_ROWS.flatMap((row) => [
+  ...(ROW_INFO[row].tnaStart ? [startKey(row)] : []),
+  ...(ROW_INFO[row].tnaEnd ? [endKey(row)] : []),
+]);
 /** Days shown for a criterion: whole and not negative, as they count in the lead. */
 const shownDays = (days: unknown): number =>
   typeof days === 'number' && Number.isFinite(days) ? Math.max(0, Math.trunc(days)) : 0;
@@ -222,6 +262,24 @@ function sameValues(a: GuideValues, b: GuideValues): boolean {
   if (yesA.size !== yesB.size) return false;
   for (const id of yesA) if (!yesB.has(id)) return false;
   return GUIDE_DATE_KEYS.every((key) => (a.dates[key] || '') === (b.dates[key] || ''));
+}
+
+/** The rows whose T&A cells differ between two sets of guide dates (cells entered by hand are not compared). */
+function tnaRowsDiffer(a: GuideDates, b: GuideDates): GuideRow[] {
+  return GUIDE_ROWS.filter((row) => {
+    const info = ROW_INFO[row];
+    return (!!info.tnaStart && a[startKey(row)] !== b[startKey(row)]) || (!!info.tnaEnd && a[endKey(row)] !== b[endKey(row)]);
+  });
+}
+
+/** An order's T&A values as the server snapshots them ('' when absent), as one text to compare. */
+function tnaText(order: GuideOrder): string {
+  return JSON.stringify(TNA_KEYS.map((key) => (order[key] === undefined || order[key] === null ? '' : String(order[key]))));
+}
+
+/** The latest T&A, to be used while the page still passes `pageOrder`'s T&A (null without a page order). */
+function latestTnaFor(pageOrder: GuideOrder | null | undefined, order: GuideOrder): LatestTna | null {
+  return pageOrder ? { basis: tnaText(pageOrder), order } : null;
 }
 
 /** Yes ids without repeats, in Plan Check List order; ids the list does not have keep their order at the end. */
@@ -254,6 +312,47 @@ function derive(state: GuideState, inputs: GuideInputs) {
   return { newest, base, shown, dirty, leadChecks };
 }
 
+function inputsChangedText(tnaChanged: boolean, listChanged: boolean): string {
+  const what =
+    tnaChanged && listChanged
+      ? "The order's T&A dates and the Plan Check List"
+      : tnaChanged
+        ? "The order's T&A dates"
+        : 'The Plan Check List';
+  return (
+    `${what} changed after this page loaded them, so the Planning Guide was not saved. ` +
+    'The guide now uses the latest values: check its dates and save again.'
+  );
+}
+
+/**
+ * A save check found other T&A dates or another lead on the server (`order`, `list`) than the card used (`used`).
+ * The card takes the latest values: cells that followed the old ones (the live dates before the first save, or what
+ * a Yes/No change or Apply computed) follow the new ones; stored cells keep their value (the "changed since saved"
+ * hint offers the new dates) and cells edited by hand stay as they are.
+ */
+function followLatestInputs(
+  s: GuideState,
+  used: GuideInputs,
+  order: GuideOrder,
+  list: PlanCheck[],
+  tna: LatestTna | null,
+  text: string
+): GuideState {
+  const now = derive(s, used);
+  const oldLive = computeGuideDefaults(used.order, computeLead(now.leadChecks, now.shown.yesIds));
+  const newLive = computeGuideDefaults(order, computeLead(list, now.shown.yesIds));
+  const dates = { ...now.shown.dates };
+  for (const key of TNA_CELLS) {
+    const followedOld = dates[key] === oldLive[key] && (!now.base || dates[key] !== now.base.dates[key]);
+    if (followedOld) dates[key] = newLive[key];
+  }
+  const values: GuideValues = { yesIds: now.shown.yesIds, dates };
+  const latestInputs: GuideInputs = { ...used, order, listItems: list };
+  const draft = sameValues(values, baselineOf(now.base, latestInputs)) ? null : { ...values, base: now.base };
+  return { ...s, draft, tna: tna ?? s.tna, saving: false, notice: { kind: 'changed', text } };
+}
+
 function leadTooltip(checks: readonly PlanCheck[], yesIds: readonly string[], lead: GuideLead): string {
   if (lead.startDays === 0 && lead.endDays === 0) return '';
   const yes = new Set(yesIds);
@@ -278,6 +377,12 @@ function rawTnaText(order: GuideOrder | null, key: TnaKey | undefined): string {
 const errorText = (err: unknown, fallback: string): string =>
   err instanceof Error && err.message ? err.message : fallback;
 
+/** A failed Plan Check List read during a save, as the save's error. */
+const listReadError = (err: unknown): PlanGuideError =>
+  err instanceof PlanCheckListError
+    ? new PlanGuideError(err.message, err.status, err.code)
+    : new PlanGuideError(planCheckListErrorText(err), 0, '');
+
 /**
  * The Checkpoint & Planning Guide of one order: what the card shows, its edits, its own dirty flag and its saves.
  * It registers "Planning Guide" with the unsaved-work guard while it has unsaved changes. Render it with a `key` of
@@ -296,19 +401,30 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
   }, [guide, orderNo]);
   const orderOk =
     !!order && (order.orderNo === undefined || order.orderNo === null || String(order.orderNo).trim() === String(orderNo).trim());
+  const pageOrder = orderOk ? order : null;
+  // The T&A of the last save check or Reload, while the page still passes the T&A it replaced.
+  const latestTna = pageOrder && state.tna && state.tna.basis === tnaText(pageOrder) ? state.tna.order : null;
   const inputs: GuideInputs = {
     orderNo,
-    order: orderOk ? order : null,
+    order: latestTna ?? pageOrder,
     propGuide,
     listItems: list ? list.items : null,
   };
 
   // The latest render's data, for event handlers and async results.
-  const latest = useRef<{ inputs: GuideInputs; state: GuideState; onGuideChange?: (guide: PlanGuide) => void } | null>(null);
+  const latest = useRef<{
+    inputs: GuideInputs;
+    state: GuideState;
+    pageOrder: GuideOrder | null;
+    onGuideChange?: (guide: PlanGuide) => void;
+  } | null>(null);
   useLayoutEffect(() => {
-    latest.current = { inputs, state, onGuideChange };
+    latest.current = { inputs, state, pageOrder, onGuideChange };
   });
-  const inFlight = useRef<Promise<PlanGuide> | null>(null);
+  const inFlight = useRef<SaveRun | null>(null);
+  // The guide this card saved last, as soon as the answer arrives (before the next render): a save that starts right
+  // after it is based on it.
+  const lastSaved = useRef<PlanGuide | null>(null);
 
   // A state change for the order on screen (state left from another order number starts again).
   const update = useCallback((change: (s: GuideState) => GuideState) => {
@@ -351,11 +467,16 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
     [edit]
   );
 
+  // Only the cells that come from the T&A: a YD End entered by hand stays.
   const applyRow = useCallback(
     (row: GuideRow) =>
       edit((values, now, checks) => {
         const live = computeGuideDefaults(now.order, computeLead(checks, values.yesIds));
-        return { ...values, dates: { ...values.dates, [startKey(row)]: live[startKey(row)], [endKey(row)]: live[endKey(row)] } };
+        const info = ROW_INFO[row];
+        const dates = { ...values.dates };
+        if (info.tnaStart) dates[startKey(row)] = live[startKey(row)];
+        if (info.tnaEnd) dates[endKey(row)] = live[endKey(row)];
+        return { ...values, dates };
       }),
     [edit]
   );
@@ -368,53 +489,99 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
 
   const dismissNotice = useCallback(() => update((s) => ({ ...s, notice: null })), [update]);
 
-  const save = useCallback((): Promise<PlanGuide> => {
-    const snap = latest.current;
-    if (!snap || !snap.inputs.order) {
-      return Promise.reject(new PlanGuideError('The order is still loading. Try again in a moment.', 0, 'NOT_READY'));
-    }
-    // Save Guide and Save Data share one request while it runs.
-    if (inFlight.current) return inFlight.current;
-    const forOrder = snap.inputs.orderNo;
-    const sent = derive(snap.state, snap.inputs);
-    const sentDraft = snap.state.draft;
-    const body: PlanGuideSaveBody = {
-      yesIds: orderYesIds(sent.shown.yesIds, snap.inputs.listItems),
-      dates: { ...sent.shown.dates },
-    };
-    if (sent.base) body.version = sent.base.version;
-    update((s) => ({ ...s, saving: true, notice: null }));
-    const run = savePlanGuide(forOrder, body).then(
-      (saved) => {
-        inFlight.current = null;
-        if (latest.current?.inputs.orderNo !== forOrder) return saved;
-        storeGuideInDetailCache(forOrder, saved);
-        update((s) => {
-          const local = isNewerGuide(s.local, saved) ? s.local : saved;
-          // Edits made while the save ran stay unsaved, now on top of the saved guide.
-          const draft = s.draft && s.draft !== sentDraft && !sameValues(s.draft, saved) ? { ...s.draft, base: saved } : null;
-          return { ...s, local, draft, saving: false };
-        });
-        latest.current?.onGuideChange?.(saved);
-        return saved;
-      },
-      (err: unknown) => {
-        inFlight.current = null;
-        const error =
-          err instanceof PlanGuideError ? err : new PlanGuideError(errorText(err, 'Could not save the Planning Guide.'), 0, '');
-        if (latest.current?.inputs.orderNo === forOrder) {
-          update((s) => ({
-            ...s,
-            saving: false,
-            notice: { kind: error.code === 'CONFLICT' ? 'conflict' : 'error', text: error.message },
-          }));
-        }
-        throw error;
+  const save = useCallback(
+    function saveGuide(): Promise<PlanGuide> {
+      const snap = latest.current;
+      if (!snap || !snap.inputs.order) {
+        return Promise.reject(new PlanGuideError('The order is still loading. Try again in a moment.', 0, 'NOT_READY'));
       }
-    );
-    inFlight.current = run;
-    return run;
-  }, [update]);
+      const running = inFlight.current;
+      if (running) {
+        // Save Guide and Save Data while a save runs: that save counts, and the changes made since it started are
+        // sent after it. When it fails, it fails for every caller (the changes stay unsaved).
+        return running.promise.then((saved) => {
+          const now = latest.current;
+          if (!now || now.inputs.orderNo !== running.forOrder) return saved;
+          return sameValues(derive(now.state, now.inputs).shown, running.sent) ? saved : saveGuide();
+        });
+      }
+
+      const forOrder = snap.inputs.orderNo;
+      const usedOrder = snap.inputs.order;
+      const shownNow = derive(snap.state, snap.inputs);
+      // Right after a save of this card the page may not have drawn it yet: base the next save on it.
+      const mine = lastSaved.current;
+      const base = mine && mine.orderNo === forOrder && isNewerGuide(mine, shownNow.base) ? mine : shownNow.base;
+      const sentDraft = snap.state.draft;
+      const sent: GuideValues = {
+        yesIds: orderYesIds(shownNow.shown.yesIds, snap.inputs.listItems),
+        dates: { ...shownNow.shown.dates },
+      };
+      const usedLead = computeLead(shownNow.leadChecks, sent.yesIds);
+      update((s) => ({ ...s, saving: true, notice: null }));
+
+      const send = async (): Promise<PlanGuide> => {
+        // Save check: the server stores the T&A and the lead it has now with the guide, and the "changed since
+        // saved" hints compare against them later. Send only when they give what the card computed with.
+        const now = await fetchLatestGuideInputs(forOrder);
+        const nowList = await loadPlanCheckList({ fresh: true }).catch((err: unknown) => {
+          throw listReadError(err);
+        });
+        const nowLead = computeLead(nowList.items, sent.yesIds);
+        const tnaChanged =
+          guideRowsChanged(computeGuideDefaults(usedOrder, nowLead), computeGuideDefaults(now.order, nowLead)).length > 0;
+        const listChanged = nowLead.startDays !== usedLead.startDays || nowLead.endDays !== usedLead.endDays;
+        if (tnaChanged || listChanged) {
+          const text = inputsChangedText(tnaChanged, listChanged);
+          const page = latest.current;
+          if (page && page.inputs.orderNo === forOrder) {
+            const tna = latestTnaFor(page.pageOrder, now.order);
+            // Compared with the inputs of the moment Save was pressed: the list read above has already replaced the
+            // shared copy (and may have drawn the card again).
+            update((s) => followLatestInputs(s, snap.inputs, now.order, nowList.items, tna, text));
+          }
+          throw new PlanGuideError(text, 0, 'INPUTS_CHANGED');
+        }
+        const body: PlanGuideSaveBody = { yesIds: sent.yesIds, dates: sent.dates };
+        if (base) body.version = base.version;
+        return savePlanGuide(forOrder, body);
+      };
+
+      const run = send().then(
+        (saved) => {
+          inFlight.current = null;
+          if (latest.current?.inputs.orderNo !== forOrder) return saved;
+          lastSaved.current = saved;
+          storeGuideInDetailCache(forOrder, saved);
+          update((s) => {
+            const local = isNewerGuide(s.local, saved) ? s.local : saved;
+            // Edits made while the save ran stay unsaved, now on top of the saved guide.
+            const draft = s.draft && s.draft !== sentDraft && !sameValues(s.draft, saved) ? { ...s.draft, base: saved } : null;
+            return { ...s, local, draft, saving: false };
+          });
+          latest.current?.onGuideChange?.(saved);
+          return saved;
+        },
+        (err: unknown) => {
+          inFlight.current = null;
+          const error =
+            err instanceof PlanGuideError ? err : new PlanGuideError(errorText(err, 'Could not save the Planning Guide.'), 0, '');
+          // INPUTS_CHANGED has already put its message on the card.
+          if (latest.current?.inputs.orderNo === forOrder && error.code !== 'INPUTS_CHANGED') {
+            update((s) => ({
+              ...s,
+              saving: false,
+              notice: { kind: error.code === 'CONFLICT' ? 'conflict' : 'error', text: error.message },
+            }));
+          }
+          throw error;
+        }
+      );
+      inFlight.current = { forOrder, sent, promise: run };
+      return run;
+    },
+    [update]
+  );
 
   const reload = useCallback(async (): Promise<void> => {
     const snap = latest.current;
@@ -422,20 +589,24 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
     const forOrder = snap.inputs.orderNo;
     update((s) => ({ ...s, reloading: true }));
     try {
-      const [fresh] = await Promise.all([
-        fetchLatestPlanGuide(forOrder),
+      const [now] = await Promise.all([
+        fetchLatestGuideInputs(forOrder),
         loadPlanCheckList({ fresh: true }).catch(() => null),
       ]);
-      if (latest.current?.inputs.orderNo !== forOrder) return;
+      const page = latest.current;
+      if (!page || page.inputs.orderNo !== forOrder) return;
+      const fresh = now.guide;
       if (fresh) storeGuideInDetailCache(forOrder, fresh);
+      const tna = latestTnaFor(page.pageOrder, now.order);
       update((s) => ({
         ...s,
         local: isNewerGuide(s.local, fresh) ? s.local : (fresh ?? s.local),
         draft: null,
+        tna: tna ?? s.tna,
         reloading: false,
         notice: null,
       }));
-      if (fresh) latest.current?.onGuideChange?.(fresh);
+      if (fresh) page.onGuideChange?.(fresh);
     } catch (err) {
       if (latest.current?.inputs.orderNo !== forOrder) return;
       const text = `Could not load the latest Planning Guide: ${errorText(err, 'unknown error')}`;
@@ -462,11 +633,12 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
   const tnaOrder = inputs.order;
   const lead = computeLead(leadChecks, shown.yesIds);
   const live = computeGuideDefaults(tnaOrder, lead);
-  const differs = guideRowsChanged(shown.dates, live);
+  const differs = tnaRowsDiffer(shown.dates, live);
 
   // "Changed since saved": the T&A or the Check List gives a row other dates now than when the guide was saved
   // (the stored T&A and lead snapshots, with the stored Yes ids), and the shown row differs from what they give
-  // now. A row the user edited by hand, with nothing changed since, gets no hint.
+  // now. A row the user edited by hand, with nothing changed since, gets no hint. The save check keeps the
+  // snapshots equal to what the stored dates were computed from.
   let changedRows: GuideRow[] = [];
   if (inputs.listItems && tnaOrder && base) {
     const atSave = computeGuideDefaults(base.tna, base.lead);
@@ -491,6 +663,8 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
       end: shown.dates[eKey],
       liveStart: live[sKey],
       liveEnd: live[eKey],
+      startFromTna: !!info.tnaStart,
+      endFromTna: !!info.tnaEnd,
       changed,
       edited: markers && !changed && (editedCell(sKey, info.tnaStart) || editedCell(eKey, info.tnaEnd)),
       rawStart: rawTnaText(tnaOrder, info.tnaStart),

@@ -52,7 +52,8 @@ export interface PlanGuideSaveBody {
 
 /**
  * A failed request. `code` is the server's code (INVALID, CONFLICT), or NETWORK (no answer), NOT_DEPLOYED (a server
- * without the Planning Guide), UNEXPECTED (an answer the page cannot use), NOT_READY (the order is still loading) or
+ * without the Planning Guide), UNEXPECTED (an answer the page cannot use), NOT_READY (the order is still loading),
+ * INPUTS_CHANGED (the order's T&A or the Plan Check List changed after the page loaded them; nothing was sent) or
  * '' for any other error. `message` is ready to show.
  */
 export class PlanGuideError extends Error {
@@ -178,13 +179,30 @@ export async function savePlanGuide(orderNo: string, body: PlanGuideSaveBody): P
   return saved;
 }
 
+/** The order's T&A values as the server stores them on the Order (the fields the guide reads). */
+export type PlanGuideOrderTna = Partial<Record<TnaKey, unknown>> & { orderNo: string };
+
+/** What a guide is computed from, as the server has it now. */
+export interface LatestGuideInputs {
+  /** The stored guide (null when the order has none yet). */
+  guide: PlanGuide | null;
+  /** The order's T&A values: the same Order fields the server snapshots when it saves the guide. */
+  order: PlanGuideOrderTna;
+}
+
 /**
- * The order's stored guide as the server has it now (null when it has none): the full order details, read past the
+ * The order's stored guide and its T&A values as the server has them now: the full order details, read past the
  * server's 60-second details cache. Throws PlanGuideError.
  */
-export async function fetchLatestPlanGuide(orderNo: string): Promise<PlanGuide | null> {
+export async function fetchLatestGuideInputs(orderNo: string): Promise<LatestGuideInputs> {
   const data = await request(`${orderPath(orderNo)}?fresh=1`);
-  return readPlanGuide(data?.guide);
+  if (!isRecord(data?.order)) {
+    throw new PlanGuideError('The server sent an unexpected answer for the order details.', 200, 'UNEXPECTED');
+  }
+  const source = data.order;
+  const order: PlanGuideOrderTna = { orderNo: text(source.orderNo) || orderNo };
+  for (const key of TNA_KEYS) if (key in source) order[key] = source[key];
+  return { guide: readPlanGuide(data.guide), order };
 }
 
 /** A cached order detail that also holds the guide of its detail answer. */

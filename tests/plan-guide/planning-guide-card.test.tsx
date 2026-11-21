@@ -45,6 +45,7 @@ type Modules = {
   PlanningGuideCard: typeof import('@/features/planning/components/PlanningGuideCard').default;
   guard: typeof import('@/lib/unsaved-changes');
   cache: typeof import('@/features/planning/lib/planning-cache');
+  api: typeof import('@/features/planning/lib/plan-guide-api');
 };
 
 // Fresh modules for every test: an empty shared Plan Check List copy, unsaved-work store and detail cache.
@@ -53,7 +54,8 @@ async function freshModules(): Promise<Modules> {
   const { default: PlanningGuideCard } = await import('@/features/planning/components/PlanningGuideCard');
   const guard = await import('@/lib/unsaved-changes');
   const cache = await import('@/features/planning/lib/planning-cache');
-  return { PlanningGuideCard, guard, cache };
+  const api = await import('@/features/planning/lib/plan-guide-api');
+  return { PlanningGuideCard, guard, cache, api };
 }
 
 let server: GuideServer;
@@ -270,6 +272,13 @@ describe('saving and showing a saved guide', () => {
     setDate('Lock End', '2026-11-25');
     await clickSave();
 
+    // The save check first: the order's T&A and the stored guide (past the server's details cache) and the Plan
+    // Check List (a second read after the card's own load), then the PUT.
+    expect(server.requests().map((r) => `${r.method} ${r.path}${r.query}`)).toEqual([
+      `GET /api/orders/${ORDER_NO}?fresh=1`,
+      `PUT /api/orders/${ORDER_NO}/plan-guide`,
+    ]);
+    expect(server.lists.requests('GET')).toHaveLength(2);
     const put = server.requests('PUT')[0];
     expect(put.path).toBe(guidePath(ORDER_NO));
     expect(put.auth).toBe(`Bearer ${TOKEN}`);
@@ -347,7 +356,7 @@ describe('saving and showing a saved guide', () => {
     setDate('Lock End', '2026-11-22');
     expect(lastExtra()).toBe(dirtyStep);
 
-    server.scriptNext({ status: 500, json: { message: 'Server error while saving the Planning Guide.' } });
+    server.scriptNext({ method: 'PUT', status: 500, json: { message: 'Server error while saving the Planning Guide.' } });
     let failure: unknown;
     await act(async () => {
       failure = await dirtyStep.save().catch((err: unknown) => err);
@@ -402,7 +411,7 @@ describe('saving and showing a saved guide', () => {
     startServer();
     await showCard();
     setYes('Heatset', true);
-    server.scriptNext({ status: 400, json: { code: 'INVALID', message: 'dates.knitStart: must be empty or a date (YYYY-MM-DD).' } });
+    server.scriptNext({ method: 'PUT', status: 400, json: { code: 'INVALID', message: 'dates.knitStart: must be empty or a date (YYYY-MM-DD).' } });
     await clickSave();
     expect(screen.getByRole('alert').textContent).toContain('dates.knitStart: must be empty or a date (YYYY-MM-DD).');
     expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull();
@@ -510,15 +519,18 @@ describe('409: someone else saved the guide first', () => {
     expect(select('Singeing').value).toBe('Yes');
     expect(screen.getByText('Unsaved')).toBeTruthy();
 
+    // The save check read the order details once.
+    const gets = server.requests('GET').length;
+    expect(gets).toBe(1);
     answers.push(false);
     fireEvent.click(within(alert).getByRole('button', { name: 'Reload' }));
     expect(confirms).toEqual(['Discard your unsaved Planning Guide changes and load the latest Planning Guide?']);
-    expect(server.requests('GET')).toHaveLength(0);
+    expect(server.requests('GET')).toHaveLength(gets);
 
     answers.push(true);
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Reload' }));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-    const get = server.requests('GET')[0];
+    const get = server.requests('GET')[gets];
     expect(get.path).toBe(`/api/orders/${ORDER_NO}`);
     expect(get.query).toBe('?fresh=1');
     expect(select('CPB').value).toBe('Yes');
@@ -681,5 +693,289 @@ describe('the guide prop and the card state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(select('Heatset').value).toBe('No'));
     expect(screen.queryByText('Server error while loading the Plan Check List.')).toBeNull();
+  });
+});
+
+/** Save Guide when the save check finds a change: the details are read again, nothing is sent; returns the notice. */
+async function clickSaveHeldBack(): Promise<HTMLElement> {
+  const puts = server.requests('PUT').length;
+  const gets = server.requests('GET').length;
+  fireEvent.click(saveButton());
+  await waitFor(() => expect(server.requests('GET')).toHaveLength(gets + 1));
+  await waitFor(() => expect(saveButton().disabled).toBe(false));
+  expect(server.requests('PUT')).toHaveLength(puts);
+  return screen.getByRole('alert');
+}
+
+describe('the save check: the T&A or the Plan Check List changed while the page was open', () => {
+  const NOT_SAVED =
+    'changed after this page loaded them, so the Planning Guide was not saved. The guide now uses the latest values: check its dates and save again.';
+
+  it('T&A changed before the first save: nothing is sent, Knit follows the new T&A, and the saved guide shows no hint later', async () => {
+    startServer();
+    const first = await showCard();
+    setYes('Singeing', true);
+    expect(input('Knit Start').value).toBe('2026-10-09');
+    // A General upload moves T&A Knitting Start while the page is open.
+    const moved = { ...EXAMPLE, knitStart: '2026-10-05' };
+    server.addOrder(moved);
+
+    const alert = await clickSaveHeldBack();
+    expect(alert.textContent).toContain(`The order's T&A dates ${NOT_SAVED}`);
+    expect(alert.className).toContain('alert-warning');
+    expect(within(alert).queryByRole('button', { name: 'Reload' })).toBeNull();
+    // Knit followed the new T&A (+7 for Singeing): still unsaved, and not "Edited".
+    expect(input('Knit Start').value).toBe('2026-10-12');
+    expect(input('Knit End').value).toBe('2026-10-28');
+    expect(within(guideRow(first.container, 'knit')).queryByText('Edited')).toBeNull();
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+    expect(lastExtra()?.isDirty).toBe(true);
+
+    await clickSave();
+    expect(server.requests('PUT')[0].body).toEqual({
+      yesIds: ['singeing'],
+      dates: { ...EXAMPLE_LIVE, knitStart: '2026-10-12', knitEnd: '2026-10-28' },
+    });
+    const stored = server.guides.get(ORDER_NO) as StoredGuide;
+    expect(stored.tna.knitStart).toBe('2026-10-05');
+    expect(stored.lead).toMatchObject({ startDays: 7, endDays: 7 });
+    expect(screen.queryByRole('alert')).toBeNull();
+    first.unmount();
+
+    // Reopened with the new T&A: the stored dates are what the T&A gives; no hint, nothing "Edited".
+    const again = await showCard({ order: moved, guide: stored });
+    expect(input('Knit Start').value).toBe('2026-10-12');
+    expect(again.container.querySelectorAll('[data-guide-hint]')).toHaveLength(0);
+    expect(within(guideRow(again.container, 'knit')).queryByText('Edited')).toBeNull();
+  });
+
+  it('the Plan Check List changed (Singeing 7/7 to 9/9): the badge and Knit follow the new lead before anything is sent', async () => {
+    startServer();
+    const { container } = await showCard();
+    setYes('Singeing', true);
+    expect(badge(container)?.textContent).toBe('+7d / +7d Checklist Lead Time');
+    server.lists.saveDirectly(
+      STANDARD.map((item) => (item.id === 'singeing' ? { ...item, startDays: 9, endDays: 9 } : item)),
+      'planner9'
+    );
+
+    const alert = await clickSaveHeldBack();
+    expect(alert.textContent).toContain(`The Plan Check List ${NOT_SAVED}`);
+    await waitFor(() => expect(badge(container)?.textContent).toBe('+9d / +9d Checklist Lead Time'));
+    expect(input('Knit Start').value).toBe('2026-10-11');
+    expect(input('Knit End').value).toBe('2026-10-30');
+
+    await clickSave();
+    expect(server.requests('PUT')[0].body).toMatchObject({
+      yesIds: ['singeing'],
+      dates: { knitStart: '2026-10-11', knitEnd: '2026-10-30' },
+    });
+    expect(server.guides.get(ORDER_NO)).toMatchObject({ lead: { startDays: 9, endDays: 9 }, checklistVersion: 2 });
+  });
+
+  it('after a save: stored rows keep their dates and get the hint, edits by hand stay; after Apply the save goes through', async () => {
+    const savedDates = { ...EXAMPLE_LIVE, knitStart: '2026-10-12', knitEnd: '2026-10-28' };
+    const saved = storedGuide(EXAMPLE, { yesIds: ['heatset'], dates: savedDates });
+    startServer();
+    server.guides.set(ORDER_NO, saved);
+    const { container } = await showCard({ guide: saved });
+    setDate('Lock End', '2026-11-26');
+    server.addOrder({ ...EXAMPLE, dyeEnd: '2026-11-01' });
+
+    const alert = await clickSaveHeldBack();
+    expect(alert.textContent).toContain(`The order's T&A dates ${NOT_SAVED}`);
+    expect(input('Dye End').value).toBe('2026-10-30');
+    expect(input('Lock End').value).toBe('2026-11-26');
+    expect(hint(container, 'dye')?.textContent).toContain('T&A / Check List changed since saved: now 15-Oct-2026 to 01-Nov-2026');
+    expect(container.querySelectorAll('[data-guide-hint]')).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply the new Dye dates' }));
+    await clickSave();
+    expect(server.requests('PUT')[0].body).toEqual({
+      yesIds: ['heatset'],
+      dates: { ...savedDates, dyeEnd: '2026-11-01', lockEnd: '2026-11-26' },
+      version: 1,
+    });
+    expect(server.guides.get(ORDER_NO)?.tna.dyeEnd).toBe('2026-11-01');
+    expect(container.querySelectorAll('[data-guide-hint]')).toHaveLength(0);
+  });
+
+  it('a failed read in the save check shows the server message and sends nothing', async () => {
+    startServer();
+    await showCard();
+    setYes('Heatset', true);
+    server.scriptNext({ method: 'GET', status: 500, json: { message: 'Server error while loading the order.' } });
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Server error while loading the order.'));
+    expect(screen.getByRole('alert').className).toContain('alert-error');
+    expect(server.requests('PUT')).toHaveLength(0);
+    expect(screen.getByText('Unsaved')).toBeTruthy();
+  });
+});
+
+describe('Apply and the narrow-screen marker', () => {
+  it('the YD hint and Apply touch only YD Start: a YD End entered by hand stays', async () => {
+    const saved = storedGuide(EXAMPLE, { yesIds: [], dates: { ...EXAMPLE_LIVE, ydEnd: '2026-10-01' } });
+    const now = { ...EXAMPLE, yarnDate: '2026-09-29' };
+    startServer(STANDARD, now);
+    const { container } = await showCard({ order: now, guide: saved });
+    expect(hint(container, 'yd')?.textContent).toContain('T&A / Check List changed since saved: now Start 29-Sep-2026');
+    expect(container.querySelectorAll('[data-guide-hint]')).toHaveLength(1);
+
+    // Below sm the hint is out of view in the sideways-scrolling table: the row label carries a marker that brings
+    // the hint and its Apply button into view.
+    const marker = container.querySelector('[data-guide-changed-marker="yd"]') as HTMLButtonElement;
+    expect(marker.className).toContain('sm:hidden');
+    expect(marker.closest('td')).toBe(guideRow(container, 'yd').querySelector('td'));
+    fireEvent.click(marker);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Apply the new YD dates' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply the new YD dates' }));
+    expect(input('YD Start').value).toBe('2026-09-29');
+    expect(input('YD End').value).toBe('2026-10-01');
+    expect(hint(container, 'yd')).toBeNull();
+    expect(container.querySelector('[data-guide-changed-marker]')).toBeNull();
+    expect(within(guideRow(container, 'yd')).queryByText('Edited')).toBeNull();
+  });
+});
+
+describe('Save Data while Save Guide is running', () => {
+  it('waits for the running save, then sends the changes made since it started', async () => {
+    startServer();
+    const view = await showCard();
+    setDate('Lock Start', '2026-11-20');
+    const release = server.holdNext('PUT');
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(server.requests('PUT')).toHaveLength(1));
+    // The date inputs stay open while the save runs.
+    setDate('Lock End', '2026-11-25');
+    const step = lastExtra() as SaveExtra;
+    expect(step.isDirty).toBe(true);
+    let resolved = false;
+    const saving = step.save().then(() => {
+      resolved = true;
+    });
+    await settle();
+    expect(resolved).toBe(false);
+
+    release();
+    await act(async () => {
+      await saving;
+    });
+    const puts = server.requests('PUT');
+    expect(puts).toHaveLength(2);
+    expect(puts[0].body).toEqual({ yesIds: [], dates: { ...EXAMPLE_LIVE, lockStart: '2026-11-20' } });
+    expect(puts[1].body).toEqual({ yesIds: [], dates: { ...EXAMPLE_LIVE, lockStart: '2026-11-20', lockEnd: '2026-11-25' }, version: 1 });
+    expect(server.guides.get(ORDER_NO)).toMatchObject({ version: 2, dates: { lockEnd: '2026-11-25' } });
+    await waitFor(() => expect(lastExtra()?.isDirty).toBe(false));
+    expect(view.m.guard.getUnsavedLabels()).toEqual([]);
+    expect(screen.queryByText('Unsaved')).toBeNull();
+  });
+
+  it('nothing changed since the running save started: it resolves with that save (one PUT)', async () => {
+    startServer();
+    await showCard();
+    setDate('Lock Start', '2026-11-20');
+    const release = server.holdNext('PUT');
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(server.requests('PUT')).toHaveLength(1));
+    const saving = (lastExtra() as SaveExtra).save();
+    release();
+    await act(async () => {
+      await saving;
+    });
+    expect(server.requests('PUT')).toHaveLength(1);
+    expect(server.guides.get(ORDER_NO)?.version).toBe(1);
+    await waitFor(() => expect(lastExtra()?.isDirty).toBe(false));
+  });
+});
+
+describe('edges the rules must keep', () => {
+  it('a criterion 0/5 shows the badge +0d / +5d (shown when either column is above 0)', async () => {
+    startServer([{ id: 'z', name: 'Z', startDays: 0, endDays: 5, active: true }]);
+    const { container } = await showCard();
+    setYes('Z', true);
+    expect(badge(container)?.textContent).toBe('+0d / +5d Checklist Lead Time');
+    expect(input('Knit Start').value).toBe('2026-10-02');
+    expect(input('Knit End').value).toBe('2026-10-26');
+  });
+
+  it('Knit Start equal to Knit End is no warning; one day later is', async () => {
+    const tight = { ...EXAMPLE, knitStart: '2026-10-02', knitEnd: '2026-10-05' };
+    startServer(STANDARD, tight);
+    await showCard({ order: tight });
+    setYes('Heatset', true);
+    expect(input('Knit Start').value).toBe('2026-10-12');
+    expect(input('Knit End').value).toBe('2026-10-12');
+    expect(screen.queryByRole('status')).toBeNull();
+    setDate('Knit End', '2026-10-11');
+    expect(screen.getByRole('status').textContent).toContain('Knit Start (12-Oct-2026) is after Knit End (11-Oct-2026).');
+  });
+
+  it('an order number with "/" and a space: the save check and the save go to the encoded path', async () => {
+    const orderNo = 'V3T-C4V/2 X';
+    const order = { ...EXAMPLE, orderNo };
+    startServer(STANDARD, order);
+    await showCard({ orderNo, order });
+    setYes('Heatset', true);
+    await clickSave();
+    expect(server.requests().map((r) => `${r.method} ${r.path}${r.query}`)).toEqual([
+      'GET /api/orders/V3T-C4V%2F2%20X?fresh=1',
+      'PUT /api/orders/V3T-C4V%2F2%20X/plan-guide',
+    ]);
+    expect(server.guides.get(orderNo)).toMatchObject({ orderNo, version: 1, yesIds: ['heatset'] });
+  });
+
+  it('two saves: every cached department key carries the second guide; an older answer never replaces a newer one', async () => {
+    startServer();
+    const view = await showCard();
+    const depts = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'];
+    for (const dept of depts) view.m.cache.setPrecachedOrderDetail(dept, ORDER_NO, { order: EXAMPLE, planData: null });
+    const cachedVersions = () =>
+      depts.map((dept) => (view.m.cache.cachedOrderDetails.get(`${dept}_${ORDER_NO}`) as { guide?: PlanGuide }).guide?.version);
+    setDate('Lock Start', '2026-11-20');
+    await clickSave();
+    expect(cachedVersions()).toEqual([1, 1, 1, 1, 1]);
+    setDate('Lock End', '2026-11-25');
+    await clickSave();
+    expect(cachedVersions()).toEqual([2, 2, 2, 2, 2]);
+
+    // A late answer with an older guide is ignored; a newer guide replaces the cached one.
+    const second = view.m.api.readPlanGuide(server.guides.get(ORDER_NO)) as PlanGuide;
+    view.m.api.storeGuideInDetailCache(ORDER_NO, { ...second, version: 1 });
+    expect(cachedVersions()).toEqual([2, 2, 2, 2, 2]);
+    view.m.api.storeGuideInDetailCache(ORDER_NO, { ...second, version: 3 });
+    expect(cachedVersions()).toEqual([3, 3, 3, 3, 3]);
+  });
+
+  it('the card is memoized (React.memo), so a page re-render with the same props skips it', async () => {
+    const m = await freshModules();
+    expect((m.PlanningGuideCard as unknown as { $$typeof: symbol }).$$typeof).toBe(Symbol.for('react.memo'));
+  });
+
+  it('a remembered Hide does not break hydration of a server-rendered card', async () => {
+    startServer();
+    const m = await freshModules();
+    const { renderToString } = await import('react-dom/server');
+    const { hydrateRoot } = await import('react-dom/client');
+    const element = <m.PlanningGuideCard orderNo={ORDER_NO} order={EXAMPLE} guide={null} />;
+    // The server has no browser storage: it draws the card open.
+    const html = renderToString(element);
+    expect(html).toContain('data-guide-table');
+    localStorage.setItem('planningGuideCard.hidden', '1');
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    const errors: unknown[] = [];
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => {
+      root = hydrateRoot(host, element, { onRecoverableError: (error) => errors.push(error) });
+    });
+    await waitFor(() => expect(host.querySelector('[data-guide-table]')).toBeNull());
+    expect(errors).toEqual([]);
+    expect(host.querySelector('[title="Show the Planning Guide"]')).not.toBeNull();
+    act(() => root?.unmount());
+    host.remove();
+    await settle();
   });
 });
