@@ -134,9 +134,14 @@ describe('"Save mine anyway" is one click: a failed forced save leaves the confl
     await page.set('deliveryLock', 1, 'remarks', 'l mine');
     await page.setStatus('deliveryLock', 'Completed');
     await page.wait(1000);
-    await someoneElseSaves(page, 'delivery', (rows) => {
-      rows[0].limitation = 'theirs';
-    });
+    await someoneElseSaves(
+      page,
+      'delivery',
+      (rows) => {
+        rows[0].limitation = 'theirs';
+      },
+      'Confirm'
+    );
     page.answer(true);
     await page.saveSection('deliveryLock');
     expect(page.confirms).toEqual([COMPLETED_PROMPT]);
@@ -145,7 +150,8 @@ describe('"Save mine anyway" is one click: a failed forced save leaves the confl
     page.answer(false);
     const posts = page.savePlansRequests().length;
     await saveMine(page, 'deliveryLock');
-    // My own change to Completed (the fresh read stores Tentative): today's prompt. Cancel: nothing is sent.
+    // My own change to Completed (the fresh read stores Confirm): today's prompt. Cancel: nothing is sent, and the
+    // status goes back to the one this page shows as saved (not to theirs, which this page has not shown).
     expect(page.confirms).toEqual([COMPLETED_PROMPT, COMPLETED_PROMPT]);
     expect(page.savePlansRequests()).toHaveLength(posts);
     expect(page.generalStatus().value).toBe('Tentative');
@@ -153,9 +159,10 @@ describe('"Save mine anyway" is one click: a failed forced save leaves the confl
     expect(ta(page, 'deliveryLock', 1, 'remarks')).toBe('l mine');
     await page.saveSection('deliveryLock');
     expect(lastSave(page).body.base).toEqual({ delivery: mine });
+    expect(lastSave(page).body.plans[0].orderStatus).toBe('Tentative');
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Delivery')}`);
     expect(stored(page).delivery[0].limitation).toBe('theirs');
-    expect(stored(page).deliveryStatus).toBe('Tentative');
+    expect(stored(page).deliveryStatus).toBe('Confirm');
     expect(page.errors).toEqual([]);
   });
 
@@ -441,6 +448,33 @@ describe('what a forced save leaves behind', () => {
     expect(ta(page, 'deliveryLock', 2, 'limitation')).toBe('their green');
     expect(page.pills('deliveryFloor')).not.toContain('Unsaved');
     expect(document.querySelector('[data-conflict]')).toBeNull();
+    expect(page.errors).toEqual([]);
+  });
+
+  it('N7, and the read after the save fails: the page keeps their row, so a later plain Save Floor does not drop it', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+    await page.wait(1000);
+    uploadAddsGreen(page);
+    await page.saveSection('deliveryFloor');
+    await page.wait(4000);
+    // The forced save's fresh read is answered; the read after the save is lost.
+    page.server.scriptNext('detail', {});
+    page.server.scriptNext('detail', { status: 500, json: { message: 'Server error while loading the order.' } });
+    await saveMine(page, 'deliveryFloor');
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    expect(page.server.pendingScripts()).toEqual([]);
+    // The saved rows were merged over the fresh read's order: their Green row is on screen.
+    expect(ta(page, 'deliveryLock', 2, 'limitation')).toBe('their green');
+    await page.wait(4000);
+    await page.set('deliveryFloor', 0, 'floorEndDate', '2026-11-02');
+    await page.saveSection('deliveryFloor');
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    expect(stored(page).delivery.map((r: Loose) => [r.itemId, r.limitation])).toEqual([
+      ['syn-s1_red_s/j_160', ''],
+      ['syn-s1_blue_rib_180', ''],
+      ['syn-s1_green_pique_200', 'their green'],
+    ]);
     expect(page.errors).toEqual([]);
   });
 
