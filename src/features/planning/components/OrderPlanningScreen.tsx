@@ -174,10 +174,14 @@ export default function OrderPlanningScreen() {
 
   const logic = createDeptPlanLogic({
     dept,
+    orderNo,
     order,
     planData,
     planItems,
     setPlanItems,
+    orderStatus,
+    setOrderStatus,
+    isAdmin,
     showToast,
   });
   const {
@@ -194,175 +198,10 @@ export default function OrderPlanningScreen() {
     handleTextChange,
   } = logic;
 
-  // ==========================================================
-  // COMPREHENSIVE SAVE PLANNING VALIDATION (Exp save-planning.js)
-  // ==========================================================
   const handleSavePlanning = async () => {
-    if (planItems.length === 0) {
-      showToast('No fabric items to save! Please upload department data first.');
-      return;
-    }
-
-    let validationFailed = false;
-
-    // Check downstream department confirmation lock (save-planning.js lines 23-35)
-    const checkDownstreamConfirm = (itemId: string) => {
-      if (!planData) return false;
-      if (dept === 'dyeing' && planData.delivery) {
-        const del = planData.delivery.find((d: Loose) => d.itemId === itemId);
-        return del && del.planType === 'Confirm';
-      }
-      if (dept === 'knitting' && planData.dyeing) {
-        const dye = planData.dyeing.find((d: Loose) => d.itemId === itemId);
-        return dye && dye.planType === 'Confirm';
-      }
-      return false;
-    };
-
-    const savedMap = new Map();
-    ((planData && planData[dept]) || []).forEach((it: Loose) => {
-      if (it.itemId) savedMap.set(it.itemId, it);
-    });
-
-    for (const item of planItems) {
-      const itemId = item.itemId;
-      const existing = savedMap.get(itemId);
-      const wasConfirmed = existing && existing.planType === 'Confirm';
-
-      // 1. Only admin can revert or modify a Confirmed plan
-      if (wasConfirmed && !isAdmin && item.planType !== 'Confirm') {
-        showToast('Save failed: Only Admin can change a Confirmed plan!');
-        validationFailed = true;
-        break;
-      }
-
-      // 2. Downstream confirmation lock for non-admin
-      if (!isAdmin && checkDownstreamConfirm(itemId)) {
-        const wasStart = existing ? existing.startDate : '';
-        const wasEnd = existing ? existing.endDate : '';
-        const wasType = existing ? existing.planType : '';
-
-        if (item.startDate !== wasStart || item.endDate !== wasEnd || item.planType !== wasType) {
-          showToast(`Save failed: Cannot change ${dept} because the next department is already Confirmed!`);
-          validationFailed = true;
-          break;
-        }
-      }
-
-      // 3. Start > End date
-      if (item.startDate && item.endDate && new Date(item.startDate) > new Date(item.endDate)) {
-        showToast('Save failed: End date cant be less than start date.');
-        validationFailed = true;
-        break;
-      }
-
-      // 4. Floor start > Floor end
-      if (item.floorStartDate && item.floorEndDate && new Date(item.floorStartDate) > new Date(item.floorEndDate)) {
-        showToast('Save failed: End date cant be less than start date.');
-        validationFailed = true;
-        break;
-      }
-
-      // 5. Plan type selected without start or end date
-      if ((item.planType === 'Confirm' || item.planType === 'Tentative') && (!item.startDate || !item.endDate)) {
-        showToast('Save failed: Plan Type selected without Start and End dates.');
-        validationFailed = true;
-        break;
-      }
-
-      // 6. Knitting specific checks
-      if (dept === 'knitting') {
-        if (item.planType === 'Confirm' && (!item.yarnDate || item.yarnDate === '-' || item.yarnDate === 'N/A')) {
-          showToast("Save failed: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!");
-          validationFailed = true;
-          break;
-        }
-        if (item.startDate && item.yarnDate && item.yarnDate !== '-' && item.yarnDate !== 'N/A') {
-          if (new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(item.yarnDate).setHours(0, 0, 0, 0)) {
-            showToast('Save failed: Knitting Planning Start Date cannot be less than Yarn Date!');
-            validationFailed = true;
-            break;
-          }
-        }
-      }
-
-      // 7. Dyeing specific checks
-      if (dept === 'dyeing') {
-        const { knitItem } = getUpstreamPlans(item);
-        const knitType = knitItem?.planType;
-        const knitStart = knitItem?.startDate || knitItem?.planStart;
-        const knitEnd = knitItem?.endDate || knitItem?.planEnd;
-
-        const hasDyePlanInput = Boolean(item.startDate || item.endDate || (item.planType && item.planType !== 'Select'));
-
-        if (hasDyePlanInput && (!knitType || knitType === 'Select' || knitType === '-' || knitType === '')) {
-          showToast('Save failed: Knitting Plan type selection is mandatory before inputting Dyeing plan!');
-          validationFailed = true;
-          break;
-        }
-
-        if (item.startDate && knitStart && knitStart !== '-' && new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(knitStart).setHours(0, 0, 0, 0)) {
-          showToast('Save failed: Dyeing Start Date cannot be before Knitting Start Date!');
-          validationFailed = true;
-          break;
-        }
-
-        if (item.endDate && knitEnd && knitEnd !== '-' && new Date(item.endDate).setHours(0, 0, 0, 0) < new Date(knitEnd).setHours(0, 0, 0, 0)) {
-          showToast('Save failed: Dyeing End Date cannot be before Knitting End Date!');
-          validationFailed = true;
-          break;
-        }
-      }
-
-      // 8. Delivery specific checks
-      if (dept === 'delivery') {
-        const { dyeItem } = getUpstreamPlans(item);
-        const dyeType = dyeItem?.planType;
-        const dyeStart = dyeItem?.startDate || dyeItem?.planStart;
-        const dyeEnd = dyeItem?.endDate || dyeItem?.planEnd;
-
-        const hasDeliPlanInput = Boolean(
-          item.startDate || item.endDate || (item.planType && item.planType !== 'Select') || item.floorStartDate || item.floorEndDate
-        );
-
-        if (hasDeliPlanInput && (!dyeType || dyeType === 'Select' || dyeType === '-' || dyeType === '')) {
-          showToast('Save failed: Dyeing Plan type selection is mandatory before inputting Delivery plan!');
-          validationFailed = true;
-          break;
-        }
-
-        const isDyeingBlank = !dyeStart || dyeStart === '-' || dyeStart === '';
-        if (hasDeliPlanInput && isDyeingBlank) {
-          showToast('Save failed: Cannot input Delivery. Dyeing plan is missing!');
-          validationFailed = true;
-          break;
-        }
-
-        if (item.startDate && dyeStart && dyeStart !== '-' && new Date(item.startDate).setHours(0, 0, 0, 0) < new Date(dyeStart).setHours(0, 0, 0, 0)) {
-          showToast('Save failed: Delivery Start Date cannot be before Dyeing Start Date!');
-          validationFailed = true;
-          break;
-        }
-
-        if (item.endDate && dyeEnd && dyeEnd !== '-' && new Date(item.endDate).setHours(0, 0, 0, 0) < new Date(dyeEnd).setHours(0, 0, 0, 0)) {
-          showToast('Save failed: Delivery End Date cannot be before Dyeing End Date!');
-          validationFailed = true;
-          break;
-        }
-      }
-    }
-
-    if (validationFailed) return;
-
-    // Confirm when marking order as Completed (save-planning.js line 171)
-    const prevStatus = planData?.[`${dept}Status`] || 'On Process';
+    if (!logic.validateForSave()) return;
+    if (!logic.confirmCompletion()) return;
     const finalStatus = orderStatus;
-    if (finalStatus === 'Completed' && prevStatus !== 'Completed') {
-      if (!confirm(`Are you sure you want to mark order '${orderNo}' as Completed? It will be moved to the Completed List.`)) {
-        setOrderStatus(prevStatus);
-        return;
-      }
-    }
 
     setSaving(true);
     try {
