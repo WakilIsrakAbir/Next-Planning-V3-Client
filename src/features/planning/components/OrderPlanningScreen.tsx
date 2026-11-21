@@ -113,6 +113,9 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   useLayoutEffect(() => {
     modelRef.current = model;
   });
+  // The newest saved plan taken so far (set when a save answer or a read is dispatched, before the page renders it):
+  // the keep-newest guard of a read that answers right after a save compares with it.
+  const newestPlanRef = useRef<Loose>(model.planData);
 
   const routeRows = model.drafts[dept]?.rows ?? [];
   // Spinner only while no items are on screen (no cache, or a cached order without items) until the first fetch ends.
@@ -180,7 +183,10 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     backupUserRef.current = readStoredUser();
   }, []);
 
-  /** Each department's unsaved work is stored (or its backup removed when it has none). */
+  /**
+   * Each department's unsaved work is stored (or its backup removed when it has none). Only departments the user may
+   * change on this page: a View only section leaves the backup of its own page alone.
+   */
   const writeBackups = useCallback(() => {
     const phase = backupPhaseRef.current;
     if (phase === 'waiting') return;
@@ -188,6 +194,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     const user = backupUserRef.current ?? readStoredUser();
     pageDepts.forEach((d) => {
       if (phase === 'offer' && offeredDeptsRef.current.has(d)) return;
+      if (!sections.some((def) => def.dept === d && changeable(m, def, canEditOthersRef.current))) return;
       const groups = sections.filter((def) => def.dept === d && dirtyIn(m, def, canEditOthersRef.current)).map((def) => def.group);
       const base = m.fingerprints[d];
       if (groups.length === 0 || !base) removeBackups(user, orderNo, d);
@@ -252,8 +259,10 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       const currentOrder = data.order || {};
       const currentPlan = data.planData || {};
 
-      // Keep-newest guard: a read older than the plan on screen (another server instance's cache) is ignored.
-      if (isOlderPlanData(currentPlan, m.planData)) return null;
+      // Keep-newest guard: a read older than the plan on screen (another server instance's cache) is ignored, and
+      // is not cached either.
+      if (isOlderPlanData(currentPlan, newestPlanRef.current)) return null;
+      newestPlanRef.current = currentPlan;
 
       const lost = sections.filter(
         (def) =>
@@ -415,6 +424,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       try {
         if (entries.length > 0) {
           const result = await postSavePlans(buildSavePlansBody(orderNo, entries, bases));
+          if (!isOlderPlanData(result.planData, newestPlanRef.current)) newestPlanRef.current = result.planData;
           // Only the saved sections are merged again (and adopt the new fingerprints); others keep their drafts.
           dispatch({
             type: 'saved',
@@ -517,14 +527,22 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     [conflictOf, sectionDirty, loadLatest]
   );
 
-  // Plan D7 "Save mine anyway": the refused save again, without `base` for the departments it was refused for.
+  // Plan D7 "Save mine anyway": the refused save again (Save Data, or the refused sections of this department),
+  // without `base` for the departments it was refused for.
   const handleSaveMine = useCallback(
     (key: string) => {
       const found = conflictOf(key);
       if (!found) return;
-      const depts = found.conflict.depts.filter((d) => modelRef.current.conflicts[d]);
+      const { conflict, affected } = found;
+      const depts = conflict.depts.filter((d) => modelRef.current.conflicts[d]);
+      const target: SaveTarget =
+        conflict.target.kind === 'all'
+          ? { kind: 'all' }
+          : affected.length === 1
+            ? { kind: 'section', key: affected[0].key }
+            : { kind: 'dept', dept: affected[0].dept };
       dispatch({ type: 'force', depts });
-      runSave(found.conflict.target, { noBase: depts, onlyDirty: true });
+      runSave(target, { noBase: depts, onlyDirty: true });
     },
     [conflictOf, runSave]
   );
