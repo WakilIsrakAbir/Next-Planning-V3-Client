@@ -407,13 +407,15 @@ recording or expectation was changed for it. These are all the adaptations, with
    - The prompts it answered are listed in `leavePromptsAnswered` (not recorded).
    - `tests/c2/guard.test.tsx` checks that they were asked (3 per gate07 run) and that the recordings still match byte
      for byte.
-9. **The Planning Guide card's requests** (C34-int). The card is not part of today's page, as the C2 chrome is not.
-   - The runner leaves the card's own requests out of the recorded requests: `GET /api/plan-check-list` (also its save
-     check and Reload) and `PUT /api/orders/:orderNo/plan-guide` (`isPlanningGuideRequest` in `runner.tsx`).
+9. **The Planning Guide card's Plan Check List read** (C34-int, narrowed in the final verification). The card is not
+   part of today's page, as the C2 chrome is not.
+   - The runner leaves exactly one request out of the recorded requests: `GET /api/plan-check-list`, which the card
+     sends when it opens (`isPlanningGuideRequest` in `runner.tsx`).
+   - Nothing else is left out. Golden scenarios never edit or save the guide, so a `PUT /api/orders/:orderNo/plan-guide`
+     never happens there; if one ever did, it would show in the recording and fail the comparison.
    - The golden mock server has no Plan Check List route, so it answers that GET with Express's 404 page, and the card
      shows its list-error line. The recorder never reads the card: it reads only General Information and the route
      section(s), and the card's strip is C2 chrome.
-   - Golden scenarios never edit or save the guide, so its save check and `PUT` never happen there.
 
 `tests/c2` (not the golden master) also reads toasts only from the toast container (`[data-toast]`), so a section's
 conflict alert or the restore offer, which are daisyUI alerts too, are not taken for toasts.

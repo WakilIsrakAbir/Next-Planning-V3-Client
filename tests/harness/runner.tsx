@@ -135,12 +135,12 @@ export function legacyRequest(r: LoggedRequest): LoggedRequest {
 }
 
 /**
- * The Checkpoint & Planning Guide card's own requests (SPEC C4: the Plan Check List it reads, and its save check,
- * Reload and PUT plan-guide) are not part of today's page, as the C2 chrome is not: the recordings leave them out.
+ * The Checkpoint & Planning Guide card reads the Plan Check List (GET /api/plan-check-list) when it opens. That read is
+ * not part of today's page, as the C2 chrome is not: the recordings leave it out. Nothing else is left out: golden
+ * scenarios never edit or save the guide, so a PUT plan-guide (or any other request) in a scenario stays visible.
  */
 export function isPlanningGuideRequest(r: LoggedRequest): boolean {
-  const path = r.url.split('?')[0];
-  return path === '/api/plan-check-list' || /^\/api\/orders\/[^/]+\/plan-guide$/.test(path);
+  return r.method === 'GET' && r.url.split('?')[0] === '/api/plan-check-list';
 }
 
 /*
