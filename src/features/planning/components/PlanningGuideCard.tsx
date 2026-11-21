@@ -55,6 +55,10 @@ export interface PlanningGuideCardProps {
   onToggleHidden?: (key: string) => void;
   /** The page is saving (its Save Data or a section Save): Save Guide and Discard wait, as every other Save does. */
   pageSaving?: boolean;
+  /**
+   * The page's toast (one toast at a time). Without it the card shows its own toast, e.g. when it is used on its own.
+   */
+  onToast?: (message: string, type?: 'error' | 'success') => void;
 }
 
 /** The card's key among the order page's parts (Hide / Unhide). */
@@ -171,6 +175,7 @@ function GuideCard({
   hidden: pageHidden,
   onToggleHidden,
   pageSaving = false,
+  onToast,
 }: PlanningGuideCardProps) {
   const g = usePlanningGuide({ orderNo, order, guide, onGuideChange });
   const ownHidden = useSyncExternalStore(subscribeHidden, readHidden, readHiddenOnServer);
@@ -198,11 +203,16 @@ function GuideCard({
 
   const toggleHidden = () => (onToggleHidden ? onToggleHidden(PLANNING_GUIDE_SECTION_KEY) : writeHidden(!hidden));
 
-  // A failed save shows its message on the card (g.notice).
+  // A failed save shows its message on the card (g.notice). The success goes to the page's toast when there is one,
+  // so two toasts never sit on top of each other.
   const saveGuide = () => {
     setToast('');
     g.save().then(
-      () => setToast(`Planning Guide saved for Order #${orderNo}.`),
+      () => {
+        const message = `Planning Guide saved for Order #${orderNo}.`;
+        if (onToast) onToast(message, 'success');
+        else setToast(message);
+      },
       () => undefined
     );
   };

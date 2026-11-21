@@ -346,6 +346,30 @@ describe('Save Data with the Planning Guide (SPEC C2 10a)', () => {
   });
 });
 
+describe('toasts: one at a time', () => {
+  it("Save Guide's message is the page's toast; a newer toast keeps its full time", async () => {
+    page = await openGuidePage({ fixture: savedOrder(), dept: 'knitting' });
+    const shown = () => Array.from(document.querySelectorAll('.alert-success, .alert-error')).filter((el) => !el.closest('[data-planning-guide] [role="alert"]'));
+    // A plan save's toast, then Save Guide 3 s later: one toast, the guide's, inside the page's toast host.
+    await page.set('knitting', 0, 'remarks', 'k');
+    await page.saveSection('knitting');
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved(ORDER)}`);
+    await page.wait(3000);
+    await page.setYes('CPB', true);
+    await page.saveGuide();
+    expect(page.toasts.at(-1)).toBe(GUIDE_SAVED);
+    expect(shown()).toHaveLength(1);
+    expect(shown()[0].closest('[data-toast]')).not.toBeNull();
+    expect(page.card().querySelector('.alert-success')).toBeNull();
+    // The plan toast's timer (3.8 s after it) does not close the guide's toast early.
+    await page.wait(1500);
+    expect(document.querySelector('[data-toast]')?.textContent).toBe(`Planning Guide saved for Order #${ORDER}.`);
+    await page.wait(2500);
+    expect(document.querySelector('[data-toast]')).toBeNull();
+    expect(page.errors).toEqual([]);
+  });
+});
+
 describe('the detail cache and keep-newest', () => {
   it('the PUT answer goes into all five detail cache keys: another department page paints the saved guide at once', async () => {
     page = await openGuidePage({ fixture: savedOrder(), dept: 'knitting' });

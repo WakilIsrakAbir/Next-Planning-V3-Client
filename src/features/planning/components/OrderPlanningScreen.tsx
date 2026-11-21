@@ -197,10 +197,22 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     }
   }, [router, dept]);
 
+  // One toast at a time: a newer toast restarts the timer, so an older toast's timer never closes it early.
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((message: string, type: 'error' | 'success' = 'error') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3800);
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
+      setToast(null);
+    }, 3800);
   }, []);
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    },
+    []
+  );
 
   /* ---------------- backup of unsaved work (sessionStorage) ---------------- */
 
@@ -876,6 +888,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         onToggleHidden={toggleHidden}
         onSaveExtraChange={handleSaveExtraChange}
         onGuideChange={handleGuideChange}
+        onToast={showToast}
         pageSaving={isSaving}
       />
 
