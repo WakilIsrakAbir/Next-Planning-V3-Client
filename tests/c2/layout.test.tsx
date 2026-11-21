@@ -127,6 +127,8 @@ describe('edit rights (plan D4)', () => {
     // Only the route section has today's footer (Cancel, Save Planning Schedule).
     expect(page.section('knitting').querySelector('[data-action="save"]')).not.toBeNull();
     expect(page.section('dyeing').querySelector('[data-action="save"]')).toBeNull();
+    // Outside the delivery page it saves the section itself: no scope title.
+    expect(page.section('knitting').querySelector('[data-action="save"]')?.hasAttribute('title')).toBe(false);
   });
 
   it('a View only section cannot be changed even through the DOM: no draft, not Unsaved, not counted, never sent', async () => {

@@ -412,6 +412,9 @@ describe('Delivery Floor and Lock saves (plan D3)', () => {
       page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
       const footers = ['deliveryFloor', 'deliveryLock'].map((k) => page!.section(k).querySelector('[data-action="save"]')?.textContent?.trim());
       expect(footers).toEqual(['Save Planning Schedule', 'Save Planning Schedule']);
+      // Their scope is named (the strips' Save Floor and Save Lock save one group).
+      const titles = ['deliveryFloor', 'deliveryLock'].map((k) => page!.section(k).querySelector('[data-action="save"]')?.getAttribute('title'));
+      expect(titles).toEqual(['Saves Delivery Floor and Lock together', 'Saves Delivery Floor and Lock together']);
       await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
       await page.set('deliveryLock', 1, 'remarks', 'both');
       await page.setStatus('deliveryLock', 'Pending');

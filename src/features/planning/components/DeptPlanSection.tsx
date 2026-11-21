@@ -590,6 +590,9 @@ export default function DeptPlanSection({
               data-action="save"
               onClick={handleSavePlanning}
               disabled={saving}
+              // Delivery: both tables' footer Save stores the whole Delivery plan, as today's single footer button did
+              // (the strips' Save Floor and Save Lock save one group).
+              title={columns ? 'Saves Delivery Floor and Lock together' : undefined}
               className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
             >
               {spinning ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
