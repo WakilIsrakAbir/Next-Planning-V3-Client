@@ -5,7 +5,6 @@ import { twoRows } from './fixtures';
 import { API_BASE, TEST_TOKEN } from '../harness/mock-server';
 import { T } from '../golden/scenarios/texts';
 import { initOrderPageModel, isOlderPlanData, orderPageReducer } from '@/features/planning/lib/order-page-model';
-import type { Loose } from '../harness/types';
 
 // The lows carried over from the C2a verification (SPEC section 6, items 1-5).
 
@@ -205,6 +204,3 @@ describe('5. a Dyeing save lifts the delivery row lock at once (same order objec
     expect(page.errors).toEqual([]);
   });
 });
-
-// Keep the type import used (the reducer and model types are exercised above).
-export type { Loose };
