@@ -253,3 +253,55 @@ describe('when the backup is not offered', () => {
     expect(page.errors).toEqual([]);
   });
 });
+
+describe('the offered work is protected until it is answered, and checked again on Restore', () => {
+  it('a slow first read (longer than the backup delay): the earlier backup is not erased before it is offered', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'dyeing', role: 'planner' });
+    await page.set('dyeing', 1, 'remarks', 'mine');
+    await page.wait(1000);
+    expect(backupKeys()).toHaveLength(1);
+    page.server.scriptNext('detail', { hold: true });
+    await page.reload();
+    // The page waits 3 s for its first read; the debounced write and any flush must leave the backup alone.
+    await page.wait(3000);
+    expect(backupKeys()).toHaveLength(1);
+    page.server.releaseHeld();
+    await page.settle();
+    expect(offer()?.textContent).toContain(offerText(['Dyeing Plan']));
+    await page.click(offer()!.querySelector('[data-action="restore-backup"]'));
+    expect(textarea(page, 'dyeing', 1, 'remarks')).toBe('mine');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('offer shown, someone saves that department, a read adopts their fingerprint: Restore does not put the old work on top', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    await page.set('dyeing', 1, 'remarks', 'mine');
+    await page.wait(1000);
+    await page.reload();
+    expect(offer()).not.toBeNull();
+    // Another user saves Dyeing through the API.
+    const rows = JSON.parse(JSON.stringify(stored(page).dyeing));
+    rows[1].limitation = 'theirs';
+    const res = await page.server.fetch(`${API_BASE}/api/orders/save-plans`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TEST_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNo: 'SYN-S1', plans: [{ department: 'dyeing', fabricItems: rows, orderStatus: stored(page).dyeingStatus }] }),
+    });
+    expect(res.status).toBe(200);
+    await page.wait(1000);
+    // A Knitting save while the offer is shown reads the order again: the clean Dyeing section takes their data.
+    await page.set('knitting', 0, 'remarks', 'k');
+    await page.saveSection('knitting');
+    expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+    await page.wait(4000);
+    expect(textarea(page, 'dyeing', 1, 'limitation')).toBe('theirs');
+    await page.click(offer()!.querySelector('[data-action="restore-backup"]'));
+    // Not restored: the backup was made on the Dyeing plan before their save.
+    expect(page.toasts.at(-1)).toBe('error: Some unsaved changes could not be restored: the saved plan has changed since.');
+    expect(page.pills('dyeing')).not.toContain('Unsaved');
+    expect(textarea(page, 'dyeing', 1, 'remarks')).toBe('');
+    expect(textarea(page, 'dyeing', 1, 'limitation')).toBe('theirs');
+    expect(stored(page).dyeing[1].limitation).toBe('theirs');
+    expect(page.errors).toEqual([]);
+  });
+});
