@@ -41,8 +41,11 @@ export interface PageDriver {
   savePlansRequests: () => LoggedRequest[];
   /** Unmounts the page and opens `dept`'s page of the same order (warm caches, same server). */
   reopen: (dept?: string) => Promise<void>;
-  /** Like a browser reload (F5) of `dept`'s page: fresh modules (no in-memory caches), storage kept, same server. */
-  reload: (dept?: string) => Promise<void>;
+  /**
+   * Like a browser reload (F5) of `dept`'s page: fresh modules (no in-memory caches), storage kept, same server.
+   * `between` runs after the page is gone and before it opens again (e.g. signing in again).
+   */
+  reload: (dept?: string, between?: () => void) => Promise<void>;
   close: () => void;
 }
 
@@ -157,8 +160,9 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
       mounted = render(<OrderPlanningScreen />);
       await settle();
     },
-    reload: async (dept) => {
+    reload: async (dept, between) => {
       mounted.unmount();
+      between?.();
       if (dept) {
         harness = resetHarnessState({ dept, orderNo }, `/planning/${dept}/${encodeURIComponent(orderNo)}`);
         harness.fetchHandler = server.fetch;
