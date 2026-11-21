@@ -235,7 +235,7 @@ export default function PlanCheckListScreen() {
   };
 
   const reload = () => {
-    if (dirty && !window.confirm('Discard your unsaved changes and load the latest Plan Check List?')) return;
+    if (dirty && !window.confirm('Discard the unsaved changes in Plan Check List and load the latest Plan Check List?')) return;
     setLoading(true);
     setNotice(null);
     loadPlanCheckList({ fresh: true })
@@ -263,7 +263,10 @@ export default function PlanCheckListScreen() {
       .catch((err: unknown) => {
         const text = planCheckListErrorText(err, 'Could not save the Plan Check List.');
         // Someone saved first: the draft stays, Reload shows the latest list.
-        if (err instanceof PlanCheckListError && err.code === 'CONFLICT') setNotice({ kind: 'conflict', text });
+        // The server's 409 text asks to reload the page; the notice has its own Reload button.
+        if (err instanceof PlanCheckListError && err.code === 'CONFLICT') {
+          setNotice({ kind: 'conflict', text: text.replace('Reload the page to see the latest values.', 'Click Reload to see the latest values.') });
+        }
         else setNotice({ kind: 'error', text, rowKey: namedRowKey(text, sent) });
       })
       .finally(() => setSaving(false));

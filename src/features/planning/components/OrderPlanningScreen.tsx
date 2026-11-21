@@ -817,7 +817,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         >
           <History className="h-4 w-4 shrink-0" />
           <p className="flex-1 min-w-0 font-semibold">
-            Unsaved changes in: {restoreLabels.join(', ')} were kept from your last visit. Restore them?
+            Unsaved changes from your last visit were kept for: {restoreLabels.join(', ')}. Restore them?
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button type="button" data-action="restore-backup" onClick={handleRestore} disabled={isSaving} className="btn btn-xs">

@@ -438,6 +438,9 @@ describe('the detail cache and keep-newest', () => {
     await page.wait(4000);
     await page.saveData();
     expect(page.toasts.at(-1)).toMatch(/^error: Planning Guide not saved: The Planning Guide of this order was changed by planner9/);
+    // The server's "Reload the page" becomes the card's own Reload button.
+    expect(page.toasts.at(-1)).toMatch(/. Click Reload to see the latest values.$/);
+    expect(page.card().querySelector('[role="alert"]')?.textContent).toContain('Click Reload to see the latest values.');
     expect(page.card().querySelector('[role="alert"]')?.textContent).toContain('Reload');
   });
 });

@@ -208,11 +208,11 @@ function GuideCard({
   };
 
   const discard = () => {
-    if (window.confirm('Discard your unsaved Planning Guide changes?')) g.discard();
+    if (window.confirm('Discard the unsaved changes in Planning Guide?')) g.discard();
   };
 
   const reload = () => {
-    if (g.dirty && !window.confirm('Discard your unsaved Planning Guide changes and load the latest Planning Guide?')) return;
+    if (g.dirty && !window.confirm('Discard the unsaved changes in Planning Guide and load the latest Planning Guide?')) return;
     void g.reload();
   };
 

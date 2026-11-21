@@ -346,7 +346,7 @@ describe('the unsaved-work backup next to the card', () => {
     // The page opens again in this tab: the restore offer names the section, not the guide (it is not backed up).
     await page.reopen('knitting');
     const offer = () => document.querySelector('[data-restore-offer]') as HTMLElement | null;
-    expect(offer()?.textContent).toContain('Unsaved changes in: Dyeing Plan were kept from your last visit. Restore them?');
+    expect(offer()?.textContent).toContain('Unsaved changes from your last visit were kept for: Dyeing Plan. Restore them?');
     expect(page.cardPills()).toEqual(['0 Yes']);
     expect(shownGuide(page)).toEqual(['No', 'No', '2026-10-02']);
     expect(page.saveDataButton().disabled).toBe(true);

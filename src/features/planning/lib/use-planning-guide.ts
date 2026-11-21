@@ -377,6 +377,10 @@ function rawTnaText(order: GuideOrder | null, key: TnaKey | undefined): string {
 const errorText = (err: unknown, fallback: string): string =>
   err instanceof Error && err.message ? err.message : fallback;
 
+/** The server's 409 text asks to reload the page; the card's notice has its own Reload button. */
+const withReloadButton = (message: string): string =>
+  message.replace('Reload the page to see the latest values.', 'Click Reload to see the latest values.');
+
 /** A failed Plan Check List read during a save, as the save's error. */
 const listReadError = (err: unknown): PlanGuideError =>
   err instanceof PlanCheckListError
@@ -564,8 +568,11 @@ export function usePlanningGuide({ orderNo, order, guide, onGuideChange }: UsePl
         },
         (err: unknown) => {
           inFlight.current = null;
-          const error =
+          const failed =
             err instanceof PlanGuideError ? err : new PlanGuideError(errorText(err, 'Could not save the Planning Guide.'), 0, '');
+          // A refusal (409) is shown with the card's Reload button (also in Save Data's message).
+          const error =
+            failed.code === 'CONFLICT' ? new PlanGuideError(withReloadButton(failed.message), failed.status, failed.code) : failed;
           // INPUTS_CHANGED has already put its message on the card.
           if (latest.current?.inputs.orderNo === forOrder && error.code !== 'INPUTS_CHANGED') {
             update((s) => ({

@@ -20,7 +20,7 @@ const PREFIX = 'planning.orderBackup:';
 const stored = (p: PageDriver) => p.server.db.orderDates.find((d) => d.orderNo === 'SYN-S1');
 const textarea = (p: PageDriver, key: string, row: number, name: string) => (p.field(key, row, name) as HTMLTextAreaElement).value;
 const offer = () => document.querySelector('[data-restore-offer]') as HTMLElement | null;
-const offerText = (labels: string[]) => `Unsaved changes in: ${labels.join(', ')} were kept from your last visit. Restore them?`;
+const offerText = (labels: string[]) => `Unsaved changes from your last visit were kept for: ${labels.join(', ')}. Restore them?`;
 const staleLine = () => document.querySelector('[data-restore-stale]') as HTMLElement | null;
 const staleText = (labels: string) => `${labels} work from your last visit could not be restored: it was saved by someone else since.`;
 

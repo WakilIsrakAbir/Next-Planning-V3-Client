@@ -386,7 +386,7 @@ describe('saving and showing a saved guide', () => {
     setYes('Singeing', true);
     answers.push(false);
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
-    expect(confirms).toEqual(['Discard your unsaved Planning Guide changes?']);
+    expect(confirms).toEqual(['Discard the unsaved changes in Planning Guide?']);
     expect(select('Singeing').value).toBe('Yes');
     answers.push(true);
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
@@ -513,7 +513,7 @@ describe('409: someone else saved the guide first', () => {
     const alert = screen.getByRole('alert');
     expect(alert.className).toContain('alert-warning');
     expect(alert.textContent).toContain(
-      'The Planning Guide of this order was changed by planner9 at 21-Nov-2026 06:01. Reload the page to see the latest values.'
+      'The Planning Guide of this order was changed by planner9 at 21-Nov-2026 06:01. Click Reload to see the latest values.'
     );
     // The changes stay.
     expect(select('Singeing').value).toBe('Yes');
@@ -524,7 +524,7 @@ describe('409: someone else saved the guide first', () => {
     expect(gets).toBe(1);
     answers.push(false);
     fireEvent.click(within(alert).getByRole('button', { name: 'Reload' }));
-    expect(confirms).toEqual(['Discard your unsaved Planning Guide changes and load the latest Planning Guide?']);
+    expect(confirms).toEqual(['Discard the unsaved changes in Planning Guide and load the latest Planning Guide?']);
     expect(server.requests('GET')).toHaveLength(gets);
 
     answers.push(true);
