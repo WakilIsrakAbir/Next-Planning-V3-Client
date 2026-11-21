@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import { ChevronDown, ChevronRight, Save } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import DeptPlanSection from '@/features/planning/components/DeptPlanSection';
 import { createDeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
@@ -50,6 +50,10 @@ export interface PlanSectionProps {
   /** Highlighted after a failed Save Data check. */
   ring: boolean;
   loading: boolean;
+  /** The rows are on screen (cached or read): until then the Order Status cannot change. */
+  loaded: boolean;
+  /** Plan D7: someone else saved this section's department after the page read it (its save was refused, 409). */
+  conflict: boolean;
   unitOptions: string[];
   processOptions: string[];
   /** A save is running (every Save is disabled). */
@@ -64,6 +68,9 @@ export interface PlanSectionProps {
   onDiscard: (key: string) => void;
   onToggleHidden: (key: string) => void;
   onBack: () => void;
+  /** Plan D7 "Load latest" and "Save mine anyway" of the conflict alert. */
+  onLoadLatest: (key: string) => void;
+  onSaveMine: (key: string) => void;
 }
 
 function PlanSection({
@@ -82,6 +89,8 @@ function PlanSection({
   hidden,
   ring,
   loading,
+  loaded,
+  conflict,
   unitOptions,
   processOptions,
   saving,
@@ -93,6 +102,8 @@ function PlanSection({
   onDiscard,
   onToggleHidden,
   onBack,
+  onLoadLatest,
+  onSaveMine,
 }: PlanSectionProps) {
   const { key, dept } = def;
   const meta = deptMetaOf(dept);
@@ -144,7 +155,7 @@ function PlanSection({
       data-plan-section={key}
       data-route-section={def.isRoute ? '' : undefined}
       aria-label={def.title}
-      className={`flex flex-col gap-1 rounded-sm scroll-mt-4 ${ring ? 'ring-2 ring-rose-300 dark:ring-rose-800' : ''}`}
+      className={`flex flex-col gap-1 rounded-sm scroll-mt-4 ${ring ? 'ring-2 ring-error' : ''}`}
     >
       <div
         data-c2-chrome
@@ -187,8 +198,9 @@ function PlanSection({
               <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Order Status</span>
               <select
                 data-field="orderStatus"
+                aria-label={`${def.title} Order Status`}
                 value={status}
-                disabled={statusDisabled}
+                disabled={statusDisabled || !loaded}
                 title={!editable ? readOnlyTitle || undefined : undefined}
                 onChange={(e) => setOrderStatus(e.target.value)}
                 className="px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -237,6 +249,41 @@ function PlanSection({
           </button>
         </div>
       </div>
+
+      {conflict && (
+        <div
+          data-c2-chrome
+          data-conflict={key}
+          role="alert"
+          className="alert alert-warning text-xs py-2 px-3 rounded-sm flex flex-col sm:flex-row items-start sm:items-center gap-2"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold">{meta.label} was changed by someone else after this order was opened.</p>
+            <p>
+              {dirty
+                ? 'Load latest shows their changes and drops your unsaved changes here; Save mine anyway overwrites their changes.'
+                : 'Load latest shows their changes.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" data-action="load-latest" onClick={() => onLoadLatest(key)} disabled={saving} className="btn btn-xs">
+              Load latest
+            </button>
+            {dirty && (
+              <button
+                type="button"
+                data-action="save-mine"
+                onClick={() => onSaveMine(key)}
+                disabled={saving}
+                className="btn btn-xs btn-outline text-warning-content border-warning-content"
+              >
+                Save mine anyway
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {(notInLatest || noItems) && (
         <div data-c2-chrome className="flex flex-col gap-1">

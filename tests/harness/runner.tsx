@@ -143,6 +143,17 @@ export function isPlanningGuideRequest(r: LoggedRequest): boolean {
   return path === '/api/plan-check-list' || /^\/api\/orders\/[^/]+\/plan-guide$/.test(path);
 }
 
+/*
+ * C2b (SPEC C2 item 8): Back, the arrow and the card's Cancel ask before leaving unsaved work, with the shared guard's
+ * prompt "Unsaved changes in: <sections>. Leave without saving?" (src/lib/unsaved-changes.ts). Today's page left
+ * without asking (knitting/gate07-back-discards-edits). A scenario's `back` step is the user leaving the page, so during
+ * that step the runner answers OK to that prompt and keeps it out of the recording; the navigation is recorded as
+ * before. The prompts answered this way are listed in `leavePromptsAnswered` (never recorded), so a test can check that
+ * they were asked.
+ */
+const LEAVE_PROMPT = /^Unsaved changes in: .+\. Leave without saving\?$/;
+export const leavePromptsAnswered: string[] = [];
+
 /* ---------- the runner ---------- */
 
 export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recording> {
@@ -164,7 +175,13 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
   const confirmAnswers: boolean[] = [];
   const confirmLog: Array<{ message: string; answer: boolean | null }> = [];
   const originalConfirm = window.confirm;
+  let leaving = false;
+  leavePromptsAnswered.length = 0;
   window.confirm = (message?: string) => {
+    if (leaving && LEAVE_PROMPT.test(String(message))) {
+      leavePromptsAnswered.push(String(message));
+      return true;
+    }
     const answer = confirmAnswers.shift();
     if (answer === undefined) {
       errors.push(`Unscripted window.confirm: ${message}`);
@@ -278,7 +295,12 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
                   ? buttonByText('Cancel')
                   : (document.querySelector('button[title="Go Back"]') as HTMLButtonElement | null);
             if (!btn) throw new Error('back: button not found');
-            fireEvent.click(btn);
+            leaving = true;
+            try {
+              fireEvent.click(btn);
+            } finally {
+              leaving = false;
+            }
             break;
           }
           case 'release': {

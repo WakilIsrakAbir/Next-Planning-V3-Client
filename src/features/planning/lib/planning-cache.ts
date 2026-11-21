@@ -227,11 +227,12 @@ function isRecentlySaved(orderNo: string): boolean {
 
 /**
  * Fetches one order's detail. Shared while in flight, so a hover prefetch followed by a click sends one request.
- * `fresh` starts a new request (used after saving). The response holds every department of the order whatever
- * `dept` is (the server uses it only in its cache key).
+ * `fresh` starts a new request (used after saving). `latest` always skips the server's 60 s cache (`fresh=1`, the
+ * order page's "Load latest"). The response holds every department of the order whatever `dept` is (the server uses
+ * it only in its cache key).
  */
-export function fetchOrderDetail(dept: string, orderNo: string, fresh = false): Promise<IOrderDetailResponse> {
-  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}${isRecentlySaved(orderNo) ? '&fresh=1' : ''}`;
+export function fetchOrderDetail(dept: string, orderNo: string, fresh = false, latest = false): Promise<IOrderDetailResponse> {
+  const url = `${API_BASE}/api/orders/${encodeURIComponent(orderNo)}?dept=${dept}${latest || isRecentlySaved(orderNo) ? '&fresh=1' : ''}`;
   return sharedRequest(
     url,
     async () => {

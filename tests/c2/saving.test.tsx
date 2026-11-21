@@ -138,8 +138,10 @@ describe('Save Data (plan D5, D6)', () => {
       await page.saveSection('knitting');
       expect(page.savePlansRequests()).toEqual([]);
       expect(page.toasts.at(-1)).toBe(`error: ${T.typeWithoutDates}`);
-      // The highlight goes away after a while.
+      // The highlight (daisyUI's error colour) stays until that section is edited again (SPEC 6, carry-over 4).
       await page.wait(7000);
+      expect(page.section('knitting').className).toContain('ring-2 ring-error');
+      await page.set('knitting', 0, 'remarks', 'k2');
       expect(page.section('knitting').className).not.toContain('ring-2');
     } finally {
       delete (Element.prototype as Loose).scrollIntoView;
