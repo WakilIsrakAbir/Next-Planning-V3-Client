@@ -26,7 +26,12 @@ follows, referred to here as D1-D8.
 | `src/features/planning/lib/order-page-save.ts` | Save Data planner (checks, SAVE-02 overlay, Completed prompts), the `save-plans` request, `SavePlansError` |
 | `src/features/planning/lib/order-page-backup.ts` | sessionStorage backup of unsaved work |
 | `src/features/planning/lib/section-visibility.ts` | Hide/Unhide store (localStorage) |
-| `src/features/planning/lib/planning-cache.ts` | Order detail cache, the 2-minute `fresh=1` mark after a save |
+| `src/features/planning/lib/planning-cache.ts` | Order detail cache (the guide travels with each entry), the 2-minute `fresh=1` mark after a save |
+| `src/features/planning/components/PlanningGuideCard.tsx` | Checkpoint & Planning Guide card (`React.memo`), between General Information and the sections |
+| `src/features/planning/lib/use-planning-guide.ts` | The card's state: Yes/No, dates, its own dirty flag, Save Guide, Reload, its Save Data step |
+| `src/features/planning/lib/plan-guide.ts` | Guide dates and lead, the client copy of SERVER `src/utils/plan-guide-dates.ts` |
+| `src/features/planning/lib/plan-guide-api.ts` | `PUT plan-guide`, `readPlanGuide`, `isNewerGuide`, the guide in the detail cache keys |
+| `src/features/management/lib/plan-check-list.ts` | The Plan Check List the card reads (shared cached copy) |
 | `src/lib/unsaved-changes.ts` | Shared unsaved-work guard (Sidebar, Back, Sign Out, `beforeunload`), also used by other pages |
 
 Server endpoints the page calls:
@@ -38,6 +43,9 @@ Server endpoints the page calls:
   more departments in one write. It answers `{planData, planStatuses, statusSynced, fingerprints}`, or 409
   `{code: 'CONFLICT', message, departments}`.
 - `GET /api/dropdowns` returns the Unit and Process lists.
+- `GET /api/plan-check-list` (the Plan Check List criteria) and `PUT /api/orders/:orderNo/plan-guide` with
+  `{yesIds, dates, version?}` (409 when someone saved the guide since `version`) are the Planning Guide card's own
+  requests.
 
 `save-dates` (today's single-department save) is no longer called by this page. It is kept on the server, unchanged,
 for V2 and the Tracking pages.
@@ -84,6 +92,32 @@ page adds around today's card is marked `data-c2-chrome`.
 - **An added section of a department without items** (`hasItems` false) shows a note. Its Order Status and Save are
   off.
 - `canSave` combines all of this. Anything that is not `canSave` is never counted as unsaved, sent, backed up or restored.
+
+## Checkpoint & Planning Guide card
+
+`PlanningGuideCard` sits between General Information and the plan sections on every department page (SPEC C4,
+decisions D9-D13 of the plan). It holds a Yes/No per Active Plan Check List criterion and the guide dates YD, Knit,
+Dye, Floor and Lock (Start and End), with the Checklist lead badge on the Knit row. It is a guide only: it never changes
+plan rows, the Order's T&A fields or any validation (D13). Anyone who can open the page may edit it (D12).
+
+- **Strip.** The same strip as a section: title, `<n> Yes` and `Unsaved` pills, Discard, `Save Guide` and
+  Hide/Unhide. Hide/Unhide uses the page's store under the key `<route>:guide`.
+- **Data.** The guide comes only from a full detail answer (the cached one, then every read), never from a plan-list
+  row: the card gets `order` only once `model.loaded` is true. The criteria come from `plan-check-list.ts`.
+- **Keep-newest by `guide.version`.** `applyRead` takes the read's guide only when its version is higher than the
+  page's (`isNewerGuide`). This is separate from the plan's `updatedAt` guard and runs before it, so a read with an older
+  plan can still bring a newer guide. It holds for every read: the first one, the one after a save, and "Load latest".
+  The card keeps its own unsaved changes on top of the guide they started from; saving them over a newer guide is
+  refused (409) and the card offers Reload.
+- **Saving.** `Save Guide` first reads the order's T&A and the Plan Check List again (save check); when they changed
+  since the page loaded them, nothing is sent and the card asks to check and save again. Otherwise it sends
+  `PUT plan-guide` with the version it is based on.
+- **Cache.** A saved or reloaded guide goes into all five detail cache keys (`storeGuideInAllDetailKeys`) and marks the
+  order recently saved (`fresh=1` reads). Every plan save and every read caches the page's newest guide with the plan.
+- **Save Data.** The card hands the page its Save Data step (`onSaveExtraChange`); see [Saving](#saving).
+- **Guard.** The card registers `Planning Guide` with the shared guard while it has unsaved changes.
+- **Performance.** The card is `React.memo` with stable props (`order` and `guide` keep their identity, the callbacks
+  are `useCallback`), so typing in a plan section does not draw it.
 
 ## Page state: drafts and baselines
 
@@ -140,7 +174,8 @@ Typing on the largest order (272147, 112 rows on the page) stays under 50 ms per
 |---|---|
 | Strip `Save <Dept>` / `Save Floor` / `Save Lock` | That section, even when it is clean (as today's Save) |
 | Card footer `Save Planning Schedule` (route section) | That section; on the delivery page the whole Delivery plan (Floor and Lock), as today's single footer button did |
-| Header `Save Data (n)` | Every dirty section (and every dirty extra, SPEC C2 10a). Disabled when nothing is dirty |
+| Header `Save Data (n)` | Every dirty section, then the Planning Guide when it is dirty (SPEC C2 10a extras; the count includes it). Disabled when nothing is dirty |
+| Card `Save Guide` | The Planning Guide only (also when it is clean); never a plan |
 
 What a save of one delivery group sends (`rowsForSave`, D3):
 
@@ -160,8 +195,13 @@ Save Data (`order-page-save.ts`, D5):
    department is edited again) and scrolled into view. Nothing is sent.
 3. **Completed prompts.** Today's `window.confirm` once per department whose status is Completed, in pipeline order.
    Cancel restores that department's saved status and stops the whole save.
-4. **Request.** One `POST save-plans` with every dirty department and their `base` fingerprints. The extras (e.g. the
-   Planning Guide, added later) run after it: "Plans saved. <label> not saved: <reason>".
+4. **Request.** One `POST save-plans` with every dirty department and their `base` fingerprints. Then the extras: the
+   Planning Guide's save (`PUT plan-guide`, after its save check) when the guide is dirty.
+   - With no dirty plan, no `save-plans` request is sent and only the guide is saved ("Planning Guide saved for Order
+     #<orderNo>.").
+   - Plans saved but the guide failed: "Plans saved. Planning Guide not saved: <reason>". The guide stays unsaved and
+     still counts in Save Data. A guide-only Save Data that fails shows "Planning Guide not saved: <reason>".
+   - A refused or failed `save-plans` (checks, Completed Cancel, 400, 409, 500) saves nothing, the guide included.
 
 After a successful save:
 
@@ -217,6 +257,11 @@ On a 409:
 - **Save mine anyway** (shown only while the section has unsaved work): sends the refused save again (Save Data again,
   or that department's refused sections) without `base` for the refused departments. That choice holds for the
   department until it is saved, so a second refusal of another department does not bring it back.
+  - Save Data again is a whole Save Data: the plans first, then the Planning Guide when it is dirty, with the same
+    messages ("Plans saved. Planning Guide not saved: <reason>"). A refused section Save sent again stays a section
+    save: it never sends the guide.
+- "Load latest" also takes the read's Planning Guide when it is newer (keep-newest by `guide.version`); unsaved guide
+  changes stay on the card.
 - A conflict ends when the department adopts a fingerprint again: a save, or a read that shows the unsaved work was
   made on what is stored now.
 - Discard on a refused section also loads the latest data of that section.
@@ -233,7 +278,10 @@ The shared guard (`src/lib/unsaved-changes.ts`, milestone G):
 
 The order page registers `useUnsavedChanges('order-page', titles of the dirty sections)`, in page order, e.g.
 "Unsaved changes in: Dyeing Plan, Delivery Plan (Lock). Leave without saving?". The Planning Guide card registers its
-own label (`Planning Guide`). The page's Back, the arrow and the card's Cancel call `confirmLeave()`.
+own label (`Planning Guide`, source id `planning-guide`) while it has unsaved changes. The guard lists its sources in the
+order they first had unsaved work, so the prompt reads e.g. "Unsaved changes in: Knitting Plan, Dyeing Plan, Planning
+Guide. Leave without saving?" or, when the guide was changed first, "Planning Guide, Knitting Plan". The page's Back,
+the arrow and the card's Cancel call `confirmLeave()`.
 
 With nothing unsaved, nobody is asked and every navigation works as before. A View only section never counts.
 
@@ -267,6 +315,8 @@ Some exits cannot be stopped. Work still has to survive them (plan 2.1, "কা�
   its own page's backup alone.
 - **Storage errors.** Every storage access is in try/catch: a private window or blocked storage simply keeps no backup.
 - **Scope.** sessionStorage belongs to the tab. Another tab, or a new browser session, starts without the backup.
+- **The Planning Guide is not backed up.** Only plan sections are, so the restore offer names sections only. The card
+  keeps working beside a restore: after Restore, Save Data saves the restored sections and then a dirty guide.
 
 ## Tests
 
@@ -277,6 +327,9 @@ never compiles them; `npx tsc -p tests/tsconfig.json` type-checks them.
 |---|---|
 | `tests/golden/` | Golden master of the order page (today's behaviour, rule by rule) |
 | `tests/c2/` | The universal page itself: `layout`, `saving`, `save-logic`, `conflict`, `guard`, `backup`, `carryover` |
+| `tests/c34/` | The Planning Guide card on the page (`guide-on-page`), and with the conflict alert, guard and backup (`guide-c2b`) |
+| `tests/plan-guide/` | Guide dates and lead (three time zones, server parity vectors) and the card on its own |
+| `tests/plan-check-list/` | The Plan Check List page, its data module and its menu permission |
 | `tests/unsaved/` | The shared guard and the Sidebar |
 | `tests/harness/` | Mock server, runner, recorder (shared by golden and c2) |
 
@@ -354,6 +407,13 @@ recording or expectation was changed for it. These are all the adaptations, with
    - The prompts it answered are listed in `leavePromptsAnswered` (not recorded).
    - `tests/c2/guard.test.tsx` checks that they were asked (3 per gate07 run) and that the recordings still match byte
      for byte.
+9. **The Planning Guide card's requests** (C34-int). The card is not part of today's page, as the C2 chrome is not.
+   - The runner leaves the card's own requests out of the recorded requests: `GET /api/plan-check-list` (also its save
+     check and Reload) and `PUT /api/orders/:orderNo/plan-guide` (`isPlanningGuideRequest` in `runner.tsx`).
+   - The golden mock server has no Plan Check List route, so it answers that GET with Express's 404 page, and the card
+     shows its list-error line. The recorder never reads the card: it reads only General Information and the route
+     section(s), and the card's strip is C2 chrome.
+   - Golden scenarios never edit or save the guide, so its save check and `PUT` never happen there.
 
 `tests/c2` (not the golden master) also reads toasts only from the toast container (`[data-toast]`), so a section's
 conflict alert or the restore offer, which are daisyUI alerts too, are not taken for toasts.
