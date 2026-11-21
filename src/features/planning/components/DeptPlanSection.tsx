@@ -563,6 +563,7 @@ export default function DeptPlanSection({
                   ydBKnitPlan={ydBKnitPlan}
                   showFloor={showFloor}
                   showLock={showLock}
+                  readOnly={readOnly}
                   handlers={handlers}
                 />
               ))
@@ -629,6 +630,8 @@ interface DeptPlanRowProps {
   ydBKnitPlan: { start: string; end: string };
   showFloor: boolean;
   showLock: boolean;
+  /** A view-only section: no per-cell tooltips, so the section's "View only" reason shows instead. */
+  readOnly: boolean;
   handlers: RowHandlers;
 }
 
@@ -665,6 +668,7 @@ const DeptPlanRow = memo(function DeptPlanRow({
   ydBKnitPlan,
   showFloor,
   showLock,
+  readOnly,
   handlers,
 }: DeptPlanRowProps) {
   const {
@@ -716,8 +720,11 @@ const DeptPlanRow = memo(function DeptPlanRow({
     ? 'bg-gray-100 dark:bg-gray-800/60 opacity-60 cursor-not-allowed text-gray-400'
     : 'bg-blue-50/70 dark:bg-blue-950/20';
 
-  const disabledTitle =
-    dept === 'dyeing' && isDyeKnitLocked
+  // A view-only section shows no cell tooltip (the lock reasons and the Row 1 auto-fill hint): the section's
+  // "View only" reason on its fieldset applies to every cell.
+  const disabledTitle = readOnly
+    ? undefined
+    : dept === 'dyeing' && isDyeKnitLocked
       ? 'Knitting Plan type selection is mandatory to input Dyeing plan'
       : dept === 'dyeing' && !isUnitProcessReady
       ? 'Unit & Process Name must be selected before planning'
@@ -728,7 +735,7 @@ const DeptPlanRow = memo(function DeptPlanRow({
       : dept === 'delivery' && isDeliDyeStartMissing
       ? 'Dyeing plan is missing for this item'
       : undefined;
-  const floorDisabledTitle = isDeliFloorDisabled
+  const floorDisabledTitle = isDeliFloorDisabled && !readOnly
     ? 'Dyeing Plan type selection is mandatory to input Delivery plan'
     : undefined;
 
@@ -757,7 +764,7 @@ const DeptPlanRow = memo(function DeptPlanRow({
               type="date"
               value={item.yarnDate || ''}
               onChange={(e) => handleYarnDateChange(idx, e.target.value)}
-              title={idx === 0 ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
+              title={idx === 0 && !readOnly ? '⚡ Changing Row 1 Yarn Date auto-fills all items' : undefined}
               className="row-yarn-date p-1 border border-yellow-300 dark:border-yellow-700/50 rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-yellow-50/70 dark:bg-[#151921] text-yellow-950 dark:text-yellow-100 font-semibold"
             />
           </td>

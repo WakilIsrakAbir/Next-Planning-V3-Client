@@ -41,6 +41,8 @@ export interface PageDriver {
   savePlansRequests: () => LoggedRequest[];
   /** Unmounts the page and opens `dept`'s page of the same order (warm caches, same server). */
   reopen: (dept?: string) => Promise<void>;
+  /** Like a browser reload (F5) of `dept`'s page: fresh modules (no in-memory caches), storage kept, same server. */
+  reload: (dept?: string) => Promise<void>;
   close: () => void;
 }
 
@@ -80,7 +82,7 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
 
   vi.resetModules();
-  const { default: OrderPlanningScreen } = await import('@/features/planning/components/OrderPlanningScreen');
+  let OrderPlanningScreen = (await import('@/features/planning/components/OrderPlanningScreen')).default;
   let mounted = render(<OrderPlanningScreen />);
 
   const settle = async () => {
@@ -149,6 +151,17 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
         harness = resetHarnessState({ dept, orderNo }, `/planning/${dept}/${encodeURIComponent(orderNo)}`);
         harness.fetchHandler = server.fetch;
       }
+      mounted = render(<OrderPlanningScreen />);
+      await settle();
+    },
+    reload: async (dept) => {
+      mounted.unmount();
+      if (dept) {
+        harness = resetHarnessState({ dept, orderNo }, `/planning/${dept}/${encodeURIComponent(orderNo)}`);
+        harness.fetchHandler = server.fetch;
+      }
+      vi.resetModules();
+      OrderPlanningScreen = (await import('@/features/planning/components/OrderPlanningScreen')).default;
       mounted = render(<OrderPlanningScreen />);
       await settle();
     },

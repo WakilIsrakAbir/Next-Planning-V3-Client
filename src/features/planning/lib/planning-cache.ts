@@ -176,20 +176,47 @@ export interface IOrderDetailResponse {
 }
 
 // Orders saved from this tab, with the save time: for a while their detail reads skip the server's 60 s cache
-// (`fresh=1`), so another server instance's older cached copy is never shown after a save.
+// (`fresh=1`), so another server instance's older cached copy is never shown after a save. Kept in memory and in
+// sessionStorage (this tab only), so a reload (F5) within that time still reads fresh; storage that is blocked
+// simply remembers nothing beyond this page's memory.
 const RECENT_SAVE_MS = 2 * 60 * 1000;
+const RECENT_SAVE_STORAGE_KEY = 'planning.recentlySavedOrders';
 const recentlySavedOrders = new Map<string, number>();
+
+/** The stored marks that are still within the 2 minutes. */
+function readStoredRecentSaves(now: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(RECENT_SAVE_STORAGE_KEY) || '{}');
+    if (parsed && typeof parsed === 'object') {
+      Object.entries(parsed).forEach(([orderNo, at]) => {
+        if (typeof at === 'number' && at <= now && now - at < RECENT_SAVE_MS) out[orderNo] = at;
+      });
+    }
+  } catch {
+    /* nothing remembered */
+  }
+  return out;
+}
 
 /** Marks an order as just saved: for the next 2 minutes its detail requests add `fresh=1`. */
 export function markOrderRecentlySaved(orderNo: string): void {
-  recentlySavedOrders.set(String(orderNo).trim(), Date.now());
+  const key = String(orderNo).trim();
+  const now = Date.now();
+  recentlySavedOrders.set(key, now);
+  try {
+    sessionStorage.setItem(RECENT_SAVE_STORAGE_KEY, JSON.stringify({ ...readStoredRecentSaves(now), [key]: now }));
+  } catch {
+    /* not remembered across a reload */
+  }
 }
 
 function isRecentlySaved(orderNo: string): boolean {
   const key = String(orderNo).trim();
-  const savedAt = recentlySavedOrders.get(key);
+  const now = Date.now();
+  const savedAt = recentlySavedOrders.get(key) ?? readStoredRecentSaves(now)[key];
   if (savedAt === undefined) return false;
-  if (Date.now() - savedAt < RECENT_SAVE_MS) return true;
+  if (now - savedAt < RECENT_SAVE_MS) return true;
   recentlySavedOrders.delete(key);
   return false;
 }

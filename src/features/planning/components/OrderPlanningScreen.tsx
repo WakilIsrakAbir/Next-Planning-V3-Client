@@ -34,6 +34,7 @@ import {
   isOlderPlanData,
   orderPageReducer,
   rowsForSave,
+  sectionAccess,
   sectionsFor,
   type GroupKey,
   type SectionDef,
@@ -62,7 +63,11 @@ const RING_MS = 6000;
 // Save Data runs these after the plans (SPEC C2 10a). Empty here; the Planning Guide joins it later.
 const NO_SAVE_EXTRAS: SaveExtra[] = [];
 
-type SaveTarget = { kind: 'section'; key: string } | { kind: 'all' };
+/**
+ * What a save sends: one section (its strip Save), a whole department (the route card's footer Save: on the delivery
+ * page today's single "Save Planning Schedule" stored Floor and Lock together, and still does), or Save Data.
+ */
+type SaveTarget = { kind: 'section'; key: string } | { kind: 'dept'; dept: string } | { kind: 'all' };
 
 export default function OrderPlanningScreen() {
   const params = useParams();
@@ -102,6 +107,8 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   // Plan D4: sections of other departments are editable only for the role 'Admin' (the Sidebar's admin rule).
   const canEditOthers = useSyncExternalStore(subscribeToNothing, batchIsAdmin, () => false);
   const hiddenSnapshot = useSyncExternalStore(subscribeHiddenSections, getHiddenSectionsSnapshot, getHiddenSectionsServerSnapshot);
+  // Hide/Unhide is remembered per page (route department): hiding Dyeing on the Knitting page leaves the Dyeing page as it is.
+  const hiddenKey = useCallback((key: string) => `${dept}:${key}`, [dept]);
   const hidden = useMemo(() => new Set(parseHiddenSections(hiddenSnapshot)), [hiddenSnapshot]);
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
@@ -200,16 +207,23 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   }, [ringKeys]);
 
   const toggleHidden = useCallback(
-    (key: string) => setSectionHidden(key, !parseHiddenSections(getHiddenSectionsSnapshot()).includes(key)),
-    []
+    (key: string) => setSectionHidden(hiddenKey(key), !parseHiddenSections(getHiddenSectionsSnapshot()).includes(hiddenKey(key))),
+    [hiddenKey]
+  );
+
+  /** A section the user may change and save (plan D4 / D8). Any other section is never counted or sent. */
+  const mayChange = useCallback(
+    (m: typeof model, def: SectionDef) => sectionAccess(def, canEditOthers, m.deptFlags).canSave,
+    [canEditOthers]
   );
 
   const sectionDirty = useCallback(
     (m: typeof model, def: SectionDef) => {
+      if (!mayChange(m, def)) return false;
       const draft = m.drafts[def.dept];
       return draft ? isGroupDirty(draft, def.dept, def.group) : false;
     },
-    []
+    [mayChange]
   );
 
   const runSave = useCallback(
@@ -226,8 +240,9 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       };
       if (target.kind === 'section') {
         // A section's own Save always sends that section, even when it is clean (as today's Save did).
-        const def = sections.find((s) => s.key === target.key);
-        if (def) add(def);
+        sections.filter((def) => def.key === target.key && mayChange(m, def)).forEach(add);
+      } else if (target.kind === 'dept') {
+        sections.filter((def) => def.dept === target.dept && mayChange(m, def)).forEach(add);
       } else {
         sections.filter((def) => sectionDirty(m, def)).forEach(add);
       }
@@ -242,7 +257,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         const failing = findFailingEntry(entries, ctx);
         if (failing) {
           const failingKeys = sections.filter((s) => s.dept === failing.dept && failing.groups.includes(s.group)).map((s) => s.key);
-          failingKeys.forEach((k) => setSectionHidden(k, false));
+          failingKeys.forEach((k) => setSectionHidden(hiddenKey(k), false));
           setRingKeys(failingKeys);
           return;
         }
@@ -295,10 +310,19 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         setSaving(null);
       }
     },
-    [sections, sectionDirty, orderNo, isAdmin, showToast, fetchOrderAndDropdowns]
+    [sections, mayChange, sectionDirty, hiddenKey, orderNo, isAdmin, showToast, fetchOrderAndDropdowns]
   );
 
   const handleSaveSection = useCallback((key: string) => runSave({ kind: 'section', key }), [runSave]);
+  // The route card's footer "Save Planning Schedule": on the delivery page each of the two cards saves the whole
+  // Delivery plan (Floor and Lock), as today's single footer button did; elsewhere it is the section's own Save.
+  const handleSaveFooter = useCallback(
+    (key: string) => {
+      const def = sections.find((s) => s.key === key);
+      return runSave(def && def.dept === 'delivery' ? { kind: 'dept', dept: def.dept } : { kind: 'section', key });
+    },
+    [sections, runSave]
+  );
   const handleSaveData = useCallback(() => runSave({ kind: 'all' }), [runSave]);
 
   const handleDiscard = useCallback(
@@ -417,7 +441,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         displayQty={displayQty}
         orderStatus={model.drafts[dept]?.status ?? 'On Process'}
         onStatusChange={handleRouteStatusChange}
-        hidden={hidden.has('general')}
+        hidden={hidden.has(hiddenKey('general'))}
         onToggleHidden={toggleHidden}
       />
 
@@ -426,17 +450,9 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
          ========================================================== */}
       {sections.map((def) => {
         const draft = model.drafts[def.dept];
-        const flags = model.deptFlags?.[def.dept];
-        const notInLatest = flags ? flags.inLatestFile === false : false;
-        const meta = deptMetaOf(def.dept);
         // Plan D4 / D8: the page's own department as today; any other section for 'Admin' only, and only while the
-        // order is in that department's latest file.
-        const editable = def.isRoute || (canEditOthers && !notInLatest);
-        const readOnlyTitle = editable
-          ? null
-          : !canEditOthers
-            ? `View only: no ${meta.label} Plan access`
-            : `This order is not in the latest ${meta.label} file, so it is not listed on the ${meta.label} Plan page.`;
+        // order is in that department's latest file (the same rule decides what a save may send).
+        const { editable, readOnlyTitle, notInLatest, noItems } = sectionAccess(def, canEditOthers, model.deptFlags);
         return (
           <PlanSection
             key={def.key}
@@ -449,10 +465,10 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             isAdmin={isAdmin}
             editable={editable}
             readOnlyTitle={readOnlyTitle}
-            noItems={!def.isRoute && Boolean(flags && flags.hasItems === false)}
+            noItems={noItems}
             notInLatest={notInLatest}
             dirty={dirtyKeys.includes(def.key)}
-            hidden={hidden.has(def.key)}
+            hidden={hidden.has(hiddenKey(def.key))}
             ring={ringKeys.includes(def.key)}
             loading={loading}
             unitOptions={unitOptions}
@@ -462,6 +478,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             dispatch={dispatch}
             showToast={showToast}
             onSave={handleSaveSection}
+            onSaveFooter={handleSaveFooter}
             onDiscard={handleDiscard}
             onToggleHidden={toggleHidden}
             onBack={handleBack}

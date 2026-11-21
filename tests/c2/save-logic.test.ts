@@ -181,4 +181,44 @@ describe('page state', () => {
     const older = { ...newer, updatedAt: '2026-01-01T00:00:00.000Z', knitting: [] };
     expect(orderPageReducer(m, { type: 'hydrate', data: { order: f.orders[0], planData: older } })).toBe(m);
   });
+
+  it('a read keeps the delivery base while either delivery group is dirty, and merges only the clean group again', () => {
+    const f = twoRows();
+    const read = (planData: Loose, fp: string) => ({
+      type: 'hydrate' as const,
+      data: { order: f.orders[0], planData, fingerprints: { knitting: `k-${fp}`, delivery: `d-${fp}` } },
+    });
+    // Someone else's save: a stored Floor value and a stored Lock value of delivery row 0.
+    const theirs = JSON.parse(JSON.stringify(f.orderDates[0]));
+    theirs.delivery[0].floorPlanType = 'Confirm';
+    theirs.delivery[0].limitation = 'theirs';
+    theirs.updatedAt = '2026-11-20T00:00:00.000Z';
+
+    for (const [dirtyGroup, field, value] of [
+      ['floor', 'floorEndDate', '2026-11-09'],
+      ['lock', 'remarks', 'mine'],
+    ] as const) {
+      let m = initOrderPageModel(['knitting', 'delivery'], { order: f.orders[0], planData: f.orderDates[0], fingerprints: { knitting: 'k-0', delivery: 'd-0' } }, {});
+      m = orderPageReducer(m, { type: 'rows', dept: 'delivery', update: (rows) => rows.map((r, i) => (i === 1 ? { ...r, [field]: value } : r)) });
+      m = orderPageReducer(m, read(theirs, '1'));
+      // Knitting is clean: it adopts the read's fingerprint. Delivery keeps the one its draft was made on.
+      expect(m.fingerprints).toEqual({ knitting: 'k-1', delivery: 'd-0' });
+      const rows = m.drafts.delivery.rows;
+      expect(rows[1][field]).toBe(value);
+      expect(isGroupDirty(m.drafts.delivery, 'delivery', dirtyGroup)).toBe(true);
+      // The clean group shows their value; the dirty group keeps the draft's own (old) value.
+      expect(rows[0].floorPlanType).toBe(dirtyGroup === 'floor' ? 'Tentative' : 'Confirm');
+      expect(rows[0].limitation).toBe(dirtyGroup === 'lock' ? '' : 'theirs');
+      // A later read (still dirty) keeps the old base too.
+      const later = { ...theirs, updatedAt: '2026-11-20T00:01:00.000Z' };
+      m = orderPageReducer(m, read(later, '2'));
+      expect(m.fingerprints).toEqual({ knitting: 'k-2', delivery: 'd-0' });
+      // Once both groups are clean (the edit discarded), the next read adopts the delivery fingerprint.
+      m = orderPageReducer(m, { type: 'discard', dept: 'delivery', group: dirtyGroup });
+      m = orderPageReducer(m, read({ ...theirs, updatedAt: '2026-11-20T00:02:00.000Z' }, '3'));
+      expect(m.fingerprints).toEqual({ knitting: 'k-3', delivery: 'd-3' });
+      expect(m.drafts.delivery.rows[0].floorPlanType).toBe('Confirm');
+      expect(m.drafts.delivery.rows[0].limitation).toBe('theirs');
+    }
+  });
 });

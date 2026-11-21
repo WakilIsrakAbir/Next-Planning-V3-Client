@@ -4,13 +4,13 @@ import InlineSpinner from '@/components/ui/InlineSpinner';
 import DeptPlanSection from '@/features/planning/components/DeptPlanSection';
 import { createDeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
 import { ydKnitPlan, type Loose } from '@/features/planning/lib/order-plan-logic';
-import { deptMetaOf, type OrderPageAction, type SectionDef } from '@/features/planning/lib/order-page-model';
+import { deptMetaOf, FLOOR_FIELDS, LOCK_FIELDS, type OrderPageAction, type SectionDef } from '@/features/planning/lib/order-page-model';
 
 /*
  * One plan section of the universal order page: a strip (title, pills, Order Status, Discard, Save, Hide/Unhide)
  * above today's table card (DeptPlanSection). Everything outside the card is marked data-c2-chrome.
  * Memoised: props are primitives or stable references, so editing one section re-renders only that section
- * (Delivery Floor and Lock share their rows, so both re-render on a delivery edit).
+ * (Delivery Floor and Lock share their rows: see samePlanSectionProps).
  */
 
 export const ORDER_STATUSES = ['On Process', 'Pending', 'Tentative', 'Confirm', 'Completed'];
@@ -59,6 +59,8 @@ export interface PlanSectionProps {
   dispatch: Dispatch<OrderPageAction>;
   showToast: (message: string, type?: 'error' | 'success') => void;
   onSave: (key: string) => void;
+  /** The table card's footer "Save Planning Schedule" (route section only). */
+  onSaveFooter: (key: string) => void;
   onDiscard: (key: string) => void;
   onToggleHidden: (key: string) => void;
   onBack: () => void;
@@ -87,20 +89,28 @@ function PlanSection({
   dispatch,
   showToast,
   onSave,
+  onSaveFooter,
   onDiscard,
   onToggleHidden,
   onBack,
 }: PlanSectionProps) {
   const { key, dept } = def;
   const meta = deptMetaOf(dept);
+  const statusDisabled = !editable || noItems;
 
+  // Plan D4 / D8: a View only section never changes, even when an event reaches a control of its disabled fieldset
+  // (the browser and React still deliver input and change events dispatched on it).
   const setPlanItems = useCallback(
-    (update: SetStateAction<Loose[]>) => dispatch({ type: 'rows', dept, update }),
-    [dispatch, dept]
+    (update: SetStateAction<Loose[]>) => {
+      if (editable && !noItems) dispatch({ type: 'rows', dept, update });
+    },
+    [dispatch, dept, editable, noItems]
   );
   const setOrderStatus = useCallback(
-    (update: SetStateAction<string>) => dispatch({ type: 'status', dept, update }),
-    [dispatch, dept]
+    (update: SetStateAction<string>) => {
+      if (!statusDisabled) dispatch({ type: 'status', dept, update });
+    },
+    [dispatch, dept, statusDisabled]
   );
 
   // Today's handlers and checks, built from this section's draft and the SAVED plan.
@@ -124,7 +134,8 @@ function PlanSection({
   const ydBKnitPlan = useMemo(() => (dept === 'yd' ? ydKnitPlan(planData, order) : NO_KNIT_PLAN), [dept, planData, order]);
 
   const handleSave = useCallback(() => onSave(key), [onSave, key]);
-  const statusDisabled = !editable || noItems;
+  const handleFooterSave = useCallback(() => onSaveFooter(key), [onSaveFooter, key]);
+  const bodyId = `plan-section-body-${key}`;
   const notInLatestNote = `This order is not in the latest ${meta.label} file, so it is not listed on the ${meta.label} Plan page.`;
   const itemCount = `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`;
 
@@ -144,6 +155,7 @@ function PlanSection({
             type="button"
             onClick={() => onToggleHidden(key)}
             aria-expanded={!hidden}
+            aria-controls={hidden ? undefined : bodyId}
             className="flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200 cursor-pointer"
           >
             {hidden ? <ChevronRight className="h-4 w-4 opacity-60" /> : <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
@@ -212,7 +224,15 @@ function PlanSection({
               </button>
             </>
           )}
-          <button type="button" data-action="toggle-section" onClick={() => onToggleHidden(key)} className={STRIP_BTN}>
+          <button
+            type="button"
+            data-action="toggle-section"
+            onClick={() => onToggleHidden(key)}
+            aria-label={`${hidden ? 'Unhide' : 'Hide'} ${def.title}`}
+            aria-expanded={!hidden}
+            aria-controls={hidden ? undefined : bodyId}
+            className={STRIP_BTN}
+          >
             {hidden ? 'Unhide' : 'Hide'}
           </button>
         </div>
@@ -241,6 +261,7 @@ function PlanSection({
 
       {!hidden && (
         <fieldset
+          id={bodyId}
           disabled={!editable}
           title={!editable ? readOnlyTitle || undefined : undefined}
           className="min-w-0 m-0 p-0 border-0 [&_:is(input,select,textarea):disabled]:opacity-60 [&_:is(input,select,textarea):disabled]:cursor-not-allowed"
@@ -260,7 +281,7 @@ function PlanSection({
             saving={saving}
             spinning={spinning}
             onBack={onBack}
-            onSave={handleSave}
+            onSave={handleFooterSave}
             logic={logic}
             columns={def.columns}
             readOnly={!editable}
@@ -272,4 +293,38 @@ function PlanSection({
   );
 }
 
-export default memo(PlanSection);
+/** True when every row of `a` and `b` is the same item with the same values outside `ignored`. */
+function sameRowsExcept(a: Loose[], b: Loose[], ignored: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x === y) continue;
+    if (!x || !y) return false;
+    const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+    for (const k of keys) {
+      if (!ignored.includes(k) && x[k] !== y[k]) return false;
+    }
+  }
+  return true;
+}
+
+/*
+ * Delivery Floor and Lock share the delivery rows, so typing in one of the two tables gives the other section new rows
+ * too. Neither table shows the other group's fields (see DeptPlanRow's sameRowProps), and no handler of either table
+ * reads them: the Floor table's handleFloorChange and the Lock table's handlers update the rows from the reducer's
+ * current rows (functional updates); the Lock handlers' checks read the row's own Lock dates, Yarn Date and upstream
+ * plans only. So when only the other group's fields changed (and every other prop is the same), the section is left
+ * as it is: only the edited section renders again (SPEC C2 item 10c). Every other change renders as usual.
+ */
+function samePlanSectionProps(prev: PlanSectionProps, next: PlanSectionProps): boolean {
+  for (const k of Object.keys(next) as Array<keyof PlanSectionProps>) {
+    if (k !== 'rows' && prev[k] !== next[k]) return false;
+  }
+  if (prev.rows === next.rows) return true;
+  const { dept, columns } = next.def;
+  if (dept !== 'delivery' || !columns) return false;
+  return sameRowsExcept(prev.rows, next.rows, columns === 'floor' ? LOCK_FIELDS : FLOOR_FIELDS);
+}
+
+export default memo(PlanSection, samePlanSectionProps);

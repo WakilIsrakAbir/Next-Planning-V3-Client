@@ -158,6 +158,11 @@ function readButton(b: Element): NonNullable<PageState['buttons']>[number] {
  *   Save, recorded with today's label and the state of the card's Save), and the card footer's Cancel and Save
  *   Planning Schedule. C2 chrome (strips, pills, notes, Hide/Unhide, Discard, Save Data: [data-c2-chrome]) and the
  *   other sections are not part of today's page and are not read.
+ *   The synthesized "Save Planning" entry is a harness adaptation beyond SPEC section 5's list (kept on purpose):
+ *   plan D5 replaced the header button with Save Data, which is disabled while nothing is unsaved, so the header has
+ *   no button with today's states. The card's footer Save is disabled exactly when the strip Save that a `save` step
+ *   clicks is (`saving`; a route section never has `noItems`) and shows the spinner while its section is saved, so
+ *   no plan, check or save difference can hide behind the entry.
  */
 function readRouteSections(root: HTMLElement, state: PageState): boolean {
   const sections = Array.from(root.querySelectorAll('[data-route-section]'));

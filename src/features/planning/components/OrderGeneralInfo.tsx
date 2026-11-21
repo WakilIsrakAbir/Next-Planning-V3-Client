@@ -7,6 +7,8 @@ import { formatExcelDate, type Loose } from '@/features/planning/lib/order-plan-
  * the Order Status of the page's own department. Memoised: typing in a plan section does not re-render it.
  */
 
+const GENERAL_BODY_ID = 'order-general-info-body';
+
 interface OrderGeneralInfoProps {
   order: Loose;
   displayQty: Loose;
@@ -27,6 +29,7 @@ function OrderGeneralInfo({ order, displayQty, orderStatus, onStatusChange, hidd
           type="button"
           onClick={() => onToggleHidden('general')}
           aria-expanded={!hidden}
+          aria-controls={hidden ? undefined : GENERAL_BODY_ID}
           className="flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200 cursor-pointer"
         >
           {hidden ? <ChevronRight className="h-4 w-4 opacity-60" /> : <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
@@ -36,13 +39,19 @@ function OrderGeneralInfo({ order, displayQty, orderStatus, onStatusChange, hidd
           type="button"
           data-action="toggle-section"
           onClick={() => onToggleHidden('general')}
+          aria-label={`${hidden ? 'Unhide' : 'Hide'} General Information`}
+          aria-expanded={!hidden}
+          aria-controls={hidden ? undefined : GENERAL_BODY_ID}
           className="px-3 py-1 border border-gray-300 dark:border-[#2a3346] text-[11px] font-bold rounded hover:bg-gray-200 dark:hover:bg-[#283347] text-gray-700 dark:text-gray-300 transition cursor-pointer"
         >
           {hidden ? 'Unhide' : 'Hide'}
         </button>
       </div>
       {!hidden && (
-        <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] p-3 md:p-4 rounded-sm shadow-sm shrink-0 w-full max-w-full">
+        <div
+          id={GENERAL_BODY_ID}
+          className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] p-3 md:p-4 rounded-sm shadow-sm shrink-0 w-full max-w-full"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-2.5">
             {/* Column 1 */}
             <div className="flex flex-col gap-2">

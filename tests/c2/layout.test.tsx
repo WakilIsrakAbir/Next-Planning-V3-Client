@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { fireEvent } from '@testing-library/react';
 import { openPage, type PageDriver } from './driver';
 import { notInLatest, savedOrder, twoRows } from './fixtures';
 import type { Fixture } from '../harness/types';
@@ -127,6 +128,89 @@ describe('edit rights (plan D4)', () => {
     expect(page.section('knitting').querySelector('[data-action="save"]')).not.toBeNull();
     expect(page.section('dyeing').querySelector('[data-action="save"]')).toBeNull();
   });
+
+  it('a View only section cannot be changed even through the DOM: no draft, not Unsaved, not counted, never sent', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'planner' });
+    const statusOf = (key: string) => page!.section(key).querySelector('[data-c2-chrome] [data-field="orderStatus"]') as HTMLSelectElement;
+    const tamper = async () => {
+      // Events dispatched straight on the controls (as from DevTools): React still runs their onChange.
+      fireEvent.change(page!.field('dyeing', 0, 'remarks'), { target: { value: 'tamper' } });
+      fireEvent.change(page!.field('dyeing', 1, 'endDate'), { target: { value: '2026-10-28' } });
+      fireEvent.change(page!.field('deliveryFloor', 1, 'floorEndDate'), { target: { value: '2026-11-09' } });
+      fireEvent.change(page!.field('deliveryLock', 0, 'remarks'), { target: { value: 'tamper' } });
+      fireEvent.change(statusOf('dyeing'), { target: { value: 'Completed' } });
+      fireEvent.change(statusOf('deliveryLock'), { target: { value: 'Confirm' } });
+      await page!.settle();
+    };
+    const expectUnchanged = () => {
+      expect((page!.field('dyeing', 0, 'remarks') as HTMLTextAreaElement).value).toBe('');
+      expect(page!.field('dyeing', 1, 'endDate').value).toBe('2026-10-26');
+      expect(page!.field('deliveryFloor', 1, 'floorEndDate').value).toBe('2026-11-02');
+      expect((page!.field('deliveryLock', 0, 'remarks') as HTMLTextAreaElement).value).toBe('');
+      expect(statusOf('dyeing').value).toBe('Pending');
+      expect(statusOf('deliveryLock').value).toBe('Tentative');
+      for (const key of ['knitting', 'dyeing', 'deliveryFloor', 'deliveryLock']) expect(page!.pills(key)).not.toContain('Unsaved');
+      expect(page!.saveDataButton().disabled).toBe(true);
+      expect(page!.saveDataButton().textContent).toBe('Save Data');
+    };
+
+    await tamper();
+    expectUnchanged();
+    // The disabled attributes removed as well: still nothing changes.
+    document.querySelectorAll('fieldset[disabled], [data-c2-chrome] select[disabled]').forEach((el) => el.removeAttribute('disabled'));
+    await tamper();
+    expectUnchanged();
+
+    // The route section works as today, and Save Data sends it alone.
+    await page.set('knitting', 1, 'remarks', 'mine');
+    expect(page.saveDataButton().textContent).toBe('Save Data (1)');
+    await page.saveData();
+    const reqs = page.savePlansRequests();
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0].body.plans.map((p: { department: string }) => p.department)).toEqual(['knitting']);
+    const stored = page.server.db.orderDates[0];
+    expect(stored.dyeing[0].remarks).toBe('');
+    expect(stored.dyeingStatus).toBe('Pending');
+    expect(stored.delivery[0].remarks).toBe('');
+    expect(page.errors).toEqual([]);
+  });
+
+  it('a section that turns View only (the order left that latest file) has nothing to save, even with edits', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    await page.set('dyeing', 1, 'remarks', 'mine');
+    await page.set('knitting', 1, 'remarks', 'k');
+    expect(page.saveDataButton().textContent).toBe('Save Data (2)');
+    // The Dyeing latest file no longer lists the order; the read after the Knitting save says so.
+    page.server.db.deptValidOrders = { dyeing: ['OTHER-ORDER'] };
+    await page.saveSection('knitting');
+    expect(page.pills('dyeing')).toEqual(['2 items', 'View only', 'Not in latest file']);
+    expect(page.saveDataButton().disabled).toBe(true);
+    expect(page.saveDataButton().textContent).toBe('Save Data');
+    await page.set('knitting', 1, 'remarks', 'k2');
+    await page.wait(4000);
+    await page.saveData();
+    const second = page.savePlansRequests()[1];
+    expect(second.body.plans.map((p: { department: string }) => p.department)).toEqual(['knitting']);
+    expect(page.server.db.orderDates[0].dyeing[1]?.remarks ?? '').toBe('');
+  });
+
+  it('View only cells show the section reason, not the Row 1 auto-fill hint or the in-row lock reasons', async () => {
+    const f = twoRows();
+    f.orderDates[0].knitting[0].planType = 'Confirm';
+    // Route section: today's tooltips.
+    page = await openPage({ fixture: f, dept: 'knitting', role: 'planner' });
+    expect(page.field('knitting', 0, 'yarnDate').getAttribute('title')).toBe('⚡ Changing Row 1 Yarn Date auto-fills all items');
+    expect(page.field('knitting', 0, 'startDate').getAttribute('title')).toBe('Only Admin can modify Confirmed plan');
+    // The same rows in a View only section: no cell tooltip, the fieldset's reason applies.
+    await page.reopen('dyeing');
+    const knitting = page.section('knitting');
+    expect(knitting.querySelector('fieldset')?.getAttribute('title')).toBe('View only: no Knitting Plan access');
+    const titled = Array.from(knitting.querySelectorAll('[data-plan-table] [title]')).map((el) => el.getAttribute('title'));
+    expect(titled).toEqual([]);
+    for (const key of ['deliveryFloor', 'deliveryLock']) {
+      expect(Array.from(page.section(key).querySelectorAll('[data-plan-table] [title]'))).toEqual([]);
+    }
+  });
 });
 
 describe('Order Status per section', () => {
@@ -153,21 +237,51 @@ describe('Order Status per section', () => {
 });
 
 describe('Hide/Unhide', () => {
-  it('hides the table, is remembered by the browser, and works without storage', async () => {
+  it('hides the table, is remembered by the browser for that page, and works without storage', async () => {
     page = await openPage({ fixture: savedOrder(), dept: 'knitting', role: 'admin' });
     await page.toggle('dyeing');
     expect(page.section('dyeing').querySelector('table')).toBeNull();
     expect(page.section('dyeing').querySelector('[data-action="toggle-section"]')?.textContent).toBe('Unhide');
-    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('dyeing');
+    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('knitting:dyeing');
+    await page.reopen('knitting');
+    expect(page.section('dyeing').querySelector('table')).toBeNull();
+    // Remembered per page: the Dyeing page (its own section first) is not changed by a Hide on the Knitting page.
     await page.reopen('dyeing');
+    expect(page.section('dyeing').querySelector('table')).not.toBeNull();
+    await page.toggle('knitting');
+    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('dyeing:knitting,knitting:dyeing');
+    await page.reopen('knitting');
+    expect(page.section('knitting').querySelector('table')).not.toBeNull();
     expect(page.section('dyeing').querySelector('table')).toBeNull();
     await page.toggle('dyeing');
     expect(page.section('dyeing').querySelector('table')).not.toBeNull();
-    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('');
+    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('dyeing:knitting');
     // General Information has its own Hide/Unhide.
     const general = document.querySelector('[data-general-info]') as HTMLElement;
     await page.click(general.querySelector('[data-action="toggle-section"]'));
     expect(general.querySelector('[data-field="orderStatus"]')).toBeNull();
+    expect(localStorage.getItem('orderPage.hiddenSections')).toBe('dyeing:knitting,knitting:general');
+  });
+
+  it('each Hide/Unhide button names its part and points at what it hides', async () => {
+    page = await openPage({ fixture: savedOrder(), dept: 'delivery', role: 'admin' });
+    const toggles = () =>
+      Array.from(document.querySelectorAll('[data-action="toggle-section"]')).map((b) => [
+        b.getAttribute('aria-label'),
+        b.getAttribute('aria-expanded'),
+        b.getAttribute('aria-controls'),
+      ]);
+    expect(toggles()).toEqual([
+      ['Hide General Information', 'true', 'order-general-info-body'],
+      ['Hide Delivery Plan (Floor)', 'true', 'plan-section-body-deliveryFloor'],
+      ['Hide Delivery Plan (Lock)', 'true', 'plan-section-body-deliveryLock'],
+      ['Hide Knitting Plan', 'true', 'plan-section-body-knitting'],
+      ['Hide Dyeing Plan', 'true', 'plan-section-body-dyeing'],
+    ]);
+    for (const [, , id] of toggles()) expect(document.getElementById(id as string)).not.toBeNull();
+    expect(page.section('dyeing').querySelector('fieldset')?.id).toBe('plan-section-body-dyeing');
+    await page.toggle('dyeing');
+    expect(toggles()[4]).toEqual(['Unhide Dyeing Plan', 'false', null]);
   });
 
   it('storage that throws: Hide/Unhide still works for the page', async () => {
@@ -221,6 +335,15 @@ describe('not in the latest file, no items (plan D8)', () => {
     expect(s.querySelector('[data-note="no-items"]')?.textContent).toBe('This order has no Dyeing items.');
     expect(isDisabled(s.querySelector('[data-field="orderStatus"]') as Element)).toBe(true);
     expect(isDisabled(s.querySelector('[data-action="save-section"]') as Element)).toBe(true);
+    // Through the DOM (disabled attributes removed): the status does not change and its Save does nothing at all.
+    s.querySelectorAll('[disabled]').forEach((el) => el.removeAttribute('disabled'));
+    fireEvent.change(s.querySelector('[data-field="orderStatus"]') as Element, { target: { value: 'Completed' } });
+    await page.settle();
+    expect((s.querySelector('[data-field="orderStatus"]') as HTMLSelectElement).value).toBe('Pending');
+    expect(page.saveDataButton().disabled).toBe(true);
+    await page.click(s.querySelector('[data-action="save-section"]'));
+    expect(page.toasts).toEqual([]);
+    expect(page.savePlansRequests()).toEqual([]);
     // The dyeing page itself (route) keeps today's behaviour: no note, Save sends and shows today's toast.
     await page.reopen('dyeing');
     expect(page.section('dyeing').querySelector('[data-note]')).toBeNull();

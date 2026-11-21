@@ -108,6 +108,37 @@ export function sectionsFor(routeDept: string): SectionDef[] {
   return [...routeKeys, ...rest].map((k) => sectionDef(k, routeDept));
 }
 
+export type DeptFlags = Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>>;
+
+/** Who may change a section, and why not (plan D4 and D8). */
+export interface SectionAccess {
+  /** Plan D4 / D8: the page's own department as today; any other section for 'Admin' only, and only while the order
+   *  is in that department's latest file. */
+  editable: boolean;
+  /** Tooltip of a view-only section. */
+  readOnlyTitle: string | null;
+  notInLatest: boolean;
+  /** D8: an added section of a department without items: its Order Status and Save are off. */
+  noItems: boolean;
+  /** The section's draft may change and be saved (editable, and not an added section without items). Anything
+   *  else is never changed by the page, counted as unsaved work or sent, whatever the DOM does. */
+  canSave: boolean;
+}
+
+export function sectionAccess(def: SectionDef, canEditOthers: boolean, deptFlags: DeptFlags | null): SectionAccess {
+  const flags = deptFlags?.[def.dept];
+  const notInLatest = flags ? flags.inLatestFile === false : false;
+  const noItems = !def.isRoute && Boolean(flags && flags.hasItems === false);
+  const editable = def.isRoute || (canEditOthers && !notInLatest);
+  const label = deptMetaOf(def.dept).label;
+  const readOnlyTitle = editable
+    ? null
+    : !canEditOthers
+      ? `View only: no ${label} Plan access`
+      : `This order is not in the latest ${label} file, so it is not listed on the ${label} Plan page.`;
+  return { editable, readOnlyTitle, notInLatest, noItems, canSave: editable && !noItems };
+}
+
 /** The departments shown on a route's page (each held once in the state). */
 export function deptsFor(routeDept: string): string[] {
   const out: string[] = [];
@@ -134,7 +165,7 @@ export interface OrderPageModel {
   planData: Loose;
   /** Base fingerprint per department: sent with the next save of that department. */
   fingerprints: Partial<Record<string, string>>;
-  deptFlags: Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>> | null;
+  deptFlags: DeptFlags | null;
   drafts: Record<string, DeptDraft>;
 }
 
@@ -142,7 +173,7 @@ export interface OrderDetailInput {
   order?: Loose;
   planData?: Loose;
   fingerprints?: Partial<Record<string, string>>;
-  deptFlags?: Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>>;
+  deptFlags?: DeptFlags;
 }
 
 const statusOf = (planData: Loose, dept: string): string => (planData && planData[`${dept}Status`]) || 'On Process';

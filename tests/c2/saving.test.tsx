@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from '@testing-library/react';
 import { openPage, tableValues, withoutTimes, type PageDriver } from './driver';
 import { savedOrder, twoRows } from './fixtures';
-import { fingerprintDept } from '../harness/mock-server';
+import { API_BASE, MockServer, TEST_TOKEN, fingerprintDept } from '../harness/mock-server';
+import { createDeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
+import { buildMergedItems, formatPlanPayload } from '@/features/planning/lib/order-plan-logic';
 import { T } from '../golden/scenarios/texts';
 import type { Loose } from '../harness/types';
 
@@ -209,6 +212,97 @@ describe('Save Data (plan D5, D6)', () => {
     expect(withoutTimes({ orderDates: page.server.db.orderDates, orders: page.server.db.orders })).toEqual(together);
   });
 
+  it("equals today's save-dates saves made downstream-first, with the rows built by today's handlers outside the page", async () => {
+    // The oracle never touches the universal page (no reducer, rowsForSave, PlanSection or save-plans): for each
+    // department, downstream first, it does what today's page did after opening that department's page: read the
+    // order, build the rows (buildMergedItems), apply the edits with today's handlers (createDeptPlanLogic, the
+    // unchanged C1 code), run validateForSave and confirmCompletion, and POST save-dates (the mock's port of today's
+    // server). The edits target the same cells as the page run below.
+    type Edit = (l: ReturnType<typeof createDeptPlanLogic>, setStatus: (s: string) => void) => void;
+    const EDITS: Array<[string, Edit[]]> = [
+      [
+        'delivery',
+        [
+          (l) => l.handleFloorChange(1, 'floorEndDate', '2026-11-03'),
+          (l) => l.handleStartDateChange(1, '2026-10-27'),
+          (l) => l.handleEndDateChange(1, '2026-11-06'),
+          (l) => l.handlePlanTypeChange(1, 'Tentative'),
+          (_l, setStatus) => setStatus('Pending'),
+        ],
+      ],
+      [
+        'dyeing',
+        [
+          (l) => l.handleTextChange(1, 'remarks', 'dye note'),
+          (l) => l.handleEndDateChange(0, '2026-10-27'),
+          (_l, setStatus) => setStatus('Tentative'),
+        ],
+      ],
+      [
+        'knitting',
+        [
+          (l) => l.handleEndDateChange(1, '2026-10-18'),
+          (l) => l.handleTextChange(0, 'limitation', 'knit limit'),
+        ],
+      ],
+    ];
+    const oracle = new MockServer(twoRows());
+    const auth = { Authorization: `Bearer ${TEST_TOKEN}`, 'Content-Type': 'application/json' };
+    const oracleToasts: string[] = [];
+    for (const [dept, edits] of EDITS) {
+      const detail = await (await oracle.fetch(`${API_BASE}/api/orders/SYN-S1?dept=${dept}`, { headers: auth })).json();
+      let rows: Loose[] = buildMergedItems(detail.order, detail.planData, dept);
+      let status: string = detail.planData?.[`${dept}Status`] || 'On Process';
+      const logicOf = () =>
+        createDeptPlanLogic({
+          dept,
+          orderNo: 'SYN-S1',
+          order: detail.order,
+          planData: detail.planData,
+          planItems: rows,
+          setPlanItems: (u) => {
+            rows = typeof u === 'function' ? u(rows) : u;
+          },
+          orderStatus: status,
+          setOrderStatus: (u) => {
+            status = typeof u === 'function' ? u(status) : u;
+          },
+          isAdmin: true,
+          showToast: (m) => oracleToasts.push(m),
+        });
+      for (const edit of edits) edit(logicOf(), (s) => (status = s));
+      const logic = logicOf();
+      expect(logic.validateForSave()).toBe(true);
+      expect(logic.confirmCompletion()).toBe(true);
+      const res = await oracle.fetch(`${API_BASE}/api/orders/save-dates`, {
+        method: 'POST',
+        headers: auth,
+        body: JSON.stringify({ orderNo: 'SYN-S1', department: dept, fabricItems: formatPlanPayload(dept, rows), orderStatus: status }),
+      });
+      expect(res.status).toBe(200);
+    }
+    expect(oracleToasts).toEqual([]);
+
+    // The universal page: the same cells edited on the Knitting page, then one Save Data.
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    await page.set('knitting', 1, 'endDate', '2026-10-18');
+    await page.set('knitting', 0, 'limitation', 'knit limit');
+    await page.set('dyeing', 1, 'remarks', 'dye note');
+    await page.set('dyeing', 0, 'endDate', '2026-10-27');
+    await page.setStatus('dyeing', 'Tentative');
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-03');
+    await page.set('deliveryLock', 1, 'startDate', '2026-10-27');
+    await page.set('deliveryLock', 1, 'endDate', '2026-11-06');
+    await page.set('deliveryLock', 1, 'planType', 'Tentative');
+    await page.setStatus('deliveryLock', 'Pending');
+    await page.saveData();
+    expect(page.savePlansRequests()).toHaveLength(1);
+    expect(page.toasts).toEqual([`success: ${T.saved('SYN-S1')}`]);
+    expect(withoutTimes({ orderDates: page.server.db.orderDates, orders: page.server.db.orders })).toEqual(
+      withoutTimes({ orderDates: oracle.db.orderDates, orders: oracle.db.orders })
+    );
+  });
+
   it('every Save is disabled while a save runs (no double submit)', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
     await page.set('knitting', 1, 'remarks', 'k');
@@ -228,6 +322,32 @@ describe('Save Data (plan D5, D6)', () => {
     expect(page.pills('knitting')).not.toContain('Unsaved');
     expect(page.pills('dyeing')).toContain('Unsaved');
     expect(page.section('dyeing').querySelector('[data-action="save-section"]')?.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('two Save clicks before the page renders again send one request (the handler itself refuses a second save)', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    await page.set('knitting', 1, 'remarks', 'k');
+    await page.set('dyeing', 1, 'remarks', 'd');
+    page.server.scriptNext('saveDates', { hold: true });
+    const knittingSave = page.section('knitting').querySelector('[data-action="save-section"]') as HTMLButtonElement;
+    const dyeingSave = page.section('dyeing').querySelector('[data-action="save-section"]') as HTMLButtonElement;
+    const saveData = page.saveDataButton();
+    // One act: React renders (and disables the buttons) only after all three clicks.
+    act(() => {
+      knittingSave.click();
+      saveData.click();
+      dyeingSave.click();
+    });
+    await page.settle();
+    expect(page.savePlansRequests()).toHaveLength(1);
+    page.server.releaseHeld();
+    await page.settle();
+    const reqs = page.savePlansRequests();
+    expect(reqs).toHaveLength(1);
+    expect(departmentsOf(reqs[0])).toEqual(['knitting']);
+    expect(page.pills('knitting')).not.toContain('Unsaved');
+    expect(page.pills('dyeing')).toContain('Unsaved');
+    expect(page.errors).toEqual([]);
   });
 });
 
@@ -283,6 +403,43 @@ describe('Delivery Floor and Lock saves (plan D3)', () => {
     expect(page.pills('deliveryFloor')).toContain('Unsaved');
     expect(page.field('deliveryFloor', 1, 'floorPlanType').value).toBe('Confirm');
     expect(stored(page).delivery[1].floorPlanType).toBe('Tentative');
+  });
+
+  it("each card's footer Save Planning Schedule saves the whole Delivery plan, as today's single footer button did", async () => {
+    for (const card of ['deliveryLock', 'deliveryFloor']) {
+      page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+      const footers = ['deliveryFloor', 'deliveryLock'].map((k) => page!.section(k).querySelector('[data-action="save"]')?.textContent?.trim());
+      expect(footers).toEqual(['Save Planning Schedule', 'Save Planning Schedule']);
+      await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+      await page.set('deliveryLock', 1, 'remarks', 'both');
+      await page.setStatus('deliveryLock', 'Pending');
+
+      await page.click(page.section(card).querySelector('[data-action="save"]'));
+      const reqs = page.savePlansRequests();
+      expect(reqs).toHaveLength(1);
+      const plan = reqs[0].body.plans[0];
+      expect(reqs[0].body.plans).toHaveLength(1);
+      expect(plan.department).toBe('delivery');
+      expect(plan.orderStatus).toBe('Pending');
+      expect(plan.fabricItems.map((r: Loose) => [r.floorEndDate, r.remarks])).toEqual([
+        ['2026-11-01', ''],
+        ['2026-11-04', 'both'],
+      ]);
+      expect(page.toasts).toEqual([`success: ${T.saved('SYN-S1')}`]);
+      expect(page.pills('deliveryFloor')).not.toContain('Unsaved');
+      expect(page.pills('deliveryLock')).not.toContain('Unsaved');
+      expect(stored(page).deliveryStatus).toBe('Pending');
+      page.close();
+      page = null;
+    }
+  });
+
+  it('on a clean delivery page the footer Save still sends the whole Delivery plan, as today', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
+    await page.click(page.section('deliveryFloor').querySelector('[data-action="save"]'));
+    const [req] = page.savePlansRequests();
+    expect(req.body.plans.map((p: Loose) => [p.department, p.orderStatus, p.fabricItems.length])).toEqual([['delivery', 'Tentative', 2]]);
+    expect(page.toasts).toEqual([`success: ${T.saved('SYN-S1')}`]);
   });
 });
 
@@ -373,6 +530,76 @@ describe('fingerprints and the keep-newest guard (S1 step 9, SPEC C2 item 7)', (
     expect(page.pills('dyeing')).toContain('Unsaved');
   });
 
+  it('a delivery group that stays dirty keeps the old base through a read: Save Floor is refused, the other change stays', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    const deliveryBase = fingerprintDept(stored(page), 'delivery');
+    // Floor edited here, Lock left clean.
+    await page.set('deliveryFloor', 1, 'floorEndDate', '2026-11-04');
+    await page.set('knitting', 1, 'remarks', 'k');
+    // Someone else changes a stored delivery Floor value.
+    stored(page).delivery[0].floorPlanType = 'Confirm';
+    // Saving Knitting reads the order again (fresh=1): the clean Lock group is merged again, the Floor draft stays.
+    await page.saveSection('knitting');
+    expect(page.toasts).toEqual([`success: ${T.saved('SYN-S1')}`]);
+    expect(page.server.log.at(-1)?.url).toBe('/api/orders/SYN-S1?dept=knitting&fresh=1');
+    expect(page.pills('deliveryFloor')).toContain('Unsaved');
+    expect(page.pills('deliveryLock')).not.toContain('Unsaved');
+    expect(page.field('deliveryFloor', 1, 'floorEndDate').value).toBe('2026-11-04');
+
+    // The delivery base is still the one this page loaded: the save is refused instead of overwriting.
+    await page.wait(4000);
+    await page.saveSection('deliveryFloor');
+    const req = page.savePlansRequests()[1];
+    expect(req.body.base).toEqual({ delivery: deliveryBase });
+    expect(page.toasts.at(-1)).toBe('error: Delivery was changed by someone else after this order was opened.');
+    expect(stored(page).delivery[0].floorPlanType).toBe('Confirm');
+    expect(page.pills('deliveryFloor')).toContain('Unsaved');
+    // Save Data (Floor dirty) is refused the same way.
+    await page.wait(4000);
+    await page.saveData();
+    expect(page.savePlansRequests()[2].body.base).toEqual({ delivery: deliveryBase });
+    expect(page.toasts.at(-1)).toBe('error: Delivery was changed by someone else after this order was opened.');
+    expect(stored(page).delivery[0].floorPlanType).toBe('Confirm');
+  });
+
+  it('a reload within 2 minutes of a save still reads fresh=1 (the mark is kept for this tab)', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    const detailUrls = () => page!.server.log.filter((r) => r.method === 'GET' && r.url.startsWith('/api/orders/')).map((r) => r.url);
+    await page.set('dyeing', 1, 'remarks', 'x');
+    await page.saveSection('dyeing');
+    await page.wait(60_000);
+    await page.reload('delivery');
+    expect(detailUrls().at(-1)).toBe('/api/orders/SYN-S1?dept=delivery&fresh=1');
+    expect((page.field('dyeing', 1, 'remarks') as HTMLTextAreaElement).value).toBe('x');
+    // After 2 minutes the reads use the server cache again.
+    await page.wait(61_000);
+    await page.reload();
+    expect(detailUrls().at(-1)).toBe('/api/orders/SYN-S1?dept=delivery');
+    // Storage that throws: nothing breaks, the mark simply lives in this page's memory only.
+    const proto = Object.getPrototypeOf(sessionStorage);
+    const original = { get: proto.getItem, set: proto.setItem };
+    proto.getItem = function (this: Storage, key: string) {
+      if (this === sessionStorage) throw new Error('blocked');
+      return original.get.call(this, key);
+    };
+    proto.setItem = function (this: Storage, key: string, value: string) {
+      if (this === sessionStorage) throw new Error('blocked');
+      return original.set.call(this, key, value);
+    };
+    try {
+      await page.set('dyeing', 1, 'remarks', 'y');
+      await page.saveSection('dyeing');
+      expect(page.toasts.at(-1)).toBe(`success: ${T.saved('SYN-S1')}`);
+      expect(detailUrls().at(-1)).toBe('/api/orders/SYN-S1?dept=delivery&fresh=1');
+      await page.reload();
+      expect(detailUrls().at(-1)).toBe('/api/orders/SYN-S1?dept=delivery');
+    } finally {
+      proto.getItem = original.get;
+      proto.setItem = original.set;
+    }
+    expect(page.errors).toEqual([]);
+  });
+
   it('a detail read older than the plan on screen is ignored', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
     const old = JSON.parse(JSON.stringify(page.server.db.orderDates[0]));
@@ -411,6 +638,51 @@ describe('only the edited section renders again (SPEC C2 item 10c)', () => {
         await page.settle();
       }
       expect(counts).toEqual({ knitting: 3 });
+    } finally {
+      vi.doUnmock('@/features/planning/components/DeptPlanSection');
+    }
+  });
+
+  it('typing in Delivery Lock renders only the Lock section, typing in Floor only the Floor section; both edits are saved', async () => {
+    const counts: Record<string, number> = {};
+    (globalThis as Loose).__C2_RENDERS__ = counts;
+    vi.doMock('@/features/planning/components/DeptPlanSection', async () => {
+      const real = await vi.importActual<Loose>('@/features/planning/components/DeptPlanSection');
+      return {
+        default: (props: Loose) => {
+          const key = props.columns ? `delivery-${props.columns}` : props.dept;
+          const c = (globalThis as Loose).__C2_RENDERS__;
+          c[key] = (c[key] || 0) + 1;
+          return real.default(props);
+        },
+      };
+    });
+    try {
+      page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'admin' });
+      const { fireEvent } = await import('@testing-library/react');
+      const type = async (key: string, row: number, name: string, values: string[]) => {
+        Object.keys(counts).forEach((k) => delete counts[k]);
+        for (const value of values) {
+          fireEvent.change(page!.field(key, row, name), { target: { value } });
+          await page!.settle();
+        }
+      };
+      await type('deliveryLock', 1, 'remarks', ['a', 'ab', 'abc']);
+      expect(counts).toEqual({ 'delivery-lock': 3 });
+      // Row 1 of Lock auto-fills every row below it (row 0 is the first row): still only the Lock section.
+      await type('deliveryLock', 0, 'limitation', ['L']);
+      expect(counts).toEqual({ 'delivery-lock': 1 });
+      await type('deliveryFloor', 1, 'floorEndDate', ['2026-11-03', '2026-11-04']);
+      expect(counts).toEqual({ 'delivery-floor': 2 });
+      // The Floor section was skipped while Lock changed: its edit must not have lost the Lock edits.
+      await type('deliveryLock', 1, 'remarks', ['abcd']);
+      expect(counts).toEqual({ 'delivery-lock': 1 });
+      await page.saveData();
+      const plan = page.savePlansRequests()[0].body.plans[0];
+      expect(plan.fabricItems.map((r: Loose) => [r.floorEndDate, r.limitation, r.remarks])).toEqual([
+        ['2026-11-01', 'L', ''],
+        ['2026-11-04', 'L', 'abcd'],
+      ]);
     } finally {
       vi.doUnmock('@/features/planning/components/DeptPlanSection');
     }
