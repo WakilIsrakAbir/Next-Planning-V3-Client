@@ -73,10 +73,11 @@ const TOAST_MS = 3800;
 const LABEL_CLS = 'w-[115px] text-[11px] font-semibold text-gray-600 dark:text-gray-400 shrink-0 truncate';
 const SELECT_CLS =
   'flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-[#2a3346] rounded-sm bg-white dark:bg-[#151921] text-[11px] font-bold text-gray-800 dark:text-gray-100 outline-none cursor-pointer focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed';
-// A date input's keyboard focus sits on its day / month / year parts, which Chrome does not match as :focus-visible on
-// the input itself: its ring follows :focus (a field you type into shows it for the mouse too).
+// A date input's focus sits on its day / month / year parts: reached with Shift+Tab, Chrome matches neither :focus nor
+// :focus-visible on the input itself, only :focus-within. So its ring follows :focus-within (a field you type into
+// shows it for the mouse too).
 const DATE_CLS =
-  'p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[110px] focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-[#151921]';
+  'p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[110px] focus:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 outline-none bg-white dark:bg-[#151921]';
 const HEADING_CLS =
   'p-1 bg-gray-100 dark:bg-[#1f2637] text-center font-bold text-xs border border-gray-200 dark:border-[#2a3346] text-gray-700 dark:text-gray-300';
 const CELL_CLS = 'p-2 border-r border-gray-300 dark:border-[#2a3346]';

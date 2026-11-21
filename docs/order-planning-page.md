@@ -80,7 +80,8 @@ Each section has a strip above today's table card. The strip holds:
   (`Save Floor` / `Save Lock` for delivery) and Hide/Unhide.
 
 The strip's Order Status select and the guide's selects show a focus ring for keyboard focus (`focus-visible`); the
-guide's date inputs show it on focus (Chrome does not match a date input as `:focus-visible`).
+guide's date inputs show it whenever they hold the focus (`focus-within`: reached with Shift+Tab, Chrome matches
+neither `:focus` nor `:focus-visible` on a date input, whose focus sits on its day, month or year part).
 
 Hide/Unhide is remembered per page in localStorage `orderPage.hiddenSections` (`<route>:<section>`). Everything the
 page adds around today's card is marked `data-c2-chrome`.
