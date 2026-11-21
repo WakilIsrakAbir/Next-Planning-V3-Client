@@ -851,7 +851,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           <History className="h-3.5 w-3.5 shrink-0" />
           <p className="flex-1 min-w-0">
             {staleBackup.labels.join(', ')} work from your last visit could not be restored:{' '}
-            {staleBackup.depts > 1 ? 'they were' : 'it was'} saved by someone else since.
+            {staleBackup.depts > 1 ? 'they were' : 'it was'} changed since.
           </p>
           <button
             type="button"
