@@ -300,7 +300,7 @@ function GuideCard({
                   {g.reloading ? <InlineSpinner size={12} /> : <RefreshCw className="h-3 w-3" />} Reload
                 </button>
               )}
-              <button type="button" onClick={g.dismissNotice} className="btn btn-ghost btn-xs btn-square" aria-label="Close message">
+              <button type="button" onClick={g.dismissNotice} className="btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content" aria-label="Close message">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -394,7 +394,7 @@ function CriterionRow({ g, criterion }: { g: PlanningGuide; criterion: GuideCrit
           {criterion.status === 'inactive' ? 'Inactive' : 'Removed'}
         </span>
       )}
-      <span className="ml-1.5 w-[44px] shrink-0 text-right text-[10px] font-mono text-gray-400">{days}</span>
+      <span className="ml-1.5 w-[44px] shrink-0 text-right text-[10px] font-mono text-gray-500 dark:text-gray-400">{days}</span>
     </div>
   );
 }

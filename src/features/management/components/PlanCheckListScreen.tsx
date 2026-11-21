@@ -361,7 +361,7 @@ export default function PlanCheckListScreen() {
               <RefreshCw className="h-3 w-3" /> Reload
             </button>
           )}
-          <button type="button" onClick={() => setNotice(null)} className="btn btn-ghost btn-xs btn-square" aria-label="Close message">
+          <button type="button" onClick={() => setNotice(null)} className="btn btn-ghost btn-xs btn-square text-current hover:text-base-content focus-visible:text-base-content" aria-label="Close message">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>

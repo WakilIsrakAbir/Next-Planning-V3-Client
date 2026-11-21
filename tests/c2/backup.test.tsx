@@ -77,7 +77,7 @@ describe('the backup', () => {
     signOut();
     await page.reload('knitting', () => signIn('admin'));
     expect(offer()?.textContent).toContain(offerText(['Knitting Plan', 'Delivery Plan (Lock)']));
-    expect(offer()?.className).toContain('alert-info');
+    expect(offer()?.className).toContain('alert-warning');
     // Not restored until asked: the saved values are shown, nothing is unsaved.
     expect(textarea(page, 'knitting', 1, 'remarks')).toBe('');
     expect(page.saveDataButton().disabled).toBe(true);

@@ -813,7 +813,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           data-c2-chrome
           data-restore-offer
           role="alert"
-          className="alert alert-info text-xs py-2 px-3 rounded-sm flex flex-col sm:flex-row items-start sm:items-center gap-2"
+          className="alert alert-warning text-xs py-2 px-3 rounded-sm flex flex-col sm:flex-row items-start sm:items-center gap-2"
         >
           <History className="h-4 w-4 shrink-0" />
           <p className="flex-1 min-w-0 font-semibold">
@@ -823,7 +823,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             <button type="button" data-action="restore-backup" onClick={handleRestore} disabled={isSaving} className="btn btn-xs">
               Restore
             </button>
-            <button type="button" data-action="drop-backup" onClick={handleDropBackup} className="btn btn-xs btn-ghost">
+            <button type="button" data-action="drop-backup" onClick={handleDropBackup} className="btn btn-xs btn-ghost text-current hover:text-base-content focus-visible:text-base-content">
               Discard
             </button>
           </div>
