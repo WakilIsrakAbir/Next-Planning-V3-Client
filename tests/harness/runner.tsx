@@ -134,6 +134,15 @@ export function legacyRequest(r: LoggedRequest): LoggedRequest {
   return r;
 }
 
+/**
+ * The Checkpoint & Planning Guide card's own requests (SPEC C4: the Plan Check List it reads, and its save check,
+ * Reload and PUT plan-guide) are not part of today's page, as the C2 chrome is not: the recordings leave them out.
+ */
+export function isPlanningGuideRequest(r: LoggedRequest): boolean {
+  const path = r.url.split('?')[0];
+  return path === '/api/plan-check-list' || /^\/api\/orders\/[^/]+\/plan-guide$/.test(path);
+}
+
 /* ---------- the runner ---------- */
 
 export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recording> {
@@ -309,7 +318,10 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
       if (toastsSeen.length) events.toasts = toastsSeen;
       const confirms = confirmLog.slice(confirmStart);
       if (confirms.length) events.confirms = confirms;
-      const requests = server.log.slice(logStart).map(legacyRequest);
+      const requests = server.log
+        .slice(logStart)
+        .filter((r) => !isPlanningGuideRequest(r))
+        .map(legacyRequest);
       if (requests.length) events.requests = requests;
       const router = harness.routerCalls.slice(routerStart);
       if (router.length) events.router = router;

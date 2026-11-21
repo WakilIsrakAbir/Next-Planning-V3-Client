@@ -56,11 +56,19 @@ import {
 } from '@/features/planning/lib/section-visibility';
 import OrderGeneralInfo from '@/features/planning/components/OrderGeneralInfo';
 import PlanSection from '@/features/planning/components/PlanSection';
+import PlanningGuideCard, { PLANNING_GUIDE_SECTION_KEY } from '@/features/planning/components/PlanningGuideCard';
+import {
+  isNewerGuide,
+  readPlanGuide,
+  storeGuideInAllDetailKeys,
+  storeGuideInDetailCache,
+  type PlanGuide,
+} from '@/features/planning/lib/plan-guide-api';
 
 /** How long a failed Save Data check keeps the failing section highlighted. */
 const RING_MS = 6000;
 
-// Save Data runs these after the plans (SPEC C2 10a). Empty here; the Planning Guide joins it later.
+// Save Data runs these after the plans (SPEC C2 10a): the Planning Guide card's step, once the card hands it over.
 const NO_SAVE_EXTRAS: SaveExtra[] = [];
 
 /**
@@ -111,6 +119,24 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   const hiddenKey = useCallback((key: string) => `${dept}:${key}`, [dept]);
   const hidden = useMemo(() => new Set(parseHiddenSections(hiddenSnapshot)), [hiddenSnapshot]);
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
+
+  // Checkpoint & Planning Guide (SPEC C4): the guide and the order's T&A come only from a full detail answer (the
+  // cached one, then every read), never from a plan-list row. The guide is kept newest by its version, apart from the
+  // plan's updatedAt guard. The card hands the page its Save Data step (SPEC C2 10a).
+  const [initialDetail] = useState(() => getPrecachedOrderDetail(dept, orderNo));
+  const [detailLoaded, setDetailLoaded] = useState<boolean>(() => Boolean(initialDetail?.order));
+  const [guide, setGuide] = useState<PlanGuide | null>(() => readPlanGuide(initialDetail?.guide));
+  const guideRef = useRef(guide);
+  const [saveExtras, setSaveExtras] = useState<SaveExtra[]>(NO_SAVE_EXTRAS);
+  const saveExtrasRef = useRef(saveExtras);
+
+  /** Takes `next` when it is a newer stored guide than the page's (versions only go up). */
+  const adoptGuide = useCallback((next: PlanGuide | null): next is PlanGuide => {
+    if (!next || !isNewerGuide(next, guideRef.current)) return false;
+    guideRef.current = next;
+    setGuide(next);
+    return true;
+  }, []);
 
   // Dynamic dropdown options for Dyeing / Finishing
   const [unitOptions, setUnitOptions] = useState<string[]>(() => cachedDropdownOptions?.units || ['EFL', 'EKL', 'Ext', 'Outside']);
@@ -166,11 +192,16 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         const currentOrder = data.order || {};
         const currentPlan = data.planData || {};
 
+        // The read's Planning Guide, kept only when newer than the page's (by guide.version; the plan has its own guard).
+        const readGuide = readPlanGuide(data.guide);
+        if (adoptGuide(readGuide)) storeGuideInDetailCache(orderNo, readGuide);
+
         // Keep-newest guard: a read older than the plan on screen (another server instance's cache) is ignored.
         if (isOlderPlanData(currentPlan, modelRef.current.planData)) return;
 
         // Clean sections are merged again from the read; sections with unsaved edits keep them.
         dispatch({ type: 'hydrate', data: { order: currentOrder, planData: currentPlan, fingerprints: data.fingerprints, deptFlags: data.deptFlags } });
+        setDetailLoaded(true);
 
         // Save to client cache for 0ms subsequent returns
         setPrecachedOrderDetail(dept, orderNo, {
@@ -178,6 +209,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           planData: currentPlan,
           fingerprints: data.fingerprints,
           deptFlags: data.deptFlags,
+          guide: guideRef.current,
         });
       } catch (err) {
         console.error(err);
@@ -188,7 +220,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         setLoading(false);
       }
     },
-    [dept, orderNo, showToast]
+    [dept, orderNo, showToast, adoptGuide]
   );
 
   useEffect(() => {
@@ -246,7 +278,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       } else {
         sections.filter((def) => sectionDirty(m, def)).forEach(add);
       }
-      const extras = target.kind === 'all' ? NO_SAVE_EXTRAS.filter((e) => e.isDirty) : [];
+      const extras = target.kind === 'all' ? saveExtrasRef.current.filter((e) => e.isDirty) : [];
       if (groupsByDept.size === 0 && extras.length === 0) return;
 
       const entries: PlanSaveEntry[] = [...groupsByDept].map(([d, groups]) => ({ dept: d, groups, ...rowsForSave(m.drafts[d], d, groups) }));
@@ -286,6 +318,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
             planData: result.planData,
             fingerprints: result.fingerprints,
             deptFlags: m.deptFlags || undefined,
+            guide: guideRef.current,
           });
           markOrderRecentlySaved(orderNo);
           // Batch Plan reads the saved units and plan dates: reload it the next time it is shown.
@@ -293,13 +326,19 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
           showToast(`Planning schedule successfully saved for Order #${orderNo}!`, 'success');
           plansSaved = true;
         }
+        const extrasSaved: string[] = [];
         for (const extra of extras) {
           try {
             await extra.save();
+            extrasSaved.push(extra.label);
           } catch (err) {
             const reason = (err as Loose)?.message || 'Unknown error';
             showToast(plansSaved ? `Plans saved. ${extra.label} not saved: ${reason}` : `${extra.label} not saved: ${reason}`);
           }
+        }
+        // Save Data with no plan to save: its own message once every step saved (the plans' toast says it otherwise).
+        if (entries.length === 0 && extrasSaved.length === extras.length) {
+          showToast(`${extrasSaved.join(', ')} saved for Order #${orderNo}.`, 'success');
         }
         if (plansSaved) fetchOrderAndDropdowns(true);
       } catch (err) {
@@ -337,8 +376,23 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
 
   const handleRouteStatusChange = useCallback((status: string) => dispatch({ type: 'status', dept, update: status }), [dept]);
 
+  // The Planning Guide card's Save Data step (null when the card goes away).
+  const handleSaveExtraChange = useCallback((extra: SaveExtra | null) => {
+    saveExtrasRef.current = extra ? [extra] : NO_SAVE_EXTRAS;
+    setSaveExtras(saveExtrasRef.current);
+  }, []);
+  // A guide the card saved or reloaded: every department page of this order opens with it, read fresh for a while.
+  const handleGuideChange = useCallback(
+    (saved: PlanGuide) => {
+      adoptGuide(saved);
+      storeGuideInAllDetailKeys(orderNo, saved);
+      markOrderRecentlySaved(orderNo);
+    },
+    [adoptGuide, orderNo]
+  );
+
   const dirtyKeys = useMemo(() => sections.filter((def) => sectionDirty(model, def)).map((def) => def.key), [sections, sectionDirty, model]);
-  const dirtyCount = dirtyKeys.length + NO_SAVE_EXTRAS.filter((e) => e.isDirty).length;
+  const dirtyCount = dirtyKeys.length + saveExtras.filter((e) => e.isDirty).length;
 
   // Calculate order quantity fallback
   const totalItemQty = routeRows.reduce((acc, it) => {
@@ -443,6 +497,18 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         onStatusChange={handleRouteStatusChange}
         hidden={hidden.has(hiddenKey('general'))}
         onToggleHidden={toggleHidden}
+      />
+
+      {/* CHECKPOINT & PLANNING GUIDE (SPEC C4), between General Information and the plan sections */}
+      <PlanningGuideCard
+        orderNo={orderNo}
+        order={detailLoaded ? order : null}
+        guide={guide}
+        hidden={hidden.has(hiddenKey(PLANNING_GUIDE_SECTION_KEY))}
+        onToggleHidden={toggleHidden}
+        onSaveExtraChange={handleSaveExtraChange}
+        onGuideChange={handleGuideChange}
+        pageSaving={isSaving}
       />
 
       {/* ==========================================================

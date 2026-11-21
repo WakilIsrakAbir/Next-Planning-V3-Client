@@ -13,9 +13,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  ClipboardCheck,
   RefreshCw,
-  RotateCcw,
   Save,
   X,
 } from 'lucide-react';
@@ -49,9 +47,20 @@ export interface PlanningGuideCardProps {
   onSaveExtraChange?: (extra: SaveExtra | null) => void;
   /** Called with the guide as the server stored it, after a save and after Reload. */
   onGuideChange?: (guide: PlanGuide) => void;
+  /**
+   * Hide / Unhide kept by the page, like its other sections (the order page remembers it per page): `hidden` is the
+   * state and the card calls `onToggleHidden('guide')`. Without `onToggleHidden` the card keeps its own Hide / Show.
+   */
+  hidden?: boolean;
+  onToggleHidden?: (key: string) => void;
+  /** The page is saving (its Save Data or a section Save): Save Guide and Discard wait, as every other Save does. */
+  pageSaving?: boolean;
 }
 
-// Hide / Show of the card, remembered in this browser.
+/** The card's key among the order page's parts (Hide / Unhide). */
+export const PLANNING_GUIDE_SECTION_KEY = 'guide';
+
+// Hide / Show of the card when the page does not keep it, remembered in this browser.
 const HIDDEN_KEY = 'planningGuideCard.hidden';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const TOAST_MS = 3800;
@@ -71,6 +80,22 @@ const AMBER_PILL =
   'px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[10px] font-bold';
 const GRAY_PILL =
   'px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-[#283347] text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-[#2a3346] text-[9px] font-bold uppercase';
+// The strip, its buttons and the card body of the order page's other sections (PlanSection.tsx, OrderGeneralInfo.tsx).
+const STRIP_CLS =
+  'bg-gray-100 dark:bg-[#1f2637] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm px-3 py-2 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs';
+const STRIP_BTN =
+  'px-3 py-1 border border-gray-300 dark:border-[#2a3346] text-[11px] font-bold rounded hover:bg-gray-200 dark:hover:bg-[#283347] text-gray-700 dark:text-gray-300 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+const SAVE_BTN =
+  'px-3 py-1 bg-emerald-600 text-white text-[11px] font-bold rounded hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+const UNSAVED_PILL =
+  'px-1.5 py-0.5 rounded-full text-[10px] font-bold border bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+const BODY_CLS =
+  'bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] p-3 md:p-4 rounded-sm shadow-sm flex flex-col gap-3';
+// Below `sm` the date table cannot show its four columns side by side: each row wraps, the Source cell (lead badge,
+// Edited, the "changed since saved" hint with Apply) going on a line of its own under the dates.
+const NARROW_ROW = 'max-sm:flex max-sm:flex-wrap';
+const NARROW_LABEL = 'max-sm:flex-1 max-sm:min-w-0';
+const NARROW_DATE = 'max-sm:w-[120px] max-sm:shrink-0 max-sm:px-1';
 
 // Read through useSyncExternalStore with a server value of false: the server and the first (hydrating) client render
 // both draw the card open, then a hidden card closes, so a remembered Hide never breaks hydration.
@@ -137,9 +162,19 @@ function PlanningGuideCard(props: PlanningGuideCardProps) {
 
 export default memo(PlanningGuideCard);
 
-function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: PlanningGuideCardProps) {
+function GuideCard({
+  orderNo,
+  order,
+  guide,
+  onSaveExtraChange,
+  onGuideChange,
+  hidden: pageHidden,
+  onToggleHidden,
+  pageSaving = false,
+}: PlanningGuideCardProps) {
   const g = usePlanningGuide({ orderNo, order, guide, onGuideChange });
-  const hidden = useSyncExternalStore(subscribeHidden, readHidden, readHiddenOnServer);
+  const ownHidden = useSyncExternalStore(subscribeHidden, readHidden, readHiddenOnServer);
+  const hidden = onToggleHidden ? pageHidden === true : ownHidden;
   const [toast, setToast] = useState('');
   const bodyId = useId();
 
@@ -161,7 +196,7 @@ function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: 
 
   const busy = g.saving || g.reloading;
 
-  const toggleHidden = () => writeHidden(!hidden);
+  const toggleHidden = () => (onToggleHidden ? onToggleHidden(PLANNING_GUIDE_SECTION_KEY) : writeHidden(!hidden));
 
   // A failed save shows its message on the card (g.notice).
   const saveGuide = () => {
@@ -182,11 +217,7 @@ function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: 
   };
 
   return (
-    <section
-      data-planning-guide=""
-      aria-label="Checkpoint & Planning Guide"
-      className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden flex flex-col"
-    >
+    <section data-planning-guide="" aria-label="Checkpoint & Planning Guide" className="flex flex-col gap-1 rounded-sm">
       {toast && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
           <div className="alert alert-success shadow-lg text-xs font-bold py-2.5 px-4 rounded border">
@@ -196,50 +227,64 @@ function GuideCard({ orderNo, order, guide, onSaveExtraChange, onGuideChange }: 
         </div>
       )}
 
-      {/* Strip */}
-      <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-[#2a3346]">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
+      {/* Strip, as on the page's other sections */}
+      <div data-c2-chrome className={STRIP_CLS}>
+        <div className="flex items-center flex-wrap gap-1.5 min-w-0">
           <button
             type="button"
             onClick={toggleHidden}
             aria-expanded={!hidden}
-            aria-controls={bodyId}
+            aria-controls={hidden ? undefined : bodyId}
             title={hidden ? 'Show the Planning Guide' : 'Hide the Planning Guide'}
-            className="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition p-0.5 cursor-pointer"
+            className="flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200 cursor-pointer"
           >
-            {hidden ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {hidden ? <ChevronRight className="h-4 w-4 opacity-60" /> : <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+            <span>Checkpoint &amp; Planning Guide</span>
           </button>
-          <ClipboardCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <span>Checkpoint &amp; Planning Guide</span>
-          <span className={EMERALD_PILL} data-testid="guide-yes-count">
+          <span className={EMERALD_PILL} data-pill="yes" data-testid="guide-yes-count">
             {g.yesIds.length} Yes
           </span>
-          {g.dirty && <span className={AMBER_PILL}>Unsaved</span>}
+          {g.dirty && (
+            <span className={UNSAVED_PILL} data-pill="unsaved">
+              Unsaved
+            </span>
+          )}
           <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400" data-testid="guide-saved-by">
             {savedText(g.stored)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2 justify-end">
           {g.dirty && (
-            <button type="button" onClick={discard} disabled={busy} className="btn btn-ghost btn-xs font-semibold gap-1">
-              <RotateCcw className="h-3 w-3" /> Discard
+            <button type="button" data-action="discard-guide" onClick={discard} disabled={busy || pageSaving} className={STRIP_BTN}>
+              Discard
             </button>
           )}
           <button
             type="button"
             data-action="save-guide"
             onClick={saveGuide}
-            disabled={!g.ready || busy}
-            className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
+            disabled={!g.ready || busy || pageSaving}
+            className={SAVE_BTN}
           >
             {g.saving ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
             Save Guide
+          </button>
+          <button
+            type="button"
+            data-action="toggle-guide"
+            onClick={toggleHidden}
+            aria-label={`${hidden ? 'Unhide' : 'Hide'} Checkpoint & Planning Guide`}
+            aria-expanded={!hidden}
+            aria-controls={hidden ? undefined : bodyId}
+            className={STRIP_BTN}
+          >
+            {hidden ? 'Unhide' : 'Hide'}
           </button>
         </div>
       </div>
 
       {!hidden && (
-        <div id={bodyId} className="p-3 md:p-4 flex flex-col gap-3">
+        <div id={bodyId} className={BODY_CLS}>
           {g.notice && (
             <div
               role="alert"
@@ -298,7 +343,7 @@ function Checkpoints({ g }: { g: PlanningGuide }) {
       );
   } else if (g.listError) {
     content = (
-      <div role="alert" className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-red-600 dark:text-red-400">
+      <div role="alert" className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-error">
         <span>{g.listError}</span>
         <button type="button" onClick={g.retryList} disabled={g.retryingList} className="btn btn-xs gap-1">
           {g.retryingList ? <InlineSpinner size={12} /> : <RefreshCw className="h-3 w-3" />} Retry
@@ -363,29 +408,40 @@ function GuideDates({ g }: { g: PlanningGuide }) {
         <p className="text-[11px] text-gray-500 dark:text-gray-400">No T&amp;A in the General file for this order.</p>
       )}
       <div className="overflow-x-auto custom-scrollbar w-full">
-        <table data-guide-table="" className="w-full text-left whitespace-nowrap border-collapse border border-gray-300 dark:border-[#2a3346]">
-          <thead className="select-none">
-            <tr className="text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]">
-              <th className={cn(CELL_CLS, 'text-center')}>Guide</th>
-              <th className={cn(CELL_CLS, 'text-center')}>Start</th>
-              <th className={cn(CELL_CLS, 'text-center')}>End</th>
-              <th className="p-2">Source</th>
+        <table
+          data-guide-table=""
+          className="w-full text-left whitespace-nowrap border-collapse border border-gray-300 dark:border-[#2a3346] max-sm:block"
+        >
+          <thead className="select-none max-sm:block">
+            <tr
+              className={cn(
+                'text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]',
+                NARROW_ROW
+              )}
+            >
+              <th className={cn(CELL_CLS, 'text-center', NARROW_LABEL)}>Guide</th>
+              <th className={cn(CELL_CLS, 'text-center', NARROW_DATE)}>Start</th>
+              <th className={cn(CELL_CLS, 'text-center', NARROW_DATE)}>End</th>
+              <th className="p-2 max-sm:hidden">Source</th>
             </tr>
           </thead>
-          <tbody className="text-[10px] bg-white dark:bg-[#151921] text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-[#2a3346]">
+          <tbody className="text-[10px] bg-white dark:bg-[#151921] text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-[#2a3346] max-sm:block">
             {g.rows.map((row) => (
               <tr
                 key={row.row}
                 data-guide-row={row.row}
-                className="hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors"
+                className={cn(
+                  'hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border-b border-gray-200 dark:border-[#2a3346] transition-colors',
+                  NARROW_ROW
+                )}
               >
-                <td className={cn(CELL_CLS, 'text-center font-bold text-gray-800 dark:text-gray-100')}>
+                <td className={cn(CELL_CLS, 'text-center font-bold text-gray-800 dark:text-gray-100', NARROW_LABEL)}>
                   {row.label}
                   {row.changed && <ChangedMarker row={row} />}
                 </td>
                 <DateCell g={g} row={row} edge="start" />
                 <DateCell g={g} row={row} edge="end" />
-                <td className="p-2 align-top whitespace-normal min-w-[180px]">
+                <td className="p-2 align-top whitespace-normal min-w-[180px] max-sm:basis-full max-sm:min-w-0 max-sm:pt-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-gray-500 dark:text-gray-400">{row.source}</span>
                     {row.row === 'knit' && leadShown && (
@@ -438,8 +494,8 @@ function GuideDates({ g }: { g: PlanningGuide }) {
 }
 
 /**
- * Below `sm` the table scrolls sideways and its Source column (the hint and Apply) starts out of view: this marker
- * on the always-visible row label shows the pending change and scrolls to it. Not drawn from `sm` up.
+ * Below `sm` the row's Source cell (the hint and Apply) wraps under its dates: this marker on the row label also
+ * flags the pending change, and brings the hint into view with Apply focused. Not drawn from `sm` up.
  */
 function ChangedMarker({ row }: { row: GuideRowView }) {
   const showHint = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -469,7 +525,7 @@ function DateCell({ g, row, edge }: { g: PlanningGuide; row: GuideRowView; edge:
   const raw = edge === 'start' ? row.rawStart : row.rawEnd;
   const name = `${row.label} ${edge === 'start' ? 'Start' : 'End'}`;
   return (
-    <td className={cn(CELL_CLS, 'text-center align-top')}>
+    <td className={cn(CELL_CLS, 'text-center align-top', NARROW_DATE)}>
       <input type="date" aria-label={name} value={value} onChange={(e) => g.setDate(key, e.target.value)} className={DATE_CLS} />
       {raw && (
         <div className="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400 whitespace-normal" title="The T&A value is not a date, so this cell starts blank and gets no lead days">
