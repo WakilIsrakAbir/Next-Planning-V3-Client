@@ -811,6 +811,101 @@ fixtures['empty-order'] = {
   };
 }
 
+// ---- placeholders that only the save checks read: '-' / 'N/A' Yarn Date on a saved Confirm, a '-' Dyeing start ----
+{
+  const no = 'SYN-X2';
+  const id = no.toLowerCase();
+  fixtures['legacy-save-placeholders'] = {
+    about:
+      "Placeholders saved by older code that the save checks read. Knitting: row 0 Red Tentative with a Yarn Date; rows 1 Blue and 2 Green saved Confirm with a Yarn Date of '-' and 'N/A' (SAVE-06 counts both as none). Delivery: one Navy row saved with Floor dates only, under a Navy Dyeing row typed Tentative whose start and end are '-' (SAVE-12 counts the start as missing; the saved Floor dates keep the Floor defaults from reading '-' as a date).",
+    orderNo: no,
+    orders: [
+      order(no, {
+        knittingItems: [knitRow(no, 'Red', 'S/J', 160, 500), knitRow(no, 'Blue', 'S/J', 180, 300), knitRow(no, 'Green', 'Rib', 200, 200)],
+        deliveryItems: [deliRow(no, 'Navy', 'S/J', 160, 120)],
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        knitting: [
+          plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-05', '2026-10-15', 'Tentative', { yarnDate: '2026-10-01' }),
+          plan(`${id}_blue_s/j_180`, { Color: 'Blue', FabricConstruction: 'S/J' }, '2026-10-06', '2026-10-16', 'Confirm', { yarnDate: '-' }),
+          plan(`${id}_green_rib_200`, { Color: 'Green', FabricConstruction: 'Rib' }, '2026-10-07', '2026-10-17', 'Confirm', { yarnDate: 'N/A' }),
+        ],
+        dyeing: [plan(`${id}_navy_solid`, { Color: 'Navy' }, '-', '-', 'Tentative')],
+        delivery: [
+          plan(`${id}_navy_s/j_160`, { Color: 'Navy', FabricConstruction: 'S/J' }, '', '', '', {
+            floorStartDate: '2026-10-25',
+            floorEndDate: '2026-11-03',
+            floorPlanType: 'Tentative',
+          }),
+        ],
+      }),
+    ],
+  };
+}
+
+// ---- knitting: one row that fails two save checks (the first one found wins) ----
+{
+  const no = 'SYN-K5';
+  const id = no.toLowerCase();
+  fixtures['knit-save03-first'] = {
+    about:
+      'One knitting row saved by older code that fails two save checks: its Start (10-12) is after its End (10-08), SAVE-03, and before its Yarn Date (10-15), SAVE-07. The save stops at the first failing check.',
+    orderNo: no,
+    orders: [order(no, { knittingItems: [knitRow(no, 'Red', 'S/J', 160, 500)] })],
+    orderDates: [
+      orderDate(no, {
+        knitting: [plan(`${id}_red_s/j_160`, { Color: 'Red', FabricConstruction: 'S/J' }, '2026-10-12', '2026-10-08', '', { yarnDate: '2026-10-15' })],
+      }),
+    ],
+  };
+}
+
+// ---- every department: an order never planned (no OrderDate document at all) ----
+{
+  const no = 'SYN-N1';
+  fixtures['no-saved-plan'] = {
+    about:
+      "An order with one row per department and no saved plan at all (no OrderDate document): every department shows the 'On Process' default status, and Cancel on the Completed prompt returns to it.",
+    orderNo: no,
+    orders: [
+      order(no, {
+        ydItems: [ydRow(no, 'Solid', 'YDB-601')],
+        knittingItems: [knitRow(no, 'Red', 'S/J', 160, 500)],
+        dyeingItems: [dyeRow(no, 'Red', 'EFL', 'Solid', 500)],
+        finishingItems: [dyeRow(no, 'Red', 'EFL', 'Solid', 500)],
+        deliveryItems: [deliRow(no, 'Red', 'S/J', 160, 500)],
+      }),
+    ],
+    orderDates: [],
+  };
+}
+
+// ---- yd: Workable Qty. as older code saved it ----
+{
+  const no = 'SYN-Y4';
+  const id = no.toLowerCase();
+  fixtures['yd-workable-legacy'] = {
+    about:
+      "YD Workable Qty. as older code saved it (like 5 rows of the local copy): 'Workable Qty.' 0 (row 0) or '' (row 1) in the saved itemData and no top-level workableQty, while the Excel rows have 25 and 30. The input shows the saved value, and the save copies it into itemData over the Excel value. Both rows are saved Tentative with valid dates, so a save goes through.",
+    orderNo: no,
+    orders: [
+      order(no, {
+        ydItems: [ydRow(no, 'Solid', 'YDB-501', { 'Workable Qty.': 25 }), ydRow(no, 'Stripe', 'YDB-502', { 'Workable Qty.': 30 })],
+      }),
+    ],
+    orderDates: [
+      orderDate(no, {
+        yd: [
+          plan(`${id}_solid_ydb-501`, { YDB: 'YDB-501', 'Booking Type': 'Solid', 'Workable Qty.': 0 }, '2026-10-10', '2026-10-20', 'Tentative'),
+          plan(`${id}_stripe_ydb-502`, { YDB: 'YDB-502', 'Booking Type': 'Stripe', 'Workable Qty.': '' }, '2026-10-12', '2026-10-22', 'Tentative'),
+        ],
+      }),
+    ],
+  };
+}
+
 /* ---------------- write ---------------- */
 
 const isPrimitive = (v) => v === null || typeof v !== 'object';

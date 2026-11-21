@@ -153,6 +153,32 @@ function checksBeforeCompletedPrompt(dept: Dept): Scenario[] {
   }));
 }
 
+/**
+ * SAVE-15 on an order never planned (no OrderDate document, so no saved status): the select starts at 'On Process',
+ * and Cancel on the Completed prompt returns it there. The next save sends 'On Process'.
+ */
+function cancelOnNeverSaved(dept: Dept): Scenario[] {
+  return forRoles(() => ({
+    name: 'save15-cancel-never-saved',
+    dept,
+    fixture: 'no-saved-plan',
+    rules: ['SAVE-15', 'STAT-01', 'SAVE-16', 'SAVE-17'],
+    note: `${NAMES[dept]} never saved (no OrderDate): Completed is picked and the prompt cancelled; the select returns to 'On Process', and the next save sends it.`,
+    steps: [{ do: 'load' }, { do: 'status', value: 'Completed' }, { do: 'save', confirm: [false] }, { do: 'save' }],
+    expect: [
+      { step: 1, status: 'On Process' },
+      { step: 2, status: 'Completed' },
+      { step: 3, confirm: T.completedConfirm('SYN-N1') },
+      { step: 3, saved: false },
+      { step: 3, status: 'On Process' },
+      { step: 4, saved: true },
+      { step: 4, toast: T.saved('SYN-N1') },
+      { step: 4, body: { key: 'orderStatus', equals: 'On Process' } },
+      { step: 4, status: 'On Process' },
+    ],
+  }));
+}
+
 /** An order without rows for the department: the empty table, and the save refused (SAVE-00). */
 function noItems(dept: Dept): Scenario[] {
   return forRoles(() => ({
@@ -190,4 +216,5 @@ export const commonScenarios: Scenario[] = DEPTS.flatMap((dept) => [
   ...noItems(dept),
   ...notFound(dept),
   ...checksBeforeCompletedPrompt(dept),
+  ...cancelOnNeverSaved(dept),
 ]);

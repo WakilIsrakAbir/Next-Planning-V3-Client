@@ -1,0 +1,201 @@
+{
+  "scenario": "yd/save15-cancel-never-saved/admin",
+  "fixture": "no-saved-plan",
+  "dept": "yd",
+  "role": "admin",
+  "orderNo": "SYN-N1",
+  "rules": ["SAVE-15","STAT-01","SAVE-16","SAVE-17"],
+  "note": "YD Plan never saved (no OrderDate): Completed is picked and the prompt cancelled; the select returns to 'On Process', and the next save sends it.",
+  "steps": [
+    {
+      "n": 1,
+      "step": {"do":"load"},
+      "initial": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-N1 YD Plan",
+        "general": {
+          "EWO No.": "SYN-N1",
+          "Booking No.": "SYN-N1",
+          "Booking Date": "—",
+          "Gmt Unit": "",
+          "Floor": "",
+          "Final Conf.": "",
+          "BP Status": "—",
+          "PMC": "",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "N/A",
+          "Buyer Team": "",
+          "Booked By": "",
+          "Style": "",
+          "Order Qty (Kg)": "—",
+          "Event Day": "",
+          "1st Ship Date": "—",
+          "Last Ship Date": "—",
+          "Yarn Date": "—",
+          "Deli. Start Date": "—",
+          "Deli. End Date": "—",
+          "Knit Start Date": "—",
+          "Knit End Date": "—",
+          "Dye Start Date": "—",
+          "Dye End Date": "—",
+          "Fabric Notes": ""
+        },
+        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [],
+          "message": "Loading YD Plan items & milestones... Synchronizing order plan details from database"
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      },
+      "events": {
+        "requests": [
+          {"method":"GET","url":"/api/orders/SYN-N1?dept=yd","auth":"Bearer test-token"},
+          {"method":"GET","url":"/api/dropdowns","auth":"Bearer test-token"}
+        ]
+      },
+      "state": {
+        "view": "page",
+        "toast": null,
+        "header": "Order Planning: SYN-N1 YD Plan",
+        "general": {
+          "EWO No.": "SYN-N1",
+          "Booking No.": "SYN-N1",
+          "Booking Date": "31-Aug-2026",
+          "Gmt Unit": "EFL",
+          "Floor": "",
+          "Final Conf.": "Yes",
+          "BP Status": "Approved",
+          "PMC": "PMC-1",
+          "Order Status": {
+            "value": "On Process",
+            "disabled": false,
+            "title": null,
+            "options": ["On Process","Pending","Tentative","Confirm","Completed"]
+          },
+          "Buyer": "Buyer North",
+          "Buyer Team": "Team A",
+          "Booked By": "Booker One",
+          "Style": "Polo Basic",
+          "Order Qty (Kg)": "2000",
+          "Event Day": "Day 3",
+          "1st Ship Date": "01-Dec-2026",
+          "Last Ship Date": "—",
+          "Yarn Date": "01-Oct-2026",
+          "Deli. Start Date": "25-Oct-2026",
+          "Deli. End Date": "10-Nov-2026",
+          "Knit Start Date": "02-Oct-2026",
+          "Knit End Date": "21-Oct-2026",
+          "Dye Start Date": "12-Oct-2026",
+          "Dye End Date": "30-Oct-2026",
+          "Fabric Notes": "Synthetic order SYN-N1."
+        },
+        "section": {"header":"Department Fabric Items 1 Row 1 changes auto-fill all items below","footer":"Total 1 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "table": {
+          "plan": "yd",
+          "head": [
+            ["Booking Type","YDB","YD Booking Date","YD Planning","Plan Type","YD Remarks","Remarks","Yarn Ok Date","Matching Option Date","YD Planning (Floor)","T&A YD Plan","Knit Plan","Barrier Qty.","Workable Qty.","YD REQ.","DYED","YD BALANCE","YD Delivered","YD DELIVERY BALANCE"],
+            ["Start Date","End Date","YD Start","YD End","Plan Type","YD T&A Start","YD T&A End","Knit Start","Knit End"]
+          ],
+          "rows": [
+            {
+              "row": "0",
+              "text": ["Solid","YDB-601","05-Sep-2026",null,null,null,null,null,null,null,null,null,null,"03-Oct-2026","12-Oct-2026","02-Oct-2026","21-Oct-2026",null,null,"120","40","80","30","90"],
+              "fields": {
+                "startDate": {"value":"","disabled":false,"title":null},
+                "endDate": {"value":"","disabled":false,"title":null},
+                "planType": {"value":"","disabled":false,"title":null},
+                "limitation": {"value":"","disabled":false,"title":null},
+                "remarks": {"value":"","disabled":false,"title":null},
+                "yarnOkDate": {"value":"","disabled":false,"title":null},
+                "matchingOptionDate": {"value":"","disabled":false,"title":null},
+                "floorStartDate": {"value":"","disabled":false,"title":null},
+                "floorEndDate": {"value":"","disabled":false,"title":null},
+                "floorPlanType": {"value":"","disabled":false,"title":null},
+                "barrierQty": {"value":"","disabled":false,"title":null},
+                "workableQty": {"value":"","disabled":false,"title":null}
+              }
+            }
+          ],
+          "message": null
+        },
+        "buttons": [
+          {"text":"Go Back","disabled":false},
+          {"text":"Back","disabled":false},
+          {"text":"Save Planning","disabled":false,"action":"save"},
+          {"text":"Cancel","disabled":false},
+          {"text":"Save Planning Schedule","disabled":false,"action":"save"}
+        ]
+      }
+    },
+    {"n":2,"step":{"do":"status","value":"Completed"},"changes":{"general.Order Status.value":"Completed"}},
+    {
+      "n": 3,
+      "step": {"do":"save","confirm":[false]},
+      "events": {
+        "confirms": [
+          {"message":"Are you sure you want to mark order 'SYN-N1' as Completed? It will be moved to the Completed List.","answer":false}
+        ]
+      },
+      "changes": {"general.Order Status.value":"On Process"}
+    },
+    {
+      "n": 4,
+      "step": {"do":"save"},
+      "events": {
+        "toasts": ["success: Planning schedule successfully saved for Order #SYN-N1!"],
+        "requests": [
+          {
+            "method": "POST",
+            "url": "/api/orders/save-dates",
+            "auth": "Bearer test-token",
+            "body": {
+              "orderNo": "SYN-N1",
+              "department": "yd",
+              "fabricItems": [
+                {
+                  "itemId": "syn-n1_solid_ydb-601",
+                  "itemData": {"OrderNo":"SYN-N1","Booking Type":"Solid","YDB":"YDB-601","YD Booking Date":46270,"YD T&A Start":"2026-10-03","YD T&A End":"2026-10-12","YD REQ.":120,"DYED":40,"YD BALANCE":80,"YD Delivered":30,"YD DELIVERY BALANCE":90,"Barrier Qty.":"","Workable Qty.":""},
+                  "planType": "",
+                  "startDate": "",
+                  "endDate": "",
+                  "limitation": "",
+                  "remarks": "",
+                  "floorStartDate": "",
+                  "floorEndDate": "",
+                  "floorPlanType": "",
+                  "yarnDate": "",
+                  "yarnOkDate": "",
+                  "matchingOptionDate": "",
+                  "unit": "",
+                  "processName": "",
+                  "barrierQty": "",
+                  "workableQty": ""
+                }
+              ],
+              "orderStatus": "On Process"
+            }
+          },
+          {"method":"GET","url":"/api/orders/SYN-N1?dept=yd","auth":"Bearer test-token"}
+        ]
+      },
+      "changes": {"toast":"success: Planning schedule successfully saved for Order #SYN-N1!"}
+    }
+  ]
+}

@@ -178,4 +178,25 @@ export const ydScenarios: Scenario[] = [
       { step: 3, body: { item: 2, key: 'matchingOptionDate', equals: '2026-10-11' } },
     ],
   })),
+
+  // yd-workable-legacy (SYN-Y4): saved itemData 'Workable Qty.' 0 (row 0) and '' (row 1), no top-level workableQty;
+  // the Excel rows have 25 and 30.
+  ...forRoles(() => ({
+    name: 'auto10-legacy-workable-qty',
+    dept,
+    fixture: 'yd-workable-legacy',
+    rules: ['AUTO-10', 'SAVE-16', 'SAVE-17'],
+    note: "Workable Qty. as older code saved it: a saved 'Workable Qty.' of 0 or '' is shown instead of the Excel 25 / 30, and the save sends it, also inside itemData, where it replaces the Excel value.",
+    steps: [{ do: 'load' }, { do: 'save' }],
+    expect: [
+      { step: 1, field: [0, 'workableQty'], value: '0' },
+      { step: 1, field: [1, 'workableQty'], value: '' },
+      { step: 2, saved: true },
+      { step: 2, toast: T.saved('SYN-Y4') },
+      { step: 2, body: { item: 0, key: 'workableQty', equals: 0 } },
+      { step: 2, body: { item: 0, itemData: true, key: 'Workable Qty.', equals: 0 } },
+      { step: 2, body: { item: 1, key: 'workableQty', equals: '' } },
+      { step: 2, body: { item: 1, itemData: true, key: 'Workable Qty.', equals: '' } },
+    ],
+  })),
 ];

@@ -1,3 +1,4 @@
+import { format } from 'node:util';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { harnessState } from '../harness/state';
@@ -49,6 +50,24 @@ vi.mock('next/link', async () => {
   return { default: Link };
 });
 
+// Any console.error or console.warn during a test fails it: React reports missing or duplicate keys, act() problems and
+// hook-order changes there, and jsdom reports what it cannot do. The one line allowed is the page's own log of a failed
+// order load (OrderPlanningScreen.tsx logs the "Failed to load order #<orderNo>" error before its toast).
+const ALLOWED_CONSOLE_ERRORS = [/^Error: Failed to load order #/];
+let consoleProblems: string[] = [];
+for (const level of ['error', 'warn'] as const) {
+  const write = console[level].bind(console);
+  console[level] = (...args: unknown[]) => {
+    const text = format(...args);
+    const allowed = level === 'error' && ALLOWED_CONSOLE_ERRORS.some((re) => re.test(text));
+    if (!allowed) consoleProblems.push(`console.${level}: ${text}`);
+    write(...args);
+  };
+}
+
 afterEach(() => {
   cleanup();
+  const problems = consoleProblems;
+  consoleProblems = [];
+  if (problems.length > 0) throw new Error(`Unexpected console output (tests/setup/setup.ts):\n${problems.join('\n')}`);
 });
