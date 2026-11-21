@@ -313,13 +313,30 @@ function sameItems(a: Loose[] | undefined, b: Loose[] | undefined): boolean {
 }
 
 /**
+ * The itemData keys the server's fingerprint covers besides the plan fields (SERVER src/utils/plan-fingerprint.ts):
+ * people change them (V2 saves Unit, Process Name and the YD quantities only inside itemData), while every other
+ * itemData key is Excel data.
+ */
+const FINGERPRINT_ITEM_DATA_KEYS = ['Unit', 'ProcessName', 'Process Name', 'Barrier Qty.', 'Workable Qty.'];
+
+function itemDataDiffers(rows: Loose[], base: Loose[]): boolean {
+  for (let i = 0; i < rows.length; i++) {
+    for (const k of FINGERPRINT_ITEM_DATA_KEYS) {
+      if (norm(rows[i]?.itemData?.[k]) !== norm(base[i]?.itemData?.[k])) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * The group's baseline (what the unsaved work was made on) is what a read shows now: the same items, the same values
- * of the group's fields, and for the status group the same Order Status.
+ * of the group's fields and of the fingerprinted itemData keys (a save sends the whole rows, so it would overwrite a
+ * change there too), and for the status group the same Order Status.
  */
 function baseMatchesRead(draft: DeptDraft, dept: string, group: GroupKey, merged: Loose[], status: string): boolean {
   if (group === statusGroupOf(dept) && draft.baseStatus !== status) return false;
   const base = draft.base[group];
-  return sameItems(base, merged) && !rowsDiffer(merged, base, groupFields(group));
+  return sameItems(base, merged) && !rowsDiffer(merged, base, groupFields(group)) && !itemDataDiffers(merged, base as Loose[]);
 }
 
 /**

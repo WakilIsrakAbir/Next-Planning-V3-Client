@@ -138,6 +138,26 @@ describe('another user changes the SAME group as my draft (non-delivery)', () =>
     // Their Unit must survive (refused, or saved on top of it).
     expect(stored(page).dyeing[0].itemData.Unit).toBe('EKL');
   });
+
+  it('itemData.Unit changed while a top-level unit stays (V3 row kept, Unit changed in itemData only): their Unit survives', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
+    // First a V3 save, so the stored dyeing rows carry a top-level unit.
+    await page.set('dyeing', 0, 'remarks', 'first');
+    await page.saveSection('dyeing');
+    await page.wait(4000);
+    expect(stored(page).dyeing[0].unit).toBe('EFL');
+    await page.set('dyeing', 1, 'remarks', 'mine');
+    await page.wait(1000);
+    await someoneElseSaves(page, 'dyeing', (rows) => {
+      rows[0].itemData = { ...rows[0].itemData, Unit: 'EKL' };
+    });
+    await page.wait(1000);
+    await readViaKnittingSave(page);
+    await page.saveSection('dyeing');
+    // The read is not adopted (the itemData Unit is fingerprinted): my save is refused, their Unit stays.
+    expect(page.toasts.at(-1)).toBe(`error: ${conflictText('Dyeing')}`);
+    expect(stored(page).dyeing[0].itemData.Unit).toBe('EKL');
+  });
 });
 
 describe('another user changes the OTHER delivery group', () => {
@@ -350,6 +370,29 @@ describe('reads racing with saves (keep-newest)', () => {
     rec.yd[0].itemData = { ...rec.yd[0].itemData, 'Barrier Qty.': 50 };
     rec.updatedAt = new Date(Date.now()).toISOString();
     await page.saveSection('yd');
+    expect(page.toasts.at(-1)).toBe(`error: ${conflictText('YD')}`);
+    expect(stored(page).yd[0].itemData['Barrier Qty.']).toBe(50);
+  });
+
+  it('yd + read: the same upload, then a read (Knitting save), then Save YD: refused, their Barrier Qty. stays', async () => {
+    page = await openPage({ fixture: twoRows(), dept: 'yd', role: 'admin' });
+    await page.set('yd', 0, 'remarks', 'first');
+    await page.saveSection('yd');
+    await page.wait(4000);
+    const rec0 = stored(page);
+    rec0.yd[0].barrierQty = '';
+    rec0.yd[0].itemData = { ...rec0.yd[0].itemData, 'Barrier Qty.': '' };
+    rec0.updatedAt = new Date(Date.now()).toISOString();
+    await page.reload();
+    await page.set('yd', 0, 'limitation', 'mine');
+    await page.wait(1000);
+    const rec = stored(page);
+    rec.yd[0].itemData = { ...rec.yd[0].itemData, 'Barrier Qty.': 50 };
+    rec.updatedAt = new Date(Date.now()).toISOString();
+    await page.wait(1000);
+    await readViaKnittingSave(page);
+    await page.saveSection('yd');
+    // A silent overwrite would leave ''.
     expect(page.toasts.at(-1)).toBe(`error: ${conflictText('YD')}`);
     expect(stored(page).yd[0].itemData['Barrier Qty.']).toBe(50);
   });
