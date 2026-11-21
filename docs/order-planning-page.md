@@ -76,7 +76,11 @@ Each section has a strip above today's table card. The strip holds:
 - the title;
 - the pills `<n> items`, `Unsaved`, `View only` and `Not in latest file`;
 - the section's own Order Status select (for delivery it is on the Lock section);
-- Discard (asks first), `Save <Dept>` (`Save Floor` / `Save Lock` for delivery) and Hide/Unhide.
+- Discard (named "Discard <Section> changes"; asks first: "Discard the unsaved changes in <Section>?"), `Save <Dept>`
+  (`Save Floor` / `Save Lock` for delivery) and Hide/Unhide.
+
+The strip's Order Status select and the guide's selects and date inputs show a focus ring for keyboard focus
+(`focus-visible`).
 
 Hide/Unhide is remembered per page in localStorage `orderPage.hiddenSections` (`<route>:<section>`). Everything the
 page adds around today's card is marked `data-c2-chrome`.
@@ -100,18 +104,22 @@ decisions D9-D13 of the plan). It holds a Yes/No per Active Plan Check List crit
 Dye, Floor and Lock (Start and End), with the Checklist lead badge on the Knit row. It is a guide only: it never changes
 plan rows, the Order's T&A fields or any validation (D13). Anyone who can open the page may edit it (D12).
 
-- **Strip.** The same strip as a section: title, `<n> Yes` and `Unsaved` pills, Discard, `Save Guide` and
-  Hide/Unhide. Hide/Unhide uses the page's store under the key `<route>:guide`.
+- **Strip.** The same strip as a section: title, `<n> Yes` and `Unsaved` pills, Discard ("Discard the unsaved
+  changes in Planning Guide?"), `Save Guide` and Hide/Unhide. Hide/Unhide uses the page's store under the key
+  `<route>:guide`.
 - **Data.** The guide comes only from a full detail answer (the cached one, then every read), never from a plan-list
   row: the card gets `order` only once `model.loaded` is true. The criteria come from `plan-check-list.ts`.
 - **Keep-newest by `guide.version`.** `applyRead` takes the read's guide only when its version is higher than the
   page's (`isNewerGuide`). This is separate from the plan's `updatedAt` guard and runs before it, so a read with an older
   plan can still bring a newer guide. It holds for every read: the first one, the one after a save, and "Load latest".
   The card keeps its own unsaved changes on top of the guide they started from; saving them over a newer guide is
-  refused (409) and the card offers Reload.
+  refused (409) and the card offers Reload. The server's 409 text ends "Reload the page to see the latest values.";
+  the card (and Save Data's message) shows "Click Reload to see the latest values." instead, as the Plan Check List
+  page does.
 - **Saving.** `Save Guide` first reads the order's T&A and the Plan Check List again (save check); when they changed
   since the page loaded them, nothing is sent and the card asks to check and save again. Otherwise it sends
-  `PUT plan-guide` with the version it is based on.
+  `PUT plan-guide` with the version it is based on. "Planning Guide saved for Order #<orderNo>." is shown in the
+  page's toast (`onToast`), so two toasts never overlap; the card used on its own shows its own toast.
 - **Cache.** A saved or reloaded guide goes into all five detail cache keys (`storeGuideInAllDetailKeys`) and marks the
   order recently saved (`fresh=1` reads). Every plan save and every read caches the page's newest guide with the plan.
 - **Save Data.** The card hands the page its Save Data step (`onSaveExtraChange`); see [Saving](#saving).
@@ -139,16 +147,25 @@ Reducer actions:
 - `hydrate`: a read.
   - Clean groups (and groups listed in `drop`) are merged again from it; dirty groups keep their drafts.
   - The department takes the read's fingerprint only when every group that keeps a draft was made on what the read
-    shows (its baseline equals the read: same item ids, same group values and, for the status group, the same status).
-    The kept drafts are then rebased on the read. Otherwise the old base stays, so a later save is refused (409)
-    instead of silently overwriting someone else's change.
+    shows (`baseMatchesRead`): its baseline equals the read, with the same item ids, the same group values, the same
+    values of the five itemData keys the server fingerprint also covers (`Unit`, `ProcessName`, `Process Name`,
+    `Barrier Qty.`, `Workable Qty.`) and, for the status group, the same status. The kept drafts are then rebased on
+    the read. Otherwise the old base stays, so a later save is refused (409) instead of silently overwriting someone
+    else's change.
   - A read older than the plan on screen is ignored (`isOlderPlanData`). Once a saved plan with `updatedAt` is on
     screen, a read without a plan or without `updatedAt` counts as older, because an OrderDate is never deleted.
 - `rows`, `status`: edits (a status change before `loaded` is ignored).
 - `discard`: a group back to its baseline.
-- `saved`: a successful save. Only the saved groups are merged again from the answer, and only their departments
-  adopt the answer's fingerprints. The answer carries fingerprints for all five departments; adopting the fingerprint
-  of a section that stays dirty would absorb someone else's save (lost update).
+- `saved`: a successful save.
+  - The saved groups, and the clean groups of their departments, are merged again from the answer. Only those
+    departments adopt the answer's fingerprints. The answer carries fingerprints for all five departments; adopting the
+    fingerprint of a section that stays dirty would absorb someone else's save (lost update).
+  - A group of a saved department that this save did not send and that keeps unsaved work must have been made on what
+    is stored now (`baseMatchesRead` against the answer). Otherwise (only possible after "Save mine anyway" of the
+    other delivery group, see [Conflicts](#conflicts-409-plan-d7)) the department keeps its old base and that group
+    shows the conflict alert, so saving it is refused instead of overwriting what was just kept.
+  - Keep-newest: an answer older than the plan on screen (a read of a later save answered first) does not replace
+    `planData`; the saved groups are merged again from the newer plan on screen, which holds this save or a later one.
 - `conflict`, `force`: plan D7 (see [Conflicts](#conflicts-409-plan-d7)).
 - `restore`: backed-up work put back into the drafts.
 
@@ -157,6 +174,8 @@ The page also guards reads in `applyRead`:
 - A read that makes a section unchangeable (`canSave` true -> false) drops that section's draft, as Discard would.
 - The keep-newest guard compares with `newestPlanRef`, which is set when a save answer is dispatched. A read that
   answers right after a save therefore cannot overwrite the saved plan, or the cache, with an older copy.
+- The same guard holds for a save answer: one older than `newestPlanRef` is not written to the detail cache (and the
+  reducer keeps the newer plan, see `saved`).
 
 Performance (SPEC C2 10c, T14):
 
@@ -173,15 +192,16 @@ Typing on the largest order (272147, 112 rows on the page) stays under 50 ms per
 | Button | Sends |
 |---|---|
 | Strip `Save <Dept>` / `Save Floor` / `Save Lock` | That section, even when it is clean (as today's Save) |
-| Card footer `Save Planning Schedule` (route section) | That section; on the delivery page the whole Delivery plan (Floor and Lock), as today's single footer button did |
+| Card footer `Save Planning Schedule` (route section) | That section; on the delivery page the whole Delivery plan (Floor and Lock), as today's single footer button did. There both tables have this footer, each with the title "Saves Delivery Floor and Lock together" |
 | Header `Save Data (n)` | Every dirty section, then the Planning Guide when it is dirty (SPEC C2 10a extras; the count includes it). Disabled when nothing is dirty |
 | Card `Save Guide` | The Planning Guide only (also when it is clean); never a plan |
 
 What a save of one delivery group sends (`rowsForSave`, D3):
 
 - that group's fields from the draft;
-- the other group's fields from its baseline;
-- the status: the draft status when Lock is saved, otherwise the baseline status.
+- the other group's fields from its baseline (from a fresh read for "Save mine anyway", see
+  [Conflicts](#conflicts-409-plan-d7));
+- the status: the draft status when Lock is saved, otherwise the baseline status (or the fresh read's).
 
 `validateForSave('delivery')` checks exactly those rows. Save Data with both groups dirty sends the full draft.
 
@@ -210,7 +230,8 @@ After a successful save:
   data);
 - `markOrderRecentlySaved` makes the next 2 minutes of detail reads use `fresh=1` (kept in sessionStorage across a
   reload);
-- `markBatchDataStale()` is called and today's success toast shows;
+- `markBatchDataStale()` is called and today's success toast shows (one toast at a time: a newer toast restarts the
+  3.8 s timer; the Planning Guide card's "Planning Guide saved" also uses the page's toast);
 - the page reads the order again.
 
 Errors:
@@ -257,6 +278,13 @@ On a 409:
 - **Save mine anyway** (shown only while the section has unsaved work): sends the refused save again (Save Data again,
   or that department's refused sections) without `base` for the refused departments. That choice holds for the
   department until it is saved, so a second refusal of another department does not bring it back.
+  - For a refused Delivery, the page first reads the order with `fresh=1`. A save of one delivery group sends the
+    other group's fields (and, when Floor is saved, the status) as that read shows them, not from the page's baseline,
+    so forcing Floor keeps someone else's Lock changes and vice versa. Only the user's own unsaved work overwrites
+    theirs. If that read fails, nothing is sent ("Could not load the latest plan of Order #<orderNo>. Please try
+    again.").
+  - If the other group also has unsaved work made before their change, it is not sent: it stays unsaved, the alert
+    moves to it, and saving it is refused until the user chooses Load latest or Save mine anyway there.
   - Save Data again is a whole Save Data: the plans first, then the Planning Guide when it is dirty, with the same
     messages ("Plans saved. Planning Guide not saved: <reason>"). A refused section Save sent again stays a section
     save: it never sends the guide.
@@ -301,12 +329,20 @@ Some exits cannot be stopped. Work still has to survive them (plan 2.1, "কা�
 - **Written** 500 ms after the last change, and at once when the page goes away: unmount (in-app navigation, the
   forced redirect to `/login`) and `pagehide` (reload, close). The user is the one who opened the page, so a sign-out
   that has already removed the stored user still writes under the right name.
-- **Offered** after the first read of a later visit in the same tab, as an in-page alert: "Unsaved changes in: <sections>
-  were kept from your last visit. Restore them?" with Restore and Discard. It is offered only when all of these hold:
+- **Offered** after the first read of a later visit in the same tab, as an in-page alert: "Unsaved changes from your
+  last visit were kept for: <sections>. Restore them?" with Restore and Discard. It is offered only when all of these
+  hold:
   - the backup's fingerprint is still the department's stored fingerprint (nobody saved it since);
   - the order still has the same items;
   - the section is one the user may change on this page;
   - the same user is signed in.
+- **Saved since.** When a section's backup was made on another fingerprint (the department was saved since), it is
+  not offered. One line in the same place names it instead: "<sections> work from your last visit could not be
+  restored: it was saved by someone else since." That backup is removed only after the line has been shown. Sections
+  the user may not change on the page are neither named nor touched there.
+- **Restore checks again.** Restore puts back only backups whose fingerprint is still the department's (a read while
+  the offer was shown may have adopted someone else's save); the others are dropped with the toast "Some unsaved
+  changes could not be restored: the saved plan has changed since."
 - **Not touched before the offer is answered.** Until the first read the page neither writes nor removes backups, so the
   clean page cannot erase the work it is about to offer. While the offer is shown, only the offered departments are
   left alone; new work elsewhere is backed up.
@@ -326,7 +362,7 @@ never compiles them; `npx tsc -p tests/tsconfig.json` type-checks them.
 | Folder | What |
 |---|---|
 | `tests/golden/` | Golden master of the order page (today's behaviour, rule by rule) |
-| `tests/c2/` | The universal page itself: `layout`, `saving`, `save-logic`, `conflict`, `guard`, `backup`, `carryover` |
+| `tests/c2/` | The universal page itself: `layout`, `saving`, `save-logic`, `conflict`, `guard`, `backup`, `carryover`, and `lost-update` (someone else's save racing with this page's unsaved work, "Save mine anyway", keep-newest) |
 | `tests/c34/` | The Planning Guide card on the page (`guide-on-page`), and with the conflict alert, guard and backup (`guide-c2b`) |
 | `tests/plan-guide/` | Guide dates and lead (three time zones, server parity vectors) and the card on its own |
 | `tests/plan-check-list/` | The Plan Check List page, its data module and its menu permission |
