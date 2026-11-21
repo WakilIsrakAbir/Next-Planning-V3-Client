@@ -83,12 +83,55 @@ async function settle(): Promise<void> {
   }
 }
 
+// The universal order page (SPEC C2) shows several plan sections: a scenario edits the route department's section(s)
+// ([data-route-section]); on the delivery page the Floor fields live in the Floor table, the others in the Lock table.
 function findField(row: number, field: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null {
-  return document.querySelector(`[data-plan-table] [data-row="${row}"] [data-field="${field}"]`);
+  return document.querySelector(`[data-route-section] [data-plan-table] [data-row="${row}"] [data-field="${field}"]`);
 }
 
 function buttonByText(text: string): HTMLButtonElement | null {
   return (Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.trim() === text) as HTMLButtonElement) || null;
+}
+
+/**
+ * The button a scenario's `save` step clicks (SPEC section 5): the route section's own Save (`via: 'footer'`: the one
+ * in its table card's footer). On the delivery page: Save Data when both Floor and Lock have unsaved changes, else the
+ * Save of the group that has them, else Save Lock (a clean section's Save still sends, as today's Save did).
+ */
+function saveButtonFor(dept: string, via: 'header' | 'footer' | undefined): HTMLButtonElement | null {
+  if (dept === 'delivery') {
+    const dirty = (key: string) => document.querySelector(`[data-plan-section="${key}"] [data-pill="unsaved"]`) !== null;
+    const floorDirty = dirty('deliveryFloor');
+    const lockDirty = dirty('deliveryLock');
+    if (floorDirty && lockDirty) return document.querySelector('[data-action="save-data"]');
+    const key = floorDirty ? 'deliveryFloor' : 'deliveryLock';
+    return document.querySelector(`[data-plan-section="${key}"] [data-action="save-section"]`);
+  }
+  if (via === 'footer') {
+    const footerSaves = document.querySelectorAll('[data-route-section] [data-plan-table]');
+    const card = footerSaves[0]?.closest('.overflow-hidden');
+    return (card?.lastElementChild?.querySelector('[data-action="save"]') as HTMLButtonElement | null) ?? null;
+  }
+  return document.querySelector('[data-route-section] [data-action="save-section"]');
+}
+
+/**
+ * Requests as today's page sent them (SPEC C2 item 10 and section 5): a save-plans request with one department is
+ * recorded as the save-dates request it replaces ({orderNo, department, fabricItems, orderStatus} = plans[0]; `base`
+ * is not part of it), and `fresh=1`, which detail reads carry for 2 minutes after a save, is dropped from the URL.
+ */
+export function legacyRequest(r: LoggedRequest): LoggedRequest {
+  if (r.method === 'POST' && r.url === '/api/orders/save-plans' && Array.isArray(r.body?.plans) && r.body.plans.length === 1) {
+    const plan = r.body.plans[0];
+    const body: Loose = { orderNo: r.body.orderNo, department: plan.department, fabricItems: plan.fabricItems };
+    if (plan.orderStatus !== undefined) body.orderStatus = plan.orderStatus;
+    return { method: r.method, url: '/api/orders/save-dates', auth: r.auth, body };
+  }
+  if (r.method === 'GET' && /[?&]fresh=1(&|$)/.test(r.url)) {
+    const url = r.url.replace(/([?&])fresh=1(&|$)/, (_m, sep: string, after: string) => (after ? sep : '')).replace(/[?&]$/, '');
+    return { ...r, url };
+  }
+  return r;
 }
 
 /* ---------- the runner ---------- */
@@ -203,7 +246,8 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
             break;
           }
           case 'status': {
-            const el = document.querySelector('[data-field="orderStatus"]') as HTMLSelectElement | null;
+            // The General Information select: the route department's Order Status (SPEC section 5).
+            const el = document.querySelector('[data-general-info] [data-field="orderStatus"]') as HTMLSelectElement | null;
             if (!el) throw new Error('status: no Order Status select');
             fireEvent.change(el, { target: { value: step.value } });
             break;
@@ -211,8 +255,7 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
           case 'save': {
             (step.confirm || []).forEach((a) => confirmAnswers.push(a));
             if (step.reply) server.scriptNext('saveDates', step.reply);
-            const buttons = Array.from(document.querySelectorAll('[data-action="save"]')) as HTMLButtonElement[];
-            const btn = step.via === 'footer' ? buttons[buttons.length - 1] : buttons[0];
+            const btn = saveButtonFor(sc.dept, step.via);
             if (!btn) throw new Error('save: no save button');
             if (btn.disabled) throw new Error('save: the save button is disabled');
             fireEvent.click(btn);
@@ -266,7 +309,7 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
       if (toastsSeen.length) events.toasts = toastsSeen;
       const confirms = confirmLog.slice(confirmStart);
       if (confirms.length) events.confirms = confirms;
-      const requests = server.log.slice(logStart);
+      const requests = server.log.slice(logStart).map(legacyRequest);
       if (requests.length) events.requests = requests;
       const router = harness.routerCalls.slice(routerStart);
       if (router.length) events.router = router;

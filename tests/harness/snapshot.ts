@@ -135,6 +135,73 @@ function readTable(table: HTMLTableElement): NonNullable<PageState['table']> {
   return { plan: table.getAttribute('data-plan-table'), head, rows, message };
 }
 
+function readButton(b: Element): NonNullable<PageState['buttons']>[number] {
+  const btn: NonNullable<PageState['buttons']>[number] = {
+    text: textOf(b) || clean(b.getAttribute('title')),
+    disabled: (b as HTMLButtonElement).disabled,
+  };
+  const action = b.getAttribute('data-action');
+  if (action) btn.action = action;
+  if (b.querySelector('.animate-spin')) btn.spinner = true;
+  return btn;
+}
+
+/*
+ * The universal order page (SPEC C2) shows several plan sections. The golden recordings hold what TODAY's page showed:
+ * one department's table. The recorder therefore reads the page as today's page would have shown it:
+ * - General Information: only inside [data-general-info] (the per-section Order Status selects do not leak in);
+ * - the plan table: only the route department's section(s) ([data-route-section]); on the delivery page the Floor and
+ *   Lock tables are merged back into today's single table (Floor's identification + Floor columns, then Lock's
+ *   columns and the read-only columns, which both tables show);
+ * - the section header/footer: the route section's table card (today's card, unchanged);
+ * - buttons: today's five: the header arrow and Back, today's header "Save Planning" (now: the route section's own
+ *   Save, recorded with today's label and the state of the card's Save), and the card footer's Cancel and Save
+ *   Planning Schedule. C2 chrome (strips, pills, notes, Hide/Unhide, Discard, Save Data: [data-c2-chrome]) and the
+ *   other sections are not part of today's page and are not read.
+ */
+function readRouteSections(root: HTMLElement, state: PageState): boolean {
+  const sections = Array.from(root.querySelectorAll('[data-route-section]'));
+  if (sections.length === 0) return false;
+  const tables = sections
+    .map((s) => s.querySelector('table[data-plan-table]') as HTMLTableElement | null)
+    .filter((t): t is HTMLTableElement => t !== null);
+  if (tables.length === 0) return true;
+
+  const card = tables[0].closest('.overflow-hidden') as HTMLElement | null;
+  if (card) {
+    state.section = { header: textOf(card.firstElementChild), footer: textOf(card.lastElementChild) };
+  }
+
+  if (tables.length === 1) {
+    state.table = readTable(tables[0]);
+  } else {
+    // Delivery: [Floor table, Lock table] -> today's table. Head row 1: Color, FabricConstruction, GSM, the two Floor
+    // headers, then the Lock table from its 4th header on; head row 2: the two Floor sub-headers, then the Lock row.
+    const floor = readTable(tables[0]);
+    const lock = readTable(tables[1]);
+    state.table = {
+      plan: floor.plan,
+      head: [floor.head[0].slice(0, 5).concat(lock.head[0].slice(3)), floor.head[1].slice(0, 2).concat(lock.head[1])],
+      rows: floor.rows.map((fr, i) => {
+        const lr = lock.rows[i];
+        return { row: fr.row, text: fr.text.slice(0, 6).concat(lr ? lr.text.slice(3) : []), fields: { ...fr.fields, ...(lr ? lr.fields : {}) } };
+      }),
+      message: floor.message,
+    };
+  }
+
+  const header = root.querySelector('[data-page-header]');
+  const headerButtons = header ? Array.from(header.querySelectorAll('button')).filter((b) => !b.closest('[data-c2-chrome]')) : [];
+  const footerButtons = card && card.lastElementChild ? Array.from(card.lastElementChild.querySelectorAll('button')) : [];
+  const cardSave = footerButtons.find((b) => b.getAttribute('data-action') === 'save');
+  state.buttons = [
+    ...headerButtons.map(readButton),
+    ...(cardSave ? [{ ...readButton(cardSave), text: 'Save Planning' }] : []),
+    ...footerButtons.map(readButton),
+  ];
+  return true;
+}
+
 export function readPage(root: HTMLElement): PageState {
   const toast = toastLine(root);
   const h2 = root.querySelector('h2');
@@ -150,7 +217,9 @@ export function readPage(root: HTMLElement): PageState {
 
   const state: PageState = { view: 'page', toast };
   state.header = textOf(root.querySelector('h3'));
-  state.general = readGeneral(root);
+  state.general = readGeneral((root.querySelector('[data-general-info]') as HTMLElement | null) ?? root);
+
+  if (readRouteSections(root, state)) return state;
 
   const table = root.querySelector('table') as HTMLTableElement | null;
   if (table) {
@@ -164,16 +233,7 @@ export function readPage(root: HTMLElement): PageState {
     state.table = readTable(table);
   }
 
-  state.buttons = Array.from(root.querySelectorAll('button')).map((b) => {
-    const btn: NonNullable<PageState['buttons']>[number] = {
-      text: textOf(b) || clean(b.getAttribute('title')),
-      disabled: (b as HTMLButtonElement).disabled,
-    };
-    const action = b.getAttribute('data-action');
-    if (action) btn.action = action;
-    if (b.querySelector('.animate-spin')) btn.spinner = true;
-    return btn;
-  });
+  state.buttons = Array.from(root.querySelectorAll('button')).map(readButton);
   return state;
 }
 

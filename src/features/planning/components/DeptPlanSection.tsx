@@ -22,6 +22,14 @@ interface DeptPlanSectionProps {
   onBack: () => void;
   onSave: () => void;
   logic: DeptPlanLogic;
+  /** Delivery only: show just the Floor columns or just the Lock columns (the universal page's two delivery tables). */
+  columns?: 'floor' | 'lock';
+  /** A view-only section: no "Row 1 changes auto-fill" hint. */
+  readOnly?: boolean;
+  /** Cancel and Save Planning Schedule in the footer (the section of the page's own department). */
+  showFooterActions?: boolean;
+  /** This section is the one being saved (spinner on its Save). Defaults to `saving`. */
+  spinning?: boolean;
 }
 
 export default function DeptPlanSection({
@@ -39,7 +47,13 @@ export default function DeptPlanSection({
   onBack: handleBack,
   onSave: handleSavePlanning,
   logic,
+  columns,
+  readOnly = false,
+  showFooterActions = true,
+  spinning = saving,
 }: DeptPlanSectionProps) {
+  const showFloor = columns !== 'lock';
+  const showLock = columns !== 'floor';
   const {
     getUpstreamPlans,
     handleYarnDateChange,
@@ -64,13 +78,18 @@ export default function DeptPlanSection({
             {planItems.length}
           </span>
         </div>
-        <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 italic">
-          Row 1 changes auto-fill all items below
-        </span>
+        {!readOnly && (
+          <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 italic">
+            Row 1 changes auto-fill all items below
+          </span>
+        )}
       </div>
 
       <div className="overflow-x-auto custom-scrollbar w-full bg-white dark:bg-[#151921]">
-        <table data-plan-table={dept} className="w-full text-left whitespace-nowrap border-collapse min-w-[1600px]">
+        <table
+          data-plan-table={dept}
+          className={`w-full text-left whitespace-nowrap border-collapse ${columns ? 'min-w-[1300px]' : 'min-w-[1600px]'}`}
+        >
           <thead className="bg-white dark:bg-[#151921] shadow-sm select-none">
             {/* Main Top Header Row */}
             <tr className="text-[10px] font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-[#1f2637] border-b border-gray-300 dark:border-[#2a3346]">
@@ -254,24 +273,32 @@ export default function DeptPlanSection({
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
                     GSM
                   </th>
-                  <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                    Delivery Planning (Floor)
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                    Plan Type (Floor)
-                  </th>
-                  <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                    Delivery Planning
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                    Plan Type
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
-                    Delivery Limitation
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
-                    Remarks
-                  </th>
+                  {showFloor && (
+                    <>
+                      <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                        Delivery Planning (Floor)
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                        Plan Type (Floor)
+                      </th>
+                    </>
+                  )}
+                  {showLock && (
+                    <>
+                      <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                        Delivery Planning
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                        Plan Type
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                        Delivery Limitation
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] min-w-[120px]">
+                        Remarks
+                      </th>
+                    </>
+                  )}
                   <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                     Dyeing Planning
                   </th>
@@ -439,18 +466,26 @@ export default function DeptPlanSection({
 
               {dept === 'delivery' && (
                 <>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    Start Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    End Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    Start Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    End Date
-                  </th>
+                  {showFloor && (
+                    <>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        Start Date
+                      </th>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        End Date
+                      </th>
+                    </>
+                  )}
+                  {showLock && (
+                    <>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        Start Date
+                      </th>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        End Date
+                      </th>
+                    </>
+                  )}
                   <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
                     Start Date
                   </th>
@@ -978,100 +1013,108 @@ export default function DeptPlanSection({
                       <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px] font-mono">
                         {item.itemData?.GSM || item.GSM || '—'}
                       </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
-                        <input
-                          data-field="floorStartDate"
-                          type="date"
-                          value={item.floorStartDate || ''}
-                          disabled={isDeliFloorDisabled}
-                          title={floorDisabledTitle}
-                          onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
-                          className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
-                        />
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
-                        <input
-                          data-field="floorEndDate"
-                          type="date"
-                          value={item.floorEndDate || ''}
-                          min={item.floorStartDate || undefined}
-                          disabled={isDeliFloorDisabled}
-                          title={floorDisabledTitle}
-                          onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
-                          className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
-                        />
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                        <select
-                          data-field="floorPlanType"
-                          value={item.floorPlanType || ''}
-                          disabled={isDeliFloorDisabled}
-                          title={floorDisabledTitle}
-                          onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
-                          className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${isDeliFloorDisabled ? floorDisabledClass : 'bg-white dark:bg-[#151921]'}`}
-                        >
-                          <option value="">Select</option>
-                          <option value="Confirm">Confirm</option>
-                          <option value="Tentative">Tentative</option>
-                        </select>
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                        <input
-                          data-field="startDate"
-                          type="date"
-                          value={item.startDate || ''}
-                          disabled={isDeliInputsDisabled}
-                          title={disabledTitle}
-                          onChange={(e) => handleStartDateChange(idx, e.target.value)}
-                          className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
-                        />
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                        <input
-                          data-field="endDate"
-                          type="date"
-                          value={item.endDate || ''}
-                          min={item.startDate || undefined}
-                          disabled={isDeliInputsDisabled}
-                          title={disabledTitle}
-                          onChange={(e) => handleEndDateChange(idx, e.target.value)}
-                          className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
-                        />
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
-                        <select
-                          data-field="planType"
-                          value={item.planType || ''}
-                          disabled={isDeliInputsDisabled}
-                          title={disabledTitle}
-                          onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
-                          className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass}`}
-                        >
-                          <option value="">Select</option>
-                          <option value="Confirm">Confirm</option>
-                          <option value="Tentative">Tentative</option>
-                        </select>
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                        <textarea
-                          data-field="limitation"
-                          rows={1}
-                          value={item.limitation || ''}
-                          onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
-                          placeholder="Limitation"
-                          className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
-                        />
-                      </td>
-                      <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
-                        <textarea
-                          data-field="remarks"
-                          rows={1}
-                          value={item.remarks || ''}
-                          onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
-                          placeholder="Notes"
-                          className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
-                        />
-                      </td>
+                      {showFloor && (
+                        <>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
+                            <input
+                              data-field="floorStartDate"
+                              type="date"
+                              value={item.floorStartDate || ''}
+                              disabled={isDeliFloorDisabled}
+                              title={floorDisabledTitle}
+                              onChange={(e) => handleFloorChange(idx, 'floorStartDate', e.target.value)}
+                              className={`row-floor-start p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
+                            />
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-blue-50/40 dark:bg-transparent">
+                            <input
+                              data-field="floorEndDate"
+                              type="date"
+                              value={item.floorEndDate || ''}
+                              min={item.floorStartDate || undefined}
+                              disabled={isDeliFloorDisabled}
+                              title={floorDisabledTitle}
+                              onChange={(e) => handleFloorChange(idx, 'floorEndDate', e.target.value)}
+                              className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
+                            />
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                            <select
+                              data-field="floorPlanType"
+                              value={item.floorPlanType || ''}
+                              disabled={isDeliFloorDisabled}
+                              title={floorDisabledTitle}
+                              onChange={(e) => handleFloorChange(idx, 'floorPlanType', e.target.value)}
+                              className={`row-floor-plan p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer ${isDeliFloorDisabled ? floorDisabledClass : 'bg-white dark:bg-[#151921]'}`}
+                            >
+                              <option value="">Select</option>
+                              <option value="Confirm">Confirm</option>
+                              <option value="Tentative">Tentative</option>
+                            </select>
+                          </td>
+                        </>
+                      )}
+                      {showLock && (
+                        <>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                            <input
+                              data-field="startDate"
+                              type="date"
+                              value={item.startDate || ''}
+                              disabled={isDeliInputsDisabled}
+                              title={disabledTitle}
+                              onChange={(e) => handleStartDateChange(idx, e.target.value)}
+                              className={`row-start-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                            />
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                            <input
+                              data-field="endDate"
+                              type="date"
+                              value={item.endDate || ''}
+                              min={item.startDate || undefined}
+                              disabled={isDeliInputsDisabled}
+                              title={disabledTitle}
+                              onChange={(e) => handleEndDateChange(idx, e.target.value)}
+                              className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
+                            />
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+                            <select
+                              data-field="planType"
+                              value={item.planType || ''}
+                              disabled={isDeliInputsDisabled}
+                              title={disabledTitle}
+                              onChange={(e) => handlePlanTypeChange(idx, e.target.value)}
+                              className={`row-plan-type p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] focus:border-blue-500 outline-none cursor-pointer font-bold ${inputDisabledClass}`}
+                            >
+                              <option value="">Select</option>
+                              <option value="Confirm">Confirm</option>
+                              <option value="Tentative">Tentative</option>
+                            </select>
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                            <textarea
+                              data-field="limitation"
+                              rows={1}
+                              value={item.limitation || ''}
+                              onChange={(e) => handleTextChange(idx, 'limitation', e.target.value)}
+                              placeholder="Limitation"
+                              className={`row-limitation ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
+                            />
+                          </td>
+                          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346]">
+                            <textarea
+                              data-field="remarks"
+                              rows={1}
+                              value={item.remarks || ''}
+                              onChange={(e) => handleTextChange(idx, 'remarks', e.target.value)}
+                              placeholder="Notes"
+                              className={`row-remarks ${RESIZABLE_INPUT_CLS} w-full p-1 border border-gray-300 rounded text-[10px] focus:border-blue-500 outline-none bg-white`}
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
                         {formatDateDisplay(dyeItem?.startDate || dyeItem?.planStart)}
                       </td>
@@ -1257,24 +1300,26 @@ export default function DeptPlanSection({
         <span className="text-gray-500 dark:text-gray-400">
           Total <strong className="text-gray-800 dark:text-gray-200">{planItems.length}</strong> fabric items ready for schedule synchronization.
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="btn btn-ghost btn-xs font-semibold cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            data-action="save"
-            onClick={handleSavePlanning}
-            disabled={saving}
-            className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
-          >
-            {saving ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
-            Save Planning Schedule
-          </button>
-        </div>
+        {showFooterActions && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="btn btn-ghost btn-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              data-action="save"
+              onClick={handleSavePlanning}
+              disabled={saving}
+              className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
+            >
+              {spinning ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
+              Save Planning Schedule
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

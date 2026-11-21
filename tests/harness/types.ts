@@ -11,6 +11,8 @@ export interface FixtureDb {
   orderDates: Loose[];
   /** DropdownMaster documents in the order the server reads them (createdAt ascending). */
   dropdownmasters: Loose[];
+  /** Order numbers of each department's latest file (DeptValidOrders); missing or empty = every order is listed. */
+  deptValidOrders?: Partial<Record<string, string[]>>;
 }
 
 export interface Fixture extends FixtureDb {
