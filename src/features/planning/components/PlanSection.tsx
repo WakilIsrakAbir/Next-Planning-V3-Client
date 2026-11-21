@@ -250,6 +250,7 @@ function PlanSection({
             deptMeta={meta}
             orderNo={orderNo}
             order={order}
+            planData={planData}
             planItems={rows}
             loading={loading}
             isAdmin={isAdmin}
