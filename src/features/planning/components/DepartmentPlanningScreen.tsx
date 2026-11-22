@@ -57,6 +57,8 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   // US-11: a submitted search looks in every list (scope=all); each result shows the list it is in.
   const [appliedSearch, setAppliedSearch] = useState(() => savedState.globalSearch || '');
   const searchAll = appliedSearch.trim() !== '';
+  // The rows on screen came from a search across all lists (their badges show only then, never on a list's own rows).
+  const [rowsFromAllLists, setRowsFromAllLists] = useState(false);
   const [activeBuyer, setActiveBuyer] = useState(() => savedState.activeBuyer);
   const [page, setPage] = useState(() => savedState.page);
   const [limitChoice, setLimitChoice] = useState<number | 'auto'>(() => savedState.limit);
@@ -136,6 +138,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     const cached = findCachedPlanningPage(q);
     if (cached) {
       setOrders(cached.orders);
+      setRowsFromAllLists(searchAll);
       setTotalPages(cached.totalPages);
       setTotalOrders(cached.total);
       setLoading(false);
@@ -154,6 +157,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
           setAvailableBuyers(data.buyers);
         }
         setOrders(data.orders);
+        setRowsFromAllLists(searchAll);
         setTotalPages(data.totalPages);
         setTotalOrders(data.total);
       }
@@ -544,7 +548,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                       >
                         {o.orderNo}
                       </Link>
-                      {searchAll && <ListBadge status={o[`${dept}PlanStatus`]} />}
+                      {searchAll && rowsFromAllLists && <ListBadge status={o[`${dept}PlanStatus`]} />}
                     </td>
 
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
