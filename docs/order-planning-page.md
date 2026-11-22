@@ -1,7 +1,7 @@
 # Order planning page (universal order page)
 
-`/planning/<dept>/<orderNo>` (`dept` = `yd`, `knitting`, `dyeing`, `finishing` or `delivery`) is the page where planners
-enter the plan dates of one order. It used to show only the department it was opened from. It now shows the plans of
+`/planning/<dept>/<orderNo>` (`dept` = `yd`, `knitting`, `dyeing`, `finishing`, `delivery`, and since US-11
+`deliveryfloor` and `deliverylock`) is the page where planners enter the plan dates of one order. It used to show only the department it was opened from. It now shows the plans of
 several departments of the order on one page, each in its own section, and can save them one by one or all together.
 
 The rules (locks, auto-fills, on-change checks, save checks) are today's code, moved without change. They must stay
@@ -23,6 +23,7 @@ follows, referred to here as D1-D8.
 | `src/features/planning/lib/order-plan-logic.ts` | Today's pure helpers, moved verbatim: `buildMergedItems`, `formatPlanPayload`, `findUpstreamPlans`, `ydKnitPlan`, `readIsAdminRole`, ... |
 | `src/features/planning/lib/dept-plan-logic.ts` | `createDeptPlanLogic(ctx)`: today's validators (`validateForSave`, `confirmCompletion`) and 10 edit handlers, moved verbatim |
 | `src/features/planning/lib/order-page-model.ts` | Sections, edit rights, the page state and its reducer, what a save sends (`rowsForSave`, and `rowsOnRead` for "Save mine anyway") |
+| `src/features/planning/lib/plan-extras.ts` | US-11 extra dates (`planExtras`): merge into rows, the `extras` of a save, the day columns (`dayDiff`, `yarnToKnitStart`) |
 | `src/features/planning/lib/order-page-save.ts` | Save Data planner (checks, SAVE-02 overlay, Completed prompts), the `save-plans` request, `SavePlansError` |
 | `src/features/planning/lib/order-page-backup.ts` | sessionStorage backup of unsaved work |
 | `src/features/planning/lib/section-visibility.ts` | Hide/Unhide store (localStorage) |
@@ -39,8 +40,9 @@ Server endpoints the page calls:
 - `GET /api/orders/:orderNo?dept=<route>[&fresh=1]` returns `{order, planData, fingerprints, deptFlags, guide}`. It
   always holds every department; `dept` is only part of the server's cache key. `fresh=1` skips the server's 60 s
   detail cache.
-- `POST /api/orders/save-plans` with `{orderNo, plans: [{department, fabricItems, orderStatus}], base?}` saves one or
-  more departments in one write. It answers `{planData, planStatuses, statusSynced, fingerprints}`, or 409
+- `POST /api/orders/save-plans` with `{orderNo, plans: [{department, fabricItems, orderStatus, extras?}], base?}` saves one or
+  more departments in one write. `extras` (Knitting and Dyeing, US-11) is stored in `OrderDate.planExtras.<dept>` and
+  comes back in `planData.planExtras`. It answers `{planData, planStatuses, statusSynced, fingerprints}`, or 409
   `{code: 'CONFLICT', message, departments}`.
 - `GET /api/dropdowns` returns the Unit and Process lists.
 - `GET /api/plan-check-list` (the Plan Check List criteria) and `PUT /api/orders/:orderNo/plan-guide` with
@@ -54,7 +56,9 @@ for V2 and the Tracking pages.
 
 `sectionsFor(route)` in `order-page-model.ts` decides the sections and their order (D2):
 
-- First the route department's own section(s). On the delivery page that is Delivery Floor, then Delivery Lock.
+- First the route department's own section(s). On the delivery page that is Delivery Floor, then Delivery Lock. On
+  `/planning/deliveryfloor/<orderNo>` it is Delivery Floor only (Lock is an added section, Admin-edit as in D4), and on
+  `/planning/deliverylock/<orderNo>` Delivery Lock only (Floor is the added section).
 - Then, in pipeline order, the others from: Knitting, Dyeing, Delivery Floor, Delivery Lock.
 - YD and Finishing appear only on their own pages.
 
@@ -66,6 +70,13 @@ for V2 and the Tracking pages.
 | `finishing` | Finishing Plan | finishing | main |
 | `deliveryFloor` | Delivery Plan (Floor) | delivery | floor: `floorStartDate`, `floorEndDate`, `floorPlanType` |
 | `deliveryLock` | Delivery Plan (Lock) | delivery | lock: `startDate`, `endDate`, `planType`, `limitation`, `remarks` and the delivery Order Status |
+
+**Delivery Floor and Lock routes (US-11).** The two routes read and save the same `delivery` data (`planDeptOf(route)`;
+`model.drafts.delivery`); the route key is kept for the detail read (`?dept=deliveryfloor`), the cache keys, the
+Hide/Unhide keys and the list link. The page header is "Delivery Plan (Floor)" / "Delivery Plan (Lock)". On these
+routes the route card's footer Save saves its own section only (`footerSavesDept` is true only on `/planning/delivery`).
+The delivery Order Status belongs to Lock: on the Floor route the General Information select changes it only when the
+Lock section may change (Admin), like the Lock strip's select. `/planning/delivery` works exactly as before.
 
 Delivery Floor and Delivery Lock are two tables over the SAME delivery rows (D3). Every existing delivery handler
 runs unchanged on the full rows. Each table shows the identification and quantity columns plus its own group's
@@ -100,6 +111,32 @@ page adds around today's card is marked `data-c2-chrome`.
 - **An added section of a department without items** (`hasItems` false) shows a note. Its Order Status and Save are
   off.
 - `canSave` combines all of this. Anything that is not `canSave` is never counted as unsaved, sent, backed up or restored.
+
+## Table columns (US-11)
+
+- **Knitting:** Actual Yarn Date after Yarn Date; Y-KS and KS-KE after Knitting Planning.
+- **Dyeing:** Knitting Limitation and Remarks (Knitting) removed; LD Plan Date and Actual LD Date before Dyeing Planning;
+  DS-DE after it. Process Name is an `<input list>` with a `<datalist>` of the Dropdown Master Setup Process Names
+  (`GET /api/dropdowns`, as before), so any typed value is allowed; it calls today's `handleUnitProcessChange`, and every
+  check that reads `processName` is unchanged.
+- **Delivery Floor:** Knitting Planning removed; DelS-DelE after Delivery Planning (Floor).
+- **Delivery Lock:** Dyeing Planning, Dyeing Plan Type and Knitting Planning removed; LockS-LockE after Delivery Planning.
+
+**Extra dates.** Actual Yarn Date (`actualYarnDate`), LD Plan Date (`ldPlanDate`) and Actual LD Date (`actualLdDate`) are
+item-wise date inputs held as row fields of the draft rows. They are stored outside the plan rows, in
+`OrderDate.planExtras.<dept>.<itemId>`, because a V2 save rebuilds every row from a fixed key list.
+
+- `mergedRowsOf` (`buildMergedItems` + `withSavedExtras`) merges them in from `planData.planExtras` on every read and
+  after every save, so keep-newest, the backup and the conflict rules apply to them as to the other fields.
+- They are in the `main` field group (`MAIN_FIELDS`): dirty detection, Discard, the sessionStorage backup and
+  `rowsOnRead` cover them. The server fingerprint covers non-empty extras, so someone else's extras refuse a save (409).
+- A save of Knitting or Dyeing sends `extras`: the full map of every row (`''` for an empty date). They are never in
+  `fabricItems` (`formatPlanPayload` is unchanged).
+- No validation reads them, and Row 1 does not copy them to the rows below (`onExtraChange` sets one row).
+
+**Day columns.** Y-KS, KS-KE, DS-DE, DelS-DelE and LockS-LockE are read-only cells (`data-day`): whole days, later −
+earlier, in local dates (as `calcPPILeadDay`), shown as a plain number (negative allowed) and blank when either date is
+missing or not a date. Y-KS = Knitting Start − the row's Actual Yarn Date, or its Yarn Date when that is empty.
 
 ## Checkpoint & Planning Guide card
 
@@ -233,8 +270,8 @@ Save Data (`order-page-save.ts`, D5):
 After a successful save:
 
 - the saved groups are merged again;
-- all five detail cache keys are filled with the answer (every department page of the order opens with the saved
-  data);
+- all detail cache keys are filled with the answer (the five departments and the `deliveryfloor` / `deliverylock`
+  routes: every department page of the order opens with the saved data);
 - `markOrderRecentlySaved` makes the next 2 minutes of detail reads use `fresh=1` (kept in sessionStorage across a
   reload);
 - `markBatchDataStale()` is called and today's success toast shows (one toast at a time: a newer toast restarts the
@@ -403,6 +440,10 @@ never compiles them; `npx tsc -p tests/tsconfig.json` type-checks them.
 | `tests/unsaved/` | The shared guard and the Sidebar |
 | `tests/harness/` | Mock server, runner, recorder (shared by golden and c2) |
 
+`tests/us11/` covers US-11: the day columns and the removed/added columns, the extras round trip (sent, stored, read
+back, not copied by Row 1), their dirty, Discard and conflict handling, the Floor and Lock routes, the YD page's
+sections (item 01), the Sidebar items and their permission fallback, the list search across all lists, and the OTT board.
+
 `tests/c2/driver.tsx` opens the page on the mock server (fake clock, stored login, scripted `window.confirm`) and lets a
 test act on any section. `reload()` is a browser reload: fresh modules, storage kept, and an optional step between
 unmount and mount (e.g. signing in again).
@@ -442,14 +483,16 @@ The universal page is not today's page. The recorder and runner therefore read a
 recording or expectation was changed for it. These are all the adaptations, with the reason for each:
 
 1. **Request bodies.** A `save-plans` request with one department is recorded as the `save-dates` request it replaces:
-   `{orderNo, department, fabricItems, orderStatus}` = `plans[0]`. `base` is not part of it.
+   `{orderNo, department, fabricItems, orderStatus}` = `plans[0]`. `base` and the US-11 `extras` are not part of it
+   (`tests/us11` checks `extras`).
    (`legacyRequest` in `runner.tsx`; SPEC C2 item 10.)
 2. **Request URLs.** `fresh=1`, which detail reads carry for 2 minutes after a save, is dropped from the recorded URL.
    The details query itself (`?dept=<route>`) is unchanged. (SPEC C2 item 7.)
 3. **Only the route section(s) are read.** `readRouteSections` in `snapshot.ts`:
    - General Information is read only inside `[data-general-info]`, so the strip status selects do not leak in.
    - The plan table is read only from `[data-route-section]`. On the delivery page the Floor and Lock tables are merged
-     back into today's single table (header rows and each row's fields).
+     back into today's single table (header rows and each row's fields): Floor's columns, then Lock's, then the Dyeing
+     columns (since US-11 only on the Floor table), then the quantities.
    - C2 chrome (`[data-c2-chrome]`: strips, pills, notes, alerts, Hide/Unhide, Discard, Save Data) and the other
      sections are not part of today's page and are not read.
 4. **The `save` step.** It clicks the route section's own Save; `via: 'footer'` clicks the card footer's Save Planning
@@ -489,6 +532,16 @@ recording or expectation was changed for it. These are all the adaptations, with
 
 `tests/c2` (not the golden master) also reads toasts only from the toast container (`[data-toast]`), so a section's
 conflict alert or the restore offer, which are daisyUI alerts too, are not taken for toasts.
+
+### US-11 re-recording
+
+US-11 changed columns on purpose, so the Knitting, Dyeing and Delivery recordings were re-recorded. A comparison of
+the old and new recordings (normalised: the removed and added header names and cells, the new data-fields, and the
+Dyeing `processName` select options left out, the other cells re-indexed) found no other difference: every field value,
+disabled state, title, min, toast, confirm, request body and router call is identical. Scenario cell expectations
+were re-indexed to the new Delivery columns; the two that read removed columns (the Dyeing page's Knitting Limitation
+and the Delivery page's Knitting Start) were dropped. `tests/harness/mock-server.ts` stores `extras` and fingerprints
+non-empty extras as the server does.
 
 ### Browser checks
 
