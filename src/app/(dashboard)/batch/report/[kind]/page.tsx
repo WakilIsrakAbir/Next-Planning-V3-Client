@@ -20,3 +20,10 @@ export default async function Page({ params }: { params: Promise<{ kind: string 
     </BatchRouteGuard>
   );
 }
+
+const REPORT_TITLES: Record<string, string> = { detail: 'Dyeable Batch', summary: 'Dyeable Batch Summary', daily: 'Daily Confirm Batch Plan' };
+
+export async function generateMetadata({ params }: { params: Promise<{ kind: string }> }) {
+  const { kind } = await params;
+  return { title: REPORT_TITLES[kind] ?? 'Batch Report' };
+}

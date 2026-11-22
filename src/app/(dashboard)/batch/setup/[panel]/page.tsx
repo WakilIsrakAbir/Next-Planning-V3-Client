@@ -19,3 +19,10 @@ export default async function Page({ params }: { params: Promise<{ panel: string
     </BatchRouteGuard>
   );
 }
+
+const SETUP_TITLES: Record<string, string> = { dyeing: 'Dyeing MC', flat: 'Flat Allowance', unit: 'Unit Setup' };
+
+export async function generateMetadata({ params }: { params: Promise<{ panel: string }> }) {
+  const { panel } = await params;
+  return { title: SETUP_TITLES[panel] ?? 'Batch Setup' };
+}

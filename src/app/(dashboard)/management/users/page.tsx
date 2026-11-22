@@ -3,3 +3,5 @@ import UserManagementScreen from '@/features/management/components/UserManagemen
 export default function Page() {
   return <UserManagementScreen />;
 }
+
+export const metadata = { title: "Manage Users" };

@@ -3,3 +3,5 @@ import DropdownSetupScreen from '@/features/management/components/DropdownSetupS
 export default function Page() {
   return <DropdownSetupScreen />;
 }
+
+export const metadata = { title: "Dropdown Master Setup" };
