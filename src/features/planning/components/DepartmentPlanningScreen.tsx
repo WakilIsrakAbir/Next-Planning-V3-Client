@@ -10,7 +10,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { DEPARTMENTS } from '@/lib/constants';
+import { DEPARTMENTS, PLAN_LIST_TITLES, STATUS_COLORS } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
 import { PlanStatus } from '@/types/order';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -48,12 +48,15 @@ const ROW_HEIGHT = 40;
 export default function DepartmentPlanningScreen({ params }: PageProps) {
   const resolvedParams = use(params);
   const dept = resolvedParams.dept || 'knitting';
-  const deptConfig = DEPARTMENTS[dept] || { name: `${dept.toUpperCase()} Plan` };
+  const deptConfig = DEPARTMENTS[dept] || { name: PLAN_LIST_TITLES[dept] || `${dept.toUpperCase()} Plan` };
 
   const savedState = getSavedDeptState(dept);
 
   const [activeTab, setActiveTab] = useState<PlanStatus | 'All'>(() => savedState.activeTab);
   const [globalSearch, setGlobalSearch] = useState(() => savedState.globalSearch);
+  // US-11: a submitted search looks in every list (scope=all); each result shows the list it is in.
+  const [appliedSearch, setAppliedSearch] = useState(() => savedState.globalSearch || '');
+  const searchAll = appliedSearch.trim() !== '';
   const [activeBuyer, setActiveBuyer] = useState(() => savedState.activeBuyer);
   const [page, setPage] = useState(() => savedState.page);
   const [limitChoice, setLimitChoice] = useState<number | 'auto'>(() => savedState.limit);
@@ -92,6 +95,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     setPage(s.page);
     setLimitChoice(s.limit);
     setGlobalSearch(s.globalSearch);
+    setAppliedSearch(s.globalSearch || '');
     setColSearchOrder(s.colSearchOrder);
     setColSearchDate(s.colSearchDate);
     setColSearchBuyer(s.colSearchBuyer);
@@ -126,7 +130,9 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   const fetchOrders = async () => {
     // "Auto" waits until the table area has been measured
     if (limit === null) return;
-    const q = { dept, activeTab, activeBuyer, page, limit, globalSearch };
+    const q = searchAll
+      ? { dept, activeTab, activeBuyer, page, limit, globalSearch: appliedSearch, scope: 'all' as const }
+      : { dept, activeTab, activeBuyer, page, limit, globalSearch };
     const cached = findCachedPlanningPage(q);
     if (cached) {
       setOrders(cached.orders);
@@ -165,6 +171,13 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   }, [dept, activeTab, activeBuyer, page, limit, searchRun]);
 
   const handleTabChange = (tab: PlanStatus | 'All') => {
+    // A tab ends a search across all lists: the tab's own list shows again.
+    if (searchAll) {
+      setAppliedSearch('');
+      setGlobalSearch('');
+      saveDeptState(dept, { globalSearch: '' });
+      setSearchRun((n) => n + 1);
+    }
     setActiveTab(tab);
     setPage(1);
     saveDeptState(dept, { activeTab: tab, page: 1 });
@@ -191,11 +204,13 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
     e.preventDefault();
     setPage(1);
     saveDeptState(dept, { globalSearch, page: 1 });
+    setAppliedSearch(globalSearch);
     setSearchRun((n) => n + 1);
   };
 
   const clearGlobalSearch = () => {
     setGlobalSearch('');
+    setAppliedSearch('');
     setColSearchOrder('');
     setColSearchDate('');
     setColSearchBuyer('');
@@ -213,6 +228,8 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
       activeTab: 'Pending',
       page: 1,
     });
+    // The normal tab's list again (also when the tab and page did not change).
+    setSearchRun((n) => n + 1);
   };
 
   const handleColSearchOrderChange = (val: string) => {
@@ -254,6 +271,9 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
 
 
   // Download completed list Excel matching Exp downloadCompletedList
+  // While a search across all lists runs, the table keeps the open lists' layout (with the Status column).
+  const layoutTab = searchAll ? 'Pending' : activeTab;
+
   const downloadCompletedExcel = () => {
     const exportData = displayedOrders.map((o) => ({
       'Order/Booking No.': o.orderNo,
@@ -269,6 +289,9 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
   return (
     // The page fills the content area: the top bar and the pagination stay put, only the table rows scroll.
     <div className="flex h-full min-h-0 w-full max-w-[1850px] mx-auto flex-col gap-3 text-[11px] animate-fade-in">
+      <h1 className="sr-only" data-page-title>
+        {deptConfig.name}
+      </h1>
       {/* Top Bar with Exact Exp Tabs and Compact Search (index.html lines 1245-1282) */}
       <div className="flex-none bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm p-2 shadow-sm">
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
@@ -280,7 +303,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
               { id: 'Tentative', label: 'Tentative List' },
               { id: 'All', label: 'Completed List' },
             ].map((tab) => {
-              const isActive = activeTab === tab.id;
+              const isActive = !searchAll && activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
@@ -374,7 +397,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
           <table className="w-full text-left whitespace-nowrap min-w-[1000px] border-collapse">
             {/* Header matching Exp thead with 2-tier search inputs */}
             <thead className="sticky top-0 z-20 bg-gray-100 dark:bg-[#1f2637] shadow-sm select-none">
-              {activeTab === 'All' ? (
+              {layoutTab === 'All' ? (
                 // Completed List View Table Header (index.html lines 309-322)
                 <>
                   <tr className="bg-gray-800 text-white text-[11px] font-bold border-b border-gray-700">
@@ -489,10 +512,10 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
               {!loading && visibleOrders.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === 'All' ? 4 : 5}
+                    colSpan={layoutTab === 'All' ? 4 : 5}
                     className="p-10 text-center text-gray-500 bg-white dark:bg-[#151921]"
                   >
-                    No {activeTab} data found.
+                    {searchAll ? 'No order found in any list.' : `No ${activeTab} data found.`}
                   </td>
                 </tr>
               ) : (
@@ -521,6 +544,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                       >
                         {o.orderNo}
                       </Link>
+                      {searchAll && <ListBadge status={o[`${dept}PlanStatus`]} />}
                     </td>
 
                     <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-center">
@@ -531,7 +555,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                       {o.buyer || 'N/A'}
                     </td>
 
-                    {activeTab !== 'All' && (
+                    {layoutTab !== 'All' && (
                       <td className="p-2 border-r border-gray-200 dark:border-[#2a3346] text-gray-600 dark:text-gray-400 font-medium">
                         {o.status || 'N/A'}
                       </td>
@@ -556,5 +580,15 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
         />
       </div>
     </div>
+  );
+}
+
+/** US-11: the list an order of a search across all lists is in (its plan status; Completed = the Completed List). */
+function ListBadge({ status }: { status?: string }) {
+  const value = status || 'Pending';
+  return (
+    <span data-list-badge={value} title={`In the ${value} List`} className={`badge badge-xs ml-2 font-semibold ${STATUS_COLORS[value] || 'badge-ghost'}`}>
+      {value} List
+    </span>
   );
 }
