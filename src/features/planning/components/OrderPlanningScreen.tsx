@@ -35,6 +35,7 @@ import {
   isGroupDirty,
   isOlderPlanData,
   orderPageReducer,
+  planDeptOf,
   rowsForSave,
   rowsOnRead,
   sectionAccess,
@@ -114,6 +115,8 @@ export default function OrderPlanningScreen() {
 function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string }) {
   const router = useRouter();
 
+  // US-11: the Delivery Floor and Lock routes show the 'delivery' data (`dept` stays the route: lists, cache keys, hiding).
+  const planDept = planDeptOf(dept);
   const sections = useMemo(() => sectionsFor(dept), [dept]);
   const pageDepts = useMemo(() => deptsFor(dept), [dept]);
 
@@ -131,7 +134,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   // the keep-newest guard of a read that answers right after a save compares with it.
   const newestPlanRef = useRef<Loose>(model.planData);
 
-  const routeRows = model.drafts[dept]?.rows ?? [];
+  const routeRows = model.drafts[planDept]?.rows ?? [];
   // Spinner only while no items are on screen (no cache, or a cached order without items) until the first fetch ends.
   const [loading, setLoading] = useState<boolean>(() => routeRows.length === 0);
   const [notFound, setNotFound] = useState<boolean>(false);
@@ -393,7 +396,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         read = applyRead(orderRes.data || {});
       } catch (err) {
         console.error(err);
-        if ((modelRef.current.drafts[dept]?.rows.length ?? 0) === 0) {
+        if ((modelRef.current.drafts[planDept]?.rows.length ?? 0) === 0) {
           showToast((err as Loose)?.message || 'Error loading order details.');
         }
       } finally {
@@ -402,7 +405,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
         if (backupPhaseRef.current === 'waiting') decideRestoreOffer(read ? orderPageReducer(modelRef.current, read) : modelRef.current);
       }
     },
-    [dept, orderNo, showToast, applyRead, decideRestoreOffer]
+    [dept, planDept, orderNo, showToast, applyRead, decideRestoreOffer]
   );
 
   useEffect(() => {
@@ -614,7 +617,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
   const handleSaveFooter = useCallback(
     (key: string) => {
       const def = sections.find((s) => s.key === key);
-      return runSave(def && def.dept === 'delivery' ? { kind: 'dept', dept: def.dept } : { kind: 'section', key });
+      return runSave(def && def.footerSavesDept ? { kind: 'dept', dept: def.dept } : { kind: 'section', key });
     },
     [sections, runSave]
   );
@@ -697,7 +700,16 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
     [sections, editDispatch, loadLatest]
   );
 
-  const handleRouteStatusChange = useCallback((status: string) => editDispatch({ type: 'status', dept, update: status }), [editDispatch, dept]);
+  // General Information's Order Status is the route department's. On the Delivery Floor route it belongs to the Lock
+  // section (an added section there): it changes only when that section may change (Admin), as the Lock strip's select.
+  const handleRouteStatusChange = useCallback(
+    (status: string) => {
+      const owner = sections.find((s) => s.dept === planDept && s.hasStatus);
+      if (owner && !changeable(modelRef.current, owner, canEditOthersRef.current)) return;
+      editDispatch({ type: 'status', dept: planDept, update: status });
+    },
+    [editDispatch, planDept, sections]
+  );
 
   // Restore offer: put the backed-up work back into the sections it still fits (same base, same items, changeable).
   const handleRestore = useCallback(() => {
@@ -912,7 +924,7 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       <OrderGeneralInfo
         order={order}
         displayQty={displayQty}
-        orderStatus={model.drafts[dept]?.status ?? 'On Process'}
+        orderStatus={model.drafts[planDept]?.status ?? 'On Process'}
         onStatusChange={handleRouteStatusChange}
         loaded={model.loaded}
         hidden={hidden.has(hiddenKey('general'))}

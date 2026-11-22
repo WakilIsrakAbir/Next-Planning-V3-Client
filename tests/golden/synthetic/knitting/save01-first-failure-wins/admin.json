@@ -50,7 +50,7 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [],
@@ -110,15 +110,16 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red","S/J","160",null,null,null,null,null,null,"520","100","420","525","250","275","5"],
+              "text": ["Red","S/J","160",null,null,null,null,"4","10",null,null,null,"520","100","420","525","250","275","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":"⚡ Changing Row 1 Yarn Date auto-fills all items"},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-05","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"2026-10-15","disabled":false,"title":null,"min":"2026-10-05"},
                 "planType": {"value":"Tentative","disabled":false,"title":null},
@@ -128,9 +129,10 @@
             },
             {
               "row": "1",
-              "text": ["Blue","S/J","180",null,null,null,null,null,null,"320","100","220","315","150","165","5"],
+              "text": ["Blue","S/J","180",null,null,null,null,"5","",null,null,null,"320","100","220","315","150","165","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-06","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"","disabled":false,"title":null,"min":"2026-10-06"},
                 "planType": {"value":"Tentative","disabled":false,"title":null},
@@ -140,9 +142,10 @@
             },
             {
               "row": "2",
-              "text": ["Green","Rib","200",null,null,null,null,null,null,"220","100","120","210","100","110","5"],
+              "text": ["Green","Rib","200",null,null,null,null,"","10",null,null,null,"220","100","120","210","100","110","5"],
               "fields": {
                 "yarnDate": {"value":"","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-07","disabled":false,"title":null},
                 "endDate": {"value":"2026-10-17","disabled":false,"title":null,"min":"2026-10-07"},
                 "planType": {"value":"Confirm","disabled":false,"title":null},
@@ -152,9 +155,10 @@
             },
             {
               "row": "3",
-              "text": ["White","Rib","200",null,null,null,null,null,null,"170","100","70","158","75","83","5"],
+              "text": ["White","Rib","200",null,null,null,null,"-6","15",null,null,null,"170","100","70","158","75","83","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-09-25","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"2026-10-10","disabled":false,"title":null,"min":"2026-09-25"},
                 "planType": {"value":"Tentative","disabled":false,"title":null},
@@ -164,9 +168,10 @@
             },
             {
               "row": "4",
-              "text": ["Navy","Pique","220",null,null,null,null,null,null,"140","100","40","126","60","66","5"],
+              "text": ["Navy","Pique","220",null,null,null,null,"11","-4",null,null,null,"140","100","40","126","60","66","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-12","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"2026-10-08","disabled":false,"title":null,"min":"2026-10-12"},
                 "planType": {"value":"","disabled":false,"title":null},
@@ -189,18 +194,18 @@
     {
       "n": 2,
       "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-16"},
-      "changes": {"table.rows[1].fields.endDate.value":"2026-10-16"}
+      "changes": {"table.rows[1].text[8]":"10","table.rows[1].fields.endDate.value":"2026-10-16"}
     },
     {
       "n": 3,
       "step": {"do":"set","row":2,"field":"yarnDate","value":"2026-10-02"},
-      "changes": {"table.rows[2].fields.yarnDate.value":"2026-10-02","table.rows[2].fields.startDate.min":"2026-10-02"}
+      "changes": {"table.rows[2].text[7]":"5","table.rows[2].fields.yarnDate.value":"2026-10-02","table.rows[2].fields.startDate.min":"2026-10-02"}
     },
     {
       "n": 4,
       "step": {"do":"set","row":2,"field":"yarnDate","value":""},
       "events": {"toasts":["error: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!"]},
-      "changes": {"toast":"error: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!","table.rows[2].fields.yarnDate.value":"","table.rows[2].fields.planType.value":"","table.rows[2].fields.startDate.min":"<removed>"}
+      "changes": {"toast":"error: Without Yarn Date input, Knitting Plan Type cannot be 'Confirm'!","table.rows[2].text[7]":"","table.rows[2].fields.yarnDate.value":"","table.rows[2].fields.planType.value":"","table.rows[2].fields.startDate.min":"<removed>"}
     },
     {
       "n": 5,

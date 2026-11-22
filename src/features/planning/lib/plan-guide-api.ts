@@ -68,8 +68,8 @@ export class PlanGuideError extends Error {
   }
 }
 
-/** The five department keys the order details are cached under (`<dept>_<orderNo>`). */
-export const PLAN_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'] as const;
+/** The route keys the order details are cached under (`<dept>_<orderNo>`): the five departments and, since US-11, the Delivery Floor and Lock routes. */
+export const PLAN_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery', 'deliveryfloor', 'deliverylock'] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

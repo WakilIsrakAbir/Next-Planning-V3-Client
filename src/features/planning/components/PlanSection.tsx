@@ -117,6 +117,17 @@ function PlanSection({
     },
     [dispatch, dept, editable, noItems]
   );
+  // US-11 extra dates (Actual Yarn Date, LD Plan Date, Actual LD Date): one row only, no Row 1 auto-fill, no checks.
+  const setExtraField = useCallback(
+    (index: number, field: string, value: string) =>
+      setPlanItems((prev) => {
+        if (!prev[index]) return prev;
+        const next = [...prev];
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      }),
+    [setPlanItems]
+  );
   const setOrderStatus = useCallback(
     (update: SetStateAction<string>) => {
       if (!statusDisabled) dispatch({ type: 'status', dept, update });
@@ -340,6 +351,8 @@ function PlanSection({
             columns={def.columns}
             readOnly={!editable}
             showFooterActions={def.isRoute}
+            footerSavesDept={def.footerSavesDept}
+            onExtraChange={setExtraField}
           />
         </fieldset>
       )}

@@ -50,8 +50,8 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
           "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
@@ -110,13 +110,13 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "text": ["Red","S/J","160",null,null,"9",null,null,null,"10",null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","500","450","400","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
@@ -130,7 +130,7 @@
             },
             {
               "row": "1",
-              "text": ["Blue","S/J","180",null,null,null,null,null,null,null,null,"17-Oct-2026","26-Oct-2026","Tentative","06-Oct-2026","16-Oct-2026","300","250","200","100","25","5","10"],
+              "text": ["Blue","S/J","180",null,null,"9",null,null,null,"",null,null,null,"17-Oct-2026","26-Oct-2026","Tentative","300","250","200","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-24","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-02","disabled":false,"title":null,"min":"2026-10-24"},
@@ -144,7 +144,7 @@
             },
             {
               "row": "2",
-              "text": ["Green","Rib","200",null,null,null,null,null,null,null,null,"18-Oct-2026","—","-","—","—","200","150","100","100","25","5","10"],
+              "text": ["Green","Rib","200",null,null,"",null,null,null,"",null,null,null,"18-Oct-2026","—","-","200","150","100","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"","disabled":false,"title":null},
                 "floorEndDate": {"value":"","disabled":false,"title":null},
@@ -158,7 +158,7 @@
             },
             {
               "row": "3",
-              "text": ["White","Rib","200",null,null,null,null,null,null,null,null,"—","—","-","—","—","150","100","50","100","25","5","10"],
+              "text": ["White","Rib","200",null,null,"",null,null,null,"",null,null,null,"—","—","-","150","100","50","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"","disabled":false,"title":null},
                 "floorEndDate": {"value":"","disabled":false,"title":null},
@@ -172,7 +172,7 @@
             },
             {
               "row": "4",
-              "text": ["Grey","Pique","220",null,null,null,null,null,null,null,null,"—","—","Tentative","—","—","90","40","-10","100","25","5","10"],
+              "text": ["Grey","Pique","220",null,null,"",null,null,null,"",null,null,null,"—","—","Tentative","90","40","-10","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"","disabled":false,"title":null},
                 "floorEndDate": {"value":"","disabled":false,"title":null},
@@ -186,7 +186,7 @@
             },
             {
               "row": "5",
-              "text": ["Navy","S/J","160",null,null,null,null,null,null,null,null,"20-Oct-2026","29-Oct-2026","Confirm","—","—","120","70","20","100","25","5","10"],
+              "text": ["Navy","S/J","160",null,null,"9",null,null,null,"10",null,null,null,"20-Oct-2026","29-Oct-2026","Confirm","120","70","20","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-27","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-05","disabled":false,"title":null,"min":"2026-10-27"},
@@ -200,7 +200,7 @@
             },
             {
               "row": "6",
-              "text": ["Red","Rib","200",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","09-Oct-2026","19-Oct-2026","110","60","10","100","25","5","10"],
+              "text": ["Red","Rib","200",null,null,"9",null,null,null,"",null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","110","60","10","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
@@ -214,7 +214,7 @@
             },
             {
               "row": "7",
-              "text": ["Red","Pique","220",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","100","50","0","100","25","5","10"],
+              "text": ["Red","Pique","220",null,null,"9",null,null,null,"",null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","100","50","0","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
@@ -241,7 +241,7 @@
     {
       "n": 2,
       "step": {"do":"set","row":0,"field":"floorStartDate","value":"2026-10-22"},
-      "changes": {"table.rows[0].fields.floorStartDate.value":"2026-10-22","table.rows[0].fields.floorEndDate.min":"2026-10-22","table.rows[1].fields.floorStartDate.value":"2026-10-22","table.rows[1].fields.floorEndDate.min":"2026-10-22","table.rows[2].fields.floorStartDate.value":"2026-10-22","table.rows[2].fields.floorEndDate.min":"2026-10-22","table.rows[3].fields.floorStartDate.value":"2026-10-22","table.rows[3].fields.floorEndDate.min":"2026-10-22","table.rows[4].fields.floorStartDate.value":"2026-10-22","table.rows[4].fields.floorEndDate.min":"2026-10-22","table.rows[5].fields.floorStartDate.value":"2026-10-22","table.rows[5].fields.floorEndDate.min":"2026-10-22","table.rows[6].fields.floorStartDate.value":"2026-10-22","table.rows[6].fields.floorEndDate.min":"2026-10-22","table.rows[7].fields.floorStartDate.value":"2026-10-22","table.rows[7].fields.floorEndDate.min":"2026-10-22"}
+      "changes": {"table.rows[0].text[5]":"10","table.rows[0].fields.floorStartDate.value":"2026-10-22","table.rows[0].fields.floorEndDate.min":"2026-10-22","table.rows[1].text[5]":"11","table.rows[1].fields.floorStartDate.value":"2026-10-22","table.rows[1].fields.floorEndDate.min":"2026-10-22","table.rows[2].fields.floorStartDate.value":"2026-10-22","table.rows[2].fields.floorEndDate.min":"2026-10-22","table.rows[3].fields.floorStartDate.value":"2026-10-22","table.rows[3].fields.floorEndDate.min":"2026-10-22","table.rows[4].fields.floorStartDate.value":"2026-10-22","table.rows[4].fields.floorEndDate.min":"2026-10-22","table.rows[5].text[5]":"14","table.rows[5].fields.floorStartDate.value":"2026-10-22","table.rows[5].fields.floorEndDate.min":"2026-10-22","table.rows[6].text[5]":"10","table.rows[6].fields.floorStartDate.value":"2026-10-22","table.rows[6].fields.floorEndDate.min":"2026-10-22","table.rows[7].text[5]":"10","table.rows[7].fields.floorStartDate.value":"2026-10-22","table.rows[7].fields.floorEndDate.min":"2026-10-22"}
     },
     {
       "n": 3,
@@ -251,7 +251,7 @@
     {
       "n": 4,
       "step": {"do":"set","row":1,"field":"floorEndDate","value":"2026-10-20"},
-      "changes": {"table.rows[1].fields.floorEndDate.value":"2026-10-20"}
+      "changes": {"table.rows[1].text[5]":"-2","table.rows[1].fields.floorEndDate.value":"2026-10-20"}
     },
     {
       "n": 5,

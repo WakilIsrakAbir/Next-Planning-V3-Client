@@ -50,8 +50,8 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
           "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
@@ -110,13 +110,13 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"—","—","-","—","—","500","450","400","100","25","5","10"],
+              "text": ["Red","S/J","160",null,null,"",null,null,null,"",null,null,null,"—","—","-","500","450","400","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},
                 "floorEndDate": {"value":"","disabled":true,"title":"Dyeing Plan type selection is mandatory to input Delivery plan","greyed":true},

@@ -50,8 +50,8 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
           "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
@@ -110,13 +110,13 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Navy","S/J","160",null,null,null,null,null,null,null,null,"—","—","Tentative","—","—","120","70","20","100","25","5","10"],
+              "text": ["Navy","S/J","160",null,null,"9",null,null,null,"",null,null,null,"—","—","Tentative","120","70","20","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-25","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-03","disabled":false,"title":null,"min":"2026-10-25"},

@@ -50,8 +50,8 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
           "message": "Loading Delivery Plan items & milestones... Synchronizing order plan details from database"
@@ -110,13 +110,13 @@
         "table": {
           "plan": "delivery",
           "head": [
-            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","Plan Type (Floor)","Delivery Planning","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","Knitting Planning","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
-            ["Start Date","End Date","Start Date","End Date","Start Date","End Date","Start Date","End Date"]
+            ["Color","FabricConstruction","GSM","Delivery Planning (Floor)","DelS-DelE","Plan Type (Floor)","Delivery Planning","LockS-LockE","Plan Type","Delivery Limitation","Remarks","Dyeing Planning","Dyeing Plan Type","RequiredQtyKgs","NetReceivedQtyKgs","NetDeliveryQtyKgs","Deli. Bal.","RFD","Slowmoving","FF Stock"],
+            ["Start Date","End Date","Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red","S/J","160",null,null,null,null,null,null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","05-Oct-2026","15-Oct-2026","500","450","400","100","25","5","10"],
+              "text": ["Red","S/J","160",null,null,"9",null,null,null,"9",null,null,null,"16-Oct-2026","25-Oct-2026","Confirm","500","450","400","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-23","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-01","disabled":false,"title":null,"min":"2026-10-23"},
@@ -130,7 +130,7 @@
             },
             {
               "row": "1",
-              "text": ["Blue","S/J","180",null,null,null,null,null,null,null,null,"17-Oct-2026","26-Oct-2026","Confirm","06-Oct-2026","16-Oct-2026","300","250","200","100","25","5","10"],
+              "text": ["Blue","S/J","180",null,null,"9",null,null,null,"10",null,null,null,"17-Oct-2026","26-Oct-2026","Confirm","300","250","200","100","25","5","10"],
               "fields": {
                 "floorStartDate": {"value":"2026-10-24","disabled":false,"title":null},
                 "floorEndDate": {"value":"2026-11-02","disabled":false,"title":null,"min":"2026-10-24"},
@@ -157,12 +157,12 @@
     {
       "n": 2,
       "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-16"},
-      "changes": {"table.rows[1].fields.startDate.value":"2026-10-16","table.rows[1].fields.endDate.min":"2026-10-16"}
+      "changes": {"table.rows[1].text[9]":"21","table.rows[1].fields.startDate.value":"2026-10-16","table.rows[1].fields.endDate.min":"2026-10-16"}
     },
     {
       "n": 3,
       "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-25"},
-      "changes": {"table.rows[1].fields.endDate.value":"2026-10-25"}
+      "changes": {"table.rows[1].text[9]":"9","table.rows[1].fields.endDate.value":"2026-10-25"}
     },
     {
       "n": 4,
@@ -173,7 +173,7 @@
     {
       "n": 5,
       "step": {"do":"set","row":1,"field":"startDate","value":"2026-10-17"},
-      "changes": {"toast":null,"table.rows[1].fields.startDate.value":"2026-10-17","table.rows[1].fields.endDate.min":"2026-10-17"}
+      "changes": {"toast":null,"table.rows[1].text[9]":"8","table.rows[1].fields.startDate.value":"2026-10-17","table.rows[1].fields.endDate.min":"2026-10-17"}
     },
     {
       "n": 6,
@@ -184,7 +184,7 @@
     {
       "n": 7,
       "step": {"do":"set","row":1,"field":"endDate","value":"2026-10-26"},
-      "changes": {"toast":null,"table.rows[1].fields.endDate.value":"2026-10-26"}
+      "changes": {"toast":null,"table.rows[1].text[9]":"9","table.rows[1].fields.endDate.value":"2026-10-26"}
     },
     {
       "n": 8,
