@@ -71,36 +71,37 @@ export default function LoginScreen() {
 
   return (
     <div
+      data-theme="light"
       className="relative flex min-h-screen items-center justify-center bg-cover bg-center p-4"
       style={{
         backgroundImage: "url('/assets/login.jpg')",
       }}
     >
-      {/* Dark overlay with subtle backdrop blur */}
-      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+      {/* Light overlay with subtle backdrop blur */}
+      <div className="absolute inset-0 bg-white/35 backdrop-blur-sm" />
 
       {/* Login Card */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl transition-all">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white/95 p-8 shadow-2xl backdrop-blur-xl transition-all">
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white shadow-lg shadow-emerald-600/30">
             TP
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-wide text-emerald-400">
+          <h1 className="mt-4 text-2xl font-extrabold tracking-wide text-emerald-700">
             Textile Planning Solution
           </h1>
-          <p className="mt-1 text-xs font-medium text-emerald-200/80">
+          <p className="mt-1 text-xs font-medium text-emerald-700/80">
             Developed by{' '}
             <a
               href="https://www.linkedin.com/in/wakil-israk-abir/"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline-offset-2 transition-colors hover:text-emerald-100 hover:underline focus-visible:underline focus-visible:outline-none"
+              className="underline-offset-2 transition-colors hover:text-emerald-900 hover:underline focus-visible:underline focus-visible:outline-none"
             >
               Wakil Israk Abir
             </a>
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-500">
             Sign in to your account
           </p>
         </div>
@@ -116,11 +117,11 @@ export default function LoginScreen() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="form-control">
-            <label className="label py-1 text-xs font-bold text-slate-300">
+            <label className="label py-1 text-xs font-bold text-slate-700">
               Username or ID
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <span className="absolute inset-y-0 left-0 z-10 flex items-center pl-3 text-slate-400">
                 <User className="h-4 w-4" />
               </span>
               <input
@@ -128,7 +129,7 @@ export default function LoginScreen() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="e.g. admin"
-                className="input input-bordered w-full bg-slate-800/80 pl-10 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none"
+                className="input input-bordered w-full border-slate-300 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none"
                 required
                 autoFocus
               />
@@ -136,11 +137,11 @@ export default function LoginScreen() {
           </div>
 
           <div className="form-control">
-            <label className="label py-1 text-xs font-bold text-slate-300">
+            <label className="label py-1 text-xs font-bold text-slate-700">
               Password
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <span className="absolute inset-y-0 left-0 z-10 flex items-center pl-3 text-slate-400">
                 <Lock className="h-4 w-4" />
               </span>
               <input
@@ -148,13 +149,13 @@ export default function LoginScreen() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="input input-bordered w-full bg-slate-800/80 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:outline-none"
+                className="input input-bordered w-full border-slate-300 bg-white pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white"
+                className="absolute inset-y-0 right-0 z-10 flex items-center pr-3 text-slate-400 hover:text-slate-700"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -178,7 +179,7 @@ export default function LoginScreen() {
         </form>
 
         {/* Footer info */}
-        <div className="mt-8 border-t border-slate-800 pt-4 text-center">
+        <div className="mt-8 border-t border-slate-200 pt-4 text-center">
           <p className="text-[11px] text-slate-500">
             Session credentials automatically expire daily at midnight Dhaka Time (UTC+6).
           </p>

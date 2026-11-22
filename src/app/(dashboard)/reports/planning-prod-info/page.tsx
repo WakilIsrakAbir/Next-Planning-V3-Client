@@ -3,3 +3,5 @@ import PlanningProdInfoScreen from '@/features/planning-prod-info/components/Pla
 export default function Page() {
   return <PlanningProdInfoScreen />;
 }
+
+export const metadata = { title: "Planning & Production Info" };

@@ -3,3 +3,5 @@ import AtlasMonitorScreen from '@/features/management/components/AtlasMonitorScr
 export default function Page() {
   return <AtlasMonitorScreen />;
 }
+
+export const metadata = { title: "Atlas Monitor" };

@@ -17,3 +17,8 @@ export default async function Page({ params }: { params: Promise<{ unit?: string
     </BatchRouteGuard>
   );
 }
+
+export async function generateMetadata({ params }: { params: Promise<{ unit?: string[] }> }) {
+  const { unit } = await params;
+  return { title: unit?.[0] ? `Batch Plan – ${unit[0].toUpperCase()}` : 'Batch Plan' };
+}
