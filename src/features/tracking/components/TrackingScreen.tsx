@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, use } from 'react';
+import React, { useState, useEffect, useRef, use, useCallback } from 'react';
 import {
   Activity,
   Search,
@@ -8,6 +8,7 @@ import {
   CheckCircle,
   AlertCircle,
   Save,
+  LayoutGrid,
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
@@ -16,6 +17,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Pagination from '@/components/ui/Pagination';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import { pageForNewLimit, useFitRows } from '@/lib/use-fit-rows';
+import OttBoardModal from '@/features/tracking/components/OttBoardModal';
+import { OTT_BOARD_DEPTS } from '@/features/tracking/lib/ott-board';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
@@ -104,6 +107,10 @@ export default function TrackingScreen({ params }: PageProps) {
   const dept = resolvedParams.dept || 'knitting';
 
   const [activeTab, setActiveTab] = useState<'Pending' | 'Complete'>('Pending');
+  // US-11: the order whose OTT board is open (YD, Knitting, Dyeing, Delivery and Delivery Floor lists).
+  const [ottOrderNo, setOttOrderNo] = useState<string | null>(null);
+  const closeOttBoard = useCallback(() => setOttOrderNo(null), []);
+  const hasOttBoard = OTT_BOARD_DEPTS.includes(dept);
   const [search, setSearch] = useState('');
   const [selectedBuyer, setSelectedBuyer] = useState('');
   const [startMin, setStartMin] = useState('');
@@ -574,7 +581,21 @@ export default function TrackingScreen({ params }: PageProps) {
                   return (
                     <tr key={ord.orderNo} style={rowStyle} className="hover:bg-base-200/40 transition-colors">
                       <td className="text-center font-bold text-base-content/40">{sl}</td>
-                      <td className="font-bold text-primary whitespace-nowrap">{ord.orderNo}</td>
+                      <td className="font-bold text-primary whitespace-nowrap">
+                        {ord.orderNo}
+                        {hasOttBoard && (
+                          <button
+                            type="button"
+                            data-action="ott-board"
+                            onClick={() => setOttOrderNo(ord.orderNo)}
+                            className="btn btn-ghost btn-xs btn-square ml-1 align-middle"
+                            title="OTT Board — Same Booking Status"
+                            aria-label={`OTT board of ${ord.orderNo}`}
+                          >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </td>
                       <td className="font-medium whitespace-nowrap">{ord.buyer}</td>
                       {dynCol1 && (
                         <td className="text-center font-bold bg-amber-500/5 text-amber-800">
@@ -681,6 +702,7 @@ export default function TrackingScreen({ params }: PageProps) {
           isAuto={limitChoice === 'auto'}
         />
       </div>
+      {ottOrderNo && <OttBoardModal orderNo={ottOrderNo} dept={dept} onClose={closeOttBoard} />}
     </div>
   );
 }
