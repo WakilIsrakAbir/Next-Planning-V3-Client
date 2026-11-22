@@ -1,6 +1,7 @@
 import { API_BASE } from '@/lib/constants';
 import { createDeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
 import { formatPlanPayload, type Loose } from '@/features/planning/lib/order-plan-logic';
+import { extrasPayload, type PlanExtras } from '@/features/planning/lib/plan-extras';
 import { PLAN_DEPTS, type GroupKey } from '@/features/planning/lib/order-page-model';
 
 /*
@@ -119,7 +120,8 @@ export function confirmCompletions(
 
 export interface SavePlansBody {
   orderNo: string;
-  plans: Array<{ department: string; fabricItems: Loose[]; orderStatus: string }>;
+  /** `extras` (US-11): Knitting and Dyeing only, the full map of the saved rows' extra dates (planExtras.<dept>). */
+  plans: Array<{ department: string; fabricItems: Loose[]; orderStatus: string; extras?: PlanExtras }>;
   base?: Record<string, string>;
 }
 
@@ -128,7 +130,12 @@ export function buildSavePlansBody(orderNo: string, entries: PlanSaveEntry[], fi
   const ordered = inPipelineOrder(entries);
   const body: SavePlansBody = {
     orderNo,
-    plans: ordered.map((e) => ({ department: e.dept, fabricItems: formatPlanPayload(e.dept, e.rows), orderStatus: e.status })),
+    plans: ordered.map((e) => {
+      const plan: SavePlansBody['plans'][number] = { department: e.dept, fabricItems: formatPlanPayload(e.dept, e.rows), orderStatus: e.status };
+      const extras = extrasPayload(e.dept, e.rows);
+      if (extras) plan.extras = extras;
+      return plan;
+    }),
   };
   const base: Record<string, string> = {};
   ordered.forEach((e) => {

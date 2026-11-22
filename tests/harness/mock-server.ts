@@ -67,7 +67,7 @@ const fpNorm = (value: unknown): string => (value === undefined || value === nul
 
 export function fingerprintDept(planDoc: Loose, dept: string): string {
   const rows = planDoc?.[dept];
-  const content = {
+  const content: Record<string, unknown> = {
     status: fpNorm(planDoc?.[`${dept}Status`]),
     items: (Array.isArray(rows) ? rows : []).map((item: Loose) => {
       const fields: Record<string, string> = {};
@@ -76,7 +76,26 @@ export function fingerprintDept(planDoc: Loose, dept: string): string {
       return fields;
     }),
   };
+  // US-11 (SERVER plan-fingerprint.ts): the extras count only when they hold a non-empty value.
+  const extras = normaliseExtras(planDoc?.planExtras?.[dept]);
+  if (extras.length) content.extras = extras;
   return createHash('sha1').update(JSON.stringify(content)).digest('hex');
+}
+
+function normaliseExtras(extras: unknown): [string, [string, string][]][] {
+  const isObj = (v: unknown): v is Record<string, Loose> => v !== null && typeof v === 'object' && !Array.isArray(v);
+  if (!isObj(extras)) return [];
+  const result: [string, [string, string][]][] = [];
+  for (const itemId of Object.keys(extras).sort()) {
+    const fields = extras[itemId];
+    if (!isObj(fields)) continue;
+    const pairs = Object.keys(fields)
+      .sort()
+      .map((field): [string, string] => [field, fpNorm(fields[field])])
+      .filter(([, value]) => value !== '');
+    if (pairs.length) result.push([itemId, pairs]);
+  }
+  return result;
 }
 
 export function fingerprintAllDepts(planDoc: Loose): Record<string, string> {
@@ -330,6 +349,15 @@ export class MockServer {
       if (plan.orderStatus) set[`${plan.department}Status`] = plan.orderStatus;
       if (plan.completedDate !== undefined) set[`${plan.department}CompletedDate`] = plan.completedDate;
     }
+    // US-11: V3 extras replace the department's whole planExtras map, in the same write as its rows.
+    const extrasSet: Record<string, Loose> = {};
+    for (const plan of plans) {
+      if (plan.extras === undefined) continue;
+      if (!isObject(plan.extras) || !['knitting', 'dyeing'].includes(plan.department)) return invalid(`plans.${plans.indexOf(plan)}.extras: Invalid input`);
+      extrasSet[plan.department] = plan.extras;
+    }
+    const withExtras = (doc: Loose): Loose =>
+      Object.keys(extrasSet).length ? { ...doc, planExtras: { ...(doc?.planExtras || {}), ...extrasSet } } : doc;
 
     // The conflict check of the departments that have a `base`
     let record = this.db.orderDates.find((d) => d.orderNo === orderNo);
@@ -340,7 +368,7 @@ export class MockServer {
         const stored = fingerprintDept(record ?? null, d);
         if (stored === base[d]) return false;
         if (base[d] === UNSAVED_FINGERPRINT && isUnsavedDept(record ?? null, d)) return false;
-        if (stored === fingerprintDept({ ...(record || {}), ...set }, d)) return false;
+        if (stored === fingerprintDept(withExtras({ ...(record || {}), ...set }), d)) return false;
         return true;
       });
     if (changed.length > 0) {
@@ -360,12 +388,14 @@ export class MockServer {
     const now = this.now();
     if (!record) {
       record = withOrderDateDefaults({ _id: this.nextObjectId(), orderNo, ...clone(set) });
+      if (Object.keys(extrasSet).length) record.planExtras = clone(extrasSet);
       record.createdAt = now;
       record.updatedAt = now;
       record.__v = 0;
       this.db.orderDates.push(record);
     } else {
       Object.assign(record, clone(set));
+      if (Object.keys(extrasSet).length) record.planExtras = { ...(record.planExtras || {}), ...clone(extrasSet) };
       record.updatedAt = now;
     }
 

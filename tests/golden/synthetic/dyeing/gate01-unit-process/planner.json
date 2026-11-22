@@ -50,7 +50,7 @@
         "table": {
           "plan": "dyeing",
           "head": [
-            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","LD Plan Date","Actual LD Date","Dyeing Planning","DS-DE","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
             ["Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
@@ -110,21 +110,18 @@
         "table": {
           "plan": "dyeing",
           "head": [
-            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","LD Plan Date","Actual LD Date","Dyeing Planning","DS-DE","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
             ["Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm","KL-red","KR-red",null,null,null,null,null,"470","60","440","500","20"],
+              "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm",null,null,null,null,"9",null,null,null,"470","60","440","500","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Solid",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Solid","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-16","disabled":false,"title":null},
                 "endDate": {"value":"2026-10-25","disabled":false,"title":null,"min":"2026-10-16"},
                 "planType": {"value":"Tentative","disabled":false,"title":null},
@@ -134,15 +131,12 @@
             },
             {
               "row": "1",
-              "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Tentative","","",null,null,null,null,null,"270","60","240","300","20"],
+              "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Tentative",null,null,null,null,"",null,null,null,"270","60","240","300","20"],
               "fields": {
                 "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "HTR",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"HTR","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":false,"title":null},
                 "endDate": {"value":"","disabled":false,"title":null},
                 "planType": {"value":"","disabled":false,"title":null},
@@ -152,15 +146,12 @@
             },
             {
               "row": "2",
-              "text": ["Green",null,null,"—","—","-","","",null,null,null,null,null,"170","60","140","200","20"],
+              "text": ["Green",null,null,"—","—","-",null,null,null,null,"8",null,null,null,"170","60","140","200","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Dyeing Wash",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Dyeing Wash","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-19","disabled":false,"title":null},
                 "endDate": {"value":"2026-10-27","disabled":false,"title":null,"min":"2026-10-19"},
                 "planType": {"value":"","disabled":false,"title":null},
@@ -170,15 +161,12 @@
             },
             {
               "row": "3",
-              "text": ["White",null,null,"—","—","-","","",null,null,null,null,null,"120","60","90","150","20"],
+              "text": ["White",null,null,"—","—","-",null,null,null,null,"",null,null,null,"120","60","90","150","20"],
               "fields": {
                 "unit": {"value":"","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "endDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "planType": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
@@ -188,15 +176,12 @@
             },
             {
               "row": "4",
-              "text": ["Navy",null,null,"07-Oct-2026","17-Oct-2026","-","","",null,null,null,null,null,"90","60","60","120","20"],
+              "text": ["Navy",null,null,"07-Oct-2026","17-Oct-2026","-",null,null,null,null,"",null,null,null,"90","60","60","120","20"],
               "fields": {
                 "unit": {"value":"Ext","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Pluvia",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Pluvia","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-18","disabled":false,"title":null},
                 "endDate": {"value":"","disabled":false,"title":null,"min":"2026-10-18"},
                 "planType": {"value":"","disabled":false,"title":null},
@@ -206,15 +191,12 @@
             },
             {
               "row": "5",
-              "text": ["Black",null,null,"08-Oct-2026","18-Oct-2026","Confirm","","",null,null,null,null,null,"70","60","40","100","20"],
+              "text": ["Black",null,null,"08-Oct-2026","18-Oct-2026","Confirm",null,null,null,null,"8",null,null,null,"70","60","40","100","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Solid",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Solid","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-20","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
                 "endDate": {"value":"2026-10-28","disabled":true,"title":"Only Admin can modify Confirmed plan","min":"2026-10-20","greyed":true},
                 "planType": {"value":"Confirm","disabled":true,"title":"Only Admin can modify Confirmed plan","greyed":true},
@@ -224,15 +206,12 @@
             },
             {
               "row": "6",
-              "text": ["Grey",null,null,"—","—","-","","",null,null,null,null,null,"60","60","30","90","20"],
+              "text": ["Grey",null,null,"—","—","-",null,null,null,null,"",null,null,null,"60","60","30","90","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Solid",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Solid","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "endDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "planType": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},

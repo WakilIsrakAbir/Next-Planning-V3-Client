@@ -38,6 +38,8 @@ interface MenuItemDef {
   /* Permission when it is not menus.<group key>.<item key>: menus.<group>.<key>, or any permission of
      menus.<group> when key is left out (Batch Plan / Batch Card: the unit permissions are not a fixed list). */
   perm?: { group: string; key?: string };
+  /* Used when the user's permissions have no value for the item's own key (a key added later, e.g. deliveryFloor). */
+  fallbackKey?: string;
   // Batch module route ('plan', 'card', 'setup/dyeing', ...): the href follows the unit opened last.
   batchRoute?: string;
   // The item is active for every path under this prefix (e.g. all Batch Plan unit pages).
@@ -87,7 +89,9 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'knitting', label: 'Knitting Plan', href: '/planning/knitting' },
       { key: 'dyeing', label: 'Dyeing Plan', href: '/planning/dyeing' },
       { key: 'finishing', label: 'Finishing Plan', href: '/planning/finishing' },
-      { key: 'delivery', label: 'Delivery Plan', href: '/planning/delivery' },
+      // US-11: Delivery Plan split into Floor and Lock; a user without the new keys keeps the old `delivery` one.
+      { key: 'deliveryFloor', label: 'Delivery Plan (Floor)', href: '/planning/deliveryfloor', fallbackKey: 'delivery' },
+      { key: 'deliveryLock', label: 'Delivery Plan (Lock)', href: '/planning/deliverylock', fallbackKey: 'delivery' },
       // Batch Plan module: the Dyeing Plan units are tabs in the heading of the Batch page, so these
       // items have no submenu; they open the unit used last.
       {
@@ -293,8 +297,10 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
     if (item.perm && item.perm.key === undefined) {
       return Object.values(menu).some((value) => value === true);
     }
-    // Direct menu permission
-    return menu[item.perm?.key || item.key] === true;
+    // Direct menu permission (a key the user's permissions do not have yet falls back to fallbackKey)
+    const own = menu[item.perm?.key || item.key];
+    if (own === undefined && item.fallbackKey) return menu[item.fallbackKey] === true;
+    return own === true;
   };
 
   // Batch Plan / Batch Card open the unit used last (kept in this browser), as in the old project.

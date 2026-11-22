@@ -1,8 +1,9 @@
-import { memo, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useId, useLayoutEffect, useMemo, useRef } from 'react';
 import { Layers, Save } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import { findUpstreamPlans, formatDateDisplay, formatExcelDate, withCurrentOption, type Loose } from '@/features/planning/lib/order-plan-logic';
 import type { DeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
+import { dayDiff, yarnToKnitStart } from '@/features/planning/lib/plan-extras';
 
 // Port of the old `.resizable-table-input` CSS (index.html): one-row textarea that resizes both ways.
 const RESIZABLE_INPUT_CLS =
@@ -33,7 +34,13 @@ interface DeptPlanSectionProps {
   showFooterActions?: boolean;
   /** This section is the one being saved (spinner on its Save). Defaults to `saving`. */
   spinning?: boolean;
+  /** The footer Save stores the whole Delivery plan (the delivery page's two tables). */
+  footerSavesDept?: boolean;
+  /** US-11 extra dates (Actual Yarn Date, LD Plan Date, Actual LD Date): sets one row's field, nothing else. */
+  onExtraChange?: (index: number, field: string, value: string) => void;
 }
+
+const NO_EXTRA_CHANGE = () => {};
 
 export default function DeptPlanSection({
   dept,
@@ -55,7 +62,10 @@ export default function DeptPlanSection({
   readOnly = false,
   showFooterActions = true,
   spinning = saving,
+  footerSavesDept = false,
+  onExtraChange = NO_EXTRA_CHANGE,
 }: DeptPlanSectionProps) {
+  const processListId = `process-options-${useId().replace(/:/g, '')}`;
   const showFloor = columns !== 'lock';
   const showLock = columns !== 'floor';
   // Stable row handlers that call the latest logic: a row whose item did not change is not rendered again.
@@ -119,8 +129,17 @@ export default function DeptPlanSection({
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center whitespace-normal min-w-[90px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-200 font-bold">
                     Yarn Date
                   </th>
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                    Actual Yarn Date
+                  </th>
                   <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                     Knitting Planning
+                  </th>
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                    Y-KS
+                  </th>
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                    KS-KE
                   </th>
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                     Plan Type
@@ -173,14 +192,17 @@ export default function DeptPlanSection({
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                     Knitting Plan Type
                   </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                    Knitting Limitation
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                    LD Plan Date
                   </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[100px]">
-                    Remarks (Knitting)
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                    Actual LD Date
                   </th>
                   <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                     Dyeing Planning
+                  </th>
+                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                    DS-DE
                   </th>
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                     Plan Type
@@ -289,6 +311,9 @@ export default function DeptPlanSection({
                       <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                         Delivery Planning (Floor)
                       </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                        DelS-DelE
+                      </th>
                       <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                         Plan Type (Floor)
                       </th>
@@ -298,6 +323,9 @@ export default function DeptPlanSection({
                     <>
                       <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
                         Delivery Planning
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[60px]">
+                        LockS-LockE
                       </th>
                       <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
                         Plan Type
@@ -310,15 +338,16 @@ export default function DeptPlanSection({
                       </th>
                     </>
                   )}
-                  <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                    Dyeing Planning
-                  </th>
-                  <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
-                    Dyeing Plan Type
-                  </th>
-                  <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
-                    Knitting Planning
-                  </th>
+                  {showFloor && (
+                    <>
+                      <th colSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center bg-gray-200 dark:bg-[#283347]">
+                        Dyeing Planning
+                      </th>
+                      <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[90px]">
+                        Dyeing Plan Type
+                      </th>
+                    </>
+                  )}
                   <th rowSpan={2} className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[80px]">
                     RequiredQtyKgs
                   </th>
@@ -497,18 +526,16 @@ export default function DeptPlanSection({
                       </th>
                     </>
                   )}
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    Start Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    End Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    Start Date
-                  </th>
-                  <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
-                    End Date
-                  </th>
+                  {showFloor && (
+                    <>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        Start Date
+                      </th>
+                      <th className="p-1 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-600 dark:text-gray-400">
+                        End Date
+                      </th>
+                    </>
+                  )}
                 </>
               )}
 
@@ -565,11 +592,20 @@ export default function DeptPlanSection({
                   showLock={showLock}
                   readOnly={readOnly}
                   handlers={handlers}
+                  processListId={processListId}
+                  onExtraChange={onExtraChange}
                 />
               ))
           )}
         </tbody>
         </table>
+        {dept === 'dyeing' && (
+          <datalist id={processListId}>
+            {processOptions.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        )}
       </div>
 
       {/* Footer info & Save trigger */}
@@ -592,7 +628,7 @@ export default function DeptPlanSection({
               disabled={saving}
               // Delivery: both tables' footer Save stores the whole Delivery plan, as today's single footer button did
               // (the strips' Save Floor and Save Lock save one group).
-              title={columns ? 'Saves Delivery Floor and Lock together' : undefined}
+              title={footerSavesDept ? 'Saves Delivery Floor and Lock together' : undefined}
               className="btn btn-primary btn-xs font-bold gap-1.5 shadow-sm"
             >
               {spinning ? <InlineSpinner size={12} /> : <Save className="h-3 w-3" />}
@@ -636,6 +672,9 @@ interface DeptPlanRowProps {
   /** A view-only section: no per-cell tooltips, so the section's "View only" reason shows instead. */
   readOnly: boolean;
   handlers: RowHandlers;
+  /** The Dyeing Process Name suggestions (one <datalist> per table). */
+  processListId: string;
+  onExtraChange: (index: number, field: string, value: string) => void;
 }
 
 // The delivery fields one of the two delivery tables does not show (the Floor table hides the Lock fields and the
@@ -673,6 +712,8 @@ const DeptPlanRow = memo(function DeptPlanRow({
   showLock,
   readOnly,
   handlers,
+  processListId,
+  onExtraChange,
 }: DeptPlanRowProps) {
   const {
     handleYarnDateChange,
@@ -773,6 +814,15 @@ const DeptPlanRow = memo(function DeptPlanRow({
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
             <input
+              data-field="actualYarnDate"
+              type="date"
+              value={item.actualYarnDate || ''}
+              onChange={(e) => onExtraChange(idx, 'actualYarnDate', e.target.value)}
+              className="row-actualYarnDate p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+            />
+          </td>
+          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+            <input
               data-field="startDate"
               type="date"
               value={item.startDate || ''}
@@ -794,6 +844,12 @@ const DeptPlanRow = memo(function DeptPlanRow({
               onChange={(e) => handleEndDateChange(idx, e.target.value)}
               className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
             />
+          </td>
+          <td data-day="yks" className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono min-w-[60px]">
+            {yarnToKnitStart(item)}
+          </td>
+          <td data-day="kske" className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono min-w-[60px]">
+            {dayDiff(item.startDate, item.endDate)}
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
             <select
@@ -877,19 +933,17 @@ const DeptPlanRow = memo(function DeptPlanRow({
             </select>
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
-            <select
+            {/* US-11: the Dropdown Master Setup Process Names are offered, any typed value is allowed. */}
+            <input
               data-field="processName"
+              type="text"
+              list={processListId}
               value={item.processName || ''}
               onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
-              className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
-            >
-              <option value="">Select</option>
-              {withCurrentOption(processOptions, item.processName).map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              placeholder="Select or type"
+              autoComplete="off"
+              className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+            />
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
             {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
@@ -900,11 +954,23 @@ const DeptPlanRow = memo(function DeptPlanRow({
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px] font-semibold">
             {knitItem?.planType || '-'}
           </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px]">
-            {knitItem?.limitation || ''}
+          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+            <input
+              data-field="ldPlanDate"
+              type="date"
+              value={item.ldPlanDate || ''}
+              onChange={(e) => onExtraChange(idx, 'ldPlanDate', e.target.value)}
+              className="row-ldPlanDate p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+            />
           </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[100px]">
-            {knitItem?.remarks || ''}
+          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
+            <input
+              data-field="actualLdDate"
+              type="date"
+              value={item.actualLdDate || ''}
+              onChange={(e) => onExtraChange(idx, 'actualLdDate', e.target.value)}
+              className="row-actualLdDate p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
+            />
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
             <input
@@ -928,6 +994,9 @@ const DeptPlanRow = memo(function DeptPlanRow({
               onChange={(e) => handleEndDateChange(idx, e.target.value)}
               className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
             />
+          </td>
+          <td data-day="dsde" className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono min-w-[60px]">
+            {dayDiff(item.startDate, item.endDate)}
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
             <select
@@ -1188,6 +1257,9 @@ const DeptPlanRow = memo(function DeptPlanRow({
                   className={`row-floor-end p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[95px] focus:border-blue-500 outline-none ${floorDisabledClass}`}
                 />
               </td>
+              <td data-day="delsdele" className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono min-w-[60px]">
+                {dayDiff(item.floorStartDate, item.floorEndDate)}
+              </td>
               <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                 <select
                   data-field="floorPlanType"
@@ -1229,6 +1301,9 @@ const DeptPlanRow = memo(function DeptPlanRow({
                   className={`row-end-date p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-[90px] focus:border-blue-500 outline-none ${inputDisabledClass}`}
                 />
               </td>
+              <td data-day="lockslocke" className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono min-w-[60px]">
+                {dayDiff(item.startDate, item.endDate)}
+              </td>
               <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center">
                 <select
                   data-field="planType"
@@ -1265,21 +1340,19 @@ const DeptPlanRow = memo(function DeptPlanRow({
               </td>
             </>
           )}
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-            {formatDateDisplay(dyeItem?.startDate || dyeItem?.planStart)}
-          </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-            {formatDateDisplay(dyeItem?.endDate || dyeItem?.planEnd)}
-          </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px] font-semibold">
-            {dyeItem?.planType || '-'}
-          </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-            {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}
-          </td>
-          <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
-            {formatDateDisplay(knitItem?.endDate || knitItem?.planEnd)}
-          </td>
+          {showFloor && (
+            <>
+              <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                {formatDateDisplay(dyeItem?.startDate || dyeItem?.planStart)}
+              </td>
+              <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
+                {formatDateDisplay(dyeItem?.endDate || dyeItem?.planEnd)}
+              </td>
+              <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px] font-semibold">
+                {dyeItem?.planType || '-'}
+              </td>
+            </>
+          )}
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center font-mono">
             {item.itemData?.RequiredQtyKgs ?? item.RequiredQtyKgs ?? '—'}
           </td>

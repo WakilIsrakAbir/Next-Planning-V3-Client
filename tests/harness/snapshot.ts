@@ -152,7 +152,8 @@ function readButton(b: Element): NonNullable<PageState['buttons']>[number] {
  * - General Information: only inside [data-general-info] (the per-section Order Status selects do not leak in);
  * - the plan table: only the route department's section(s) ([data-route-section]); on the delivery page the Floor and
  *   Lock tables are merged back into today's single table (Floor's identification + Floor columns, then Lock's
- *   columns and the read-only columns, which both tables show);
+ *   columns, then the Dyeing columns, which since US-11 only the Floor table shows, then the read-only quantity
+ *   columns, which both tables show);
  * - the section header/footer: the route section's table card (today's card, unchanged);
  * - buttons: today's five: the header arrow and Back, today's header "Save Planning" (now: the route section's own
  *   Save, recorded with today's label and the state of the card's Save), and the card footer's Cancel and Save
@@ -184,12 +185,21 @@ function readRouteSections(root: HTMLElement, state: PageState): boolean {
     // headers, then the Lock table from its 4th header on; head row 2: the two Floor sub-headers, then the Lock row.
     const floor = readTable(tables[0]);
     const lock = readTable(tables[1]);
+    // US-11 layouts. Floor: Color, Fabric, GSM, Floor Start/End, DelS-DelE, Floor Plan Type, Dyeing Start/End, Dyeing
+    // Plan Type, quantities. Lock: Color, Fabric, GSM, Lock Start/End, LockS-LockE, Plan Type, Limitation, Remarks,
+    // quantities. Header row 0 counts a Start/End pair once (colSpan), the rows count every cell.
     state.table = {
       plan: floor.plan,
-      head: [floor.head[0].slice(0, 5).concat(lock.head[0].slice(3)), floor.head[1].slice(0, 2).concat(lock.head[1])],
+      head: [
+        [...floor.head[0].slice(0, 6), ...lock.head[0].slice(3, 8), ...floor.head[0].slice(6, 8), ...lock.head[0].slice(8)],
+        [...floor.head[1].slice(0, 2), ...lock.head[1], ...floor.head[1].slice(2)],
+      ],
       rows: floor.rows.map((fr, i) => {
         const lr = lock.rows[i];
-        return { row: fr.row, text: fr.text.slice(0, 6).concat(lr ? lr.text.slice(3) : []), fields: { ...fr.fields, ...(lr ? lr.fields : {}) } };
+        const text = lr
+          ? [...fr.text.slice(0, 7), ...lr.text.slice(3, 9), ...fr.text.slice(7, 10), ...lr.text.slice(9)]
+          : fr.text.slice(0, 10);
+        return { row: fr.row, text, fields: { ...fr.fields, ...(lr ? lr.fields : {}) } };
       }),
       message: floor.message,
     };

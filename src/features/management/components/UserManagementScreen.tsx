@@ -111,6 +111,9 @@ export const MENU_GROUPS: MenuGroup[] = [
       ['dyeing', 'Dyeing Plan'],
       ['finishing', 'Finishing Plan'],
       ['delivery', 'Delivery Plan'],
+      // US-11 (the Sidebar uses `delivery` while a user has neither of these keys)
+      ['deliveryFloor', 'Delivery Plan (Floor)'],
+      ['deliveryLock', 'Delivery Plan (Lock)'],
     ],
   },
   {

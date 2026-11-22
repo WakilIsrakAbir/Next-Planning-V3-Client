@@ -50,6 +50,12 @@ export const DEPARTMENTS: Record<string, IDepartmentConfig> = {
    (generateStaticParams), so the pages come from the CDN and the sidebar prefetches them in full: a click
    opens the page without waiting for the server. Other keys still render on request, as before. */
 export const PLAN_DEPT_KEYS = Object.keys(DEPARTMENTS); // /planning, /reports
+/** US-11: the Delivery Plan list split into Floor and Lock (their order pages save the 'delivery' plan). */
+export const PLAN_LIST_TITLES: Record<string, string> = {
+  deliveryfloor: 'Delivery Plan (Floor)',
+  deliverylock: 'Delivery Plan (Lock)',
+};
+export const PLAN_LIST_KEYS = [...PLAN_DEPT_KEYS, ...Object.keys(PLAN_LIST_TITLES)]; // /planning
 export const TRACKING_DEPT_KEYS = [...PLAN_DEPT_KEYS, 'deliveryfloor']; // /tracking, /tracking-report
 export const FILTER_DEPT_KEYS = ['yd', 'knitting', 'dyeing', 'delivery', 'deliveryfloor']; // /plan-filter, /tracking-filter
 

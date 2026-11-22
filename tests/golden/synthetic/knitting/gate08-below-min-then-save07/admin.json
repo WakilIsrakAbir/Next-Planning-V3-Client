@@ -50,7 +50,7 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [],
@@ -110,15 +110,16 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red","S/J","160",null,null,null,null,null,null,"520","100","420","525","250","275","5"],
+              "text": ["Red","S/J","160",null,null,null,null,"4","10",null,null,null,"520","100","420","525","250","275","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":"⚡ Changing Row 1 Yarn Date auto-fills all items"},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-05","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"2026-10-15","disabled":false,"title":null,"min":"2026-10-05"},
                 "planType": {"value":"Tentative","disabled":false,"title":null},
@@ -128,9 +129,10 @@
             },
             {
               "row": "1",
-              "text": ["Blue","S/J","180",null,null,null,null,null,null,"320","100","220","315","150","165","5"],
+              "text": ["Blue","S/J","180",null,null,null,null,"5","10",null,null,null,"320","100","220","315","150","165","5"],
               "fields": {
                 "yarnDate": {"value":"2026-10-01","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-06","disabled":false,"title":null,"min":"2026-10-01"},
                 "endDate": {"value":"2026-10-16","disabled":false,"title":null,"min":"2026-10-06"},
                 "planType": {"value":"Confirm","disabled":false,"title":null},
@@ -140,9 +142,10 @@
             },
             {
               "row": "2",
-              "text": ["Green","Rib","200",null,null,null,null,null,null,"220","100","120","210","100","110","5"],
+              "text": ["Green","Rib","200",null,null,null,null,"","",null,null,null,"220","100","120","210","100","110","5"],
               "fields": {
                 "yarnDate": {"value":"","disabled":false,"title":null},
+                "actualYarnDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":false,"title":null},
                 "endDate": {"value":"2026-10-09","disabled":false,"title":null},
                 "planType": {"value":"","disabled":false,"title":null},
@@ -165,7 +168,7 @@
     {
       "n": 2,
       "step": {"do":"set","row":0,"field":"startDate","value":"2026-09-28"},
-      "changes": {"table.rows[0].fields.startDate.value":"2026-09-28","table.rows[0].fields.endDate.min":"2026-09-28","table.rows[1].fields.startDate.value":"2026-09-28","table.rows[1].fields.endDate.min":"2026-09-28","table.rows[2].fields.startDate.value":"2026-09-28","table.rows[2].fields.endDate.min":"2026-09-28"}
+      "changes": {"table.rows[0].text[7]":"-3","table.rows[0].text[8]":"17","table.rows[0].fields.startDate.value":"2026-09-28","table.rows[0].fields.endDate.min":"2026-09-28","table.rows[1].text[7]":"-3","table.rows[1].text[8]":"18","table.rows[1].fields.startDate.value":"2026-09-28","table.rows[1].fields.endDate.min":"2026-09-28","table.rows[2].text[8]":"11","table.rows[2].fields.startDate.value":"2026-09-28","table.rows[2].fields.endDate.min":"2026-09-28"}
     },
     {
       "n": 3,

@@ -50,7 +50,7 @@
         "table": {
           "plan": "dyeing",
           "head": [
-            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","LD Plan Date","Actual LD Date","Dyeing Planning","DS-DE","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
             ["Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],
@@ -110,21 +110,18 @@
         "table": {
           "plan": "dyeing",
           "head": [
-            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","LD Plan Date","Actual LD Date","Dyeing Planning","DS-DE","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
             ["Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [
             {
               "row": "0",
-              "text": ["Red",null,null,"—","—","-","","",null,null,null,null,null,"470","60","440","500","20"],
+              "text": ["Red",null,null,"—","—","-",null,null,null,null,"",null,null,null,"470","60","440","500","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside","Unit-X"]},
-                "processName": {
-                  "value": "Solid",
-                  "disabled": false,
-                  "title": null,
-                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF","Process-X"]
-                },
+                "processName": {"value":"Solid","disabled":false,"title":null},
+                "ldPlanDate": {"value":"","disabled":false,"title":null},
+                "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "endDate": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},
                 "planType": {"value":"","disabled":true,"title":"Knitting Plan type selection is mandatory to input Dyeing plan","greyed":true},

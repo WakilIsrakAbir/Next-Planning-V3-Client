@@ -50,7 +50,7 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [],
@@ -111,7 +111,7 @@
         "table": {
           "plan": "knitting",
           "head": [
-            ["Color","FabricConstruction","GSM","Yarn Date","Knitting Planning","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
+            ["Color","FabricConstruction","GSM","Yarn Date","Actual Yarn Date","Knitting Planning","Y-KS","KS-KE","Plan Type","Knitting Limitation","Remarks","Grey Req.","Knit Prod.","Knit. Bala.","Yarn req.","Allocated Qty","Yarn bala.","Allowance %"],
             ["Start Date","End Date"]
           ],
           "rows": [],

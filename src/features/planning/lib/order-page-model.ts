@@ -1,5 +1,6 @@
 import type { SetStateAction } from 'react';
 import { buildMergedItems, type Loose } from '@/features/planning/lib/order-plan-logic';
+import { withSavedExtras } from '@/features/planning/lib/plan-extras';
 
 /*
  * State of the universal order page (one page shows several departments' plans of one order).
@@ -23,6 +24,9 @@ export const DEPT_META: Record<string, { name: string; label: string }> = {
   finishing: { name: 'Finishing Plan', label: 'Finishing' },
   delivery: { name: 'Delivery Plan', label: 'Delivery' },
   yd: { name: 'YD Plan', label: 'YD' },
+  // US-11 split delivery routes (their page header; the data department stays 'delivery').
+  deliveryfloor: { name: 'Delivery Plan (Floor)', label: 'Delivery Floor' },
+  deliverylock: { name: 'Delivery Plan (Lock)', label: 'Delivery Lock' },
 };
 
 export function deptMetaOf(dept: string): { name: string; label: string } {
@@ -49,7 +53,19 @@ export const MAIN_FIELDS = [
   'matchingOptionDate',
   'barrierQty',
   'workableQty',
+  // US-11: item-wise dates stored in planExtras (sent as `extras`, never in fabricItems; see plan-extras.ts).
+  'actualYarnDate',
+  'ldPlanDate',
+  'actualLdDate',
 ];
+
+/**
+ * A department's rows as a read or a save answer shows them: today's buildMergedItems, with the US-11 extras
+ * (planData.planExtras.<dept>) merged in by itemId.
+ */
+export function mergedRowsOf(order: Loose, planData: Loose, dept: string): Loose[] {
+  return withSavedExtras(buildMergedItems(order, planData, dept), planData, dept);
+}
 
 export function groupsOf(dept: string): GroupKey[] {
   return dept === 'delivery' ? ['floor', 'lock'] : ['main'];
@@ -81,6 +97,26 @@ export interface SectionDef {
   columns?: 'floor' | 'lock';
   /** Opened from this department's page (`/planning/<dept>/<orderNo>`). */
   isRoute: boolean;
+  /** The route card's footer Save stores the whole department: only the delivery page's two tables (as today). */
+  footerSavesDept: boolean;
+}
+
+/**
+ * US-11: the Delivery Plan list is split into Floor (`/planning/deliveryfloor`) and Lock (`/planning/deliverylock`).
+ * Their order pages read and save the same 'delivery' data; `/planning/delivery` keeps working as before.
+ */
+export const DELIVERY_SPLIT_ROUTES: Record<string, string> = { deliveryfloor: 'deliveryFloor', deliverylock: 'deliveryLock' };
+
+/** The data department of a route ('deliveryfloor' and 'deliverylock' are 'delivery'). */
+export function planDeptOf(route: string): string {
+  return DELIVERY_SPLIT_ROUTES[route] ? 'delivery' : route;
+}
+
+/** The route's own section keys (plan D2): Delivery Floor then Lock on the delivery page, one of them on a split route. */
+function routeSectionKeys(routeDept: string): string[] {
+  if (routeDept === 'delivery') return ['deliveryFloor', 'deliveryLock'];
+  if (DELIVERY_SPLIT_ROUTES[routeDept]) return [DELIVERY_SPLIT_ROUTES[routeDept]];
+  return [routeDept];
 }
 
 function sectionDef(key: string, routeDept: string): SectionDef {
@@ -94,16 +130,20 @@ function sectionDef(key: string, routeDept: string): SectionDef {
       saveLabel: floor ? 'Save Floor' : 'Save Lock',
       hasStatus: !floor,
       columns: floor ? 'floor' : 'lock',
-      isRoute: routeDept === 'delivery',
+      isRoute: routeSectionKeys(routeDept).includes(key),
+      footerSavesDept: routeDept === 'delivery',
     };
   }
   const meta = deptMetaOf(key);
-  return { key, dept: key, group: 'main', title: meta.name, saveLabel: `Save ${meta.label}`, hasStatus: true, isRoute: routeDept === key };
+  return { key, dept: key, group: 'main', title: meta.name, saveLabel: `Save ${meta.label}`, hasStatus: true, isRoute: routeDept === key, footerSavesDept: false };
 }
 
-/** Plan D2: the route department's section(s) first, then Knitting, Dyeing, Delivery Floor and Delivery Lock. */
+/**
+ * Plan D2: the route department's section(s) first, then Knitting, Dyeing, Delivery Floor and Delivery Lock. On the
+ * Delivery Floor route only Floor is the route section (Lock is an added section), and the reverse on the Lock route.
+ */
 export function sectionsFor(routeDept: string): SectionDef[] {
-  const routeKeys = routeDept === 'delivery' ? ['deliveryFloor', 'deliveryLock'] : [routeDept];
+  const routeKeys = routeSectionKeys(routeDept);
   const rest = ['knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'].filter((k) => !routeKeys.includes(k));
   return [...routeKeys, ...rest].map((k) => sectionDef(k, routeDept));
 }
@@ -220,7 +260,7 @@ function cleanDraft(rows: Loose[], status: string, dept: string): DeptDraft {
 export function initOrderPageModel(depts: string[], cached: OrderDetailInput | null, fallbackOrder: Loose): OrderPageModel {
   const drafts: Record<string, DeptDraft> = {};
   depts.forEach((dept) => {
-    const rows = cached?.order ? buildMergedItems(cached.order, cached.planData, dept) : [];
+    const rows = cached?.order ? mergedRowsOf(cached.order, cached.planData, dept) : [];
     drafts[dept] = cleanDraft(rows, statusOf(cached?.planData, dept), dept);
   });
   return {
@@ -288,7 +328,7 @@ export interface StoredDept {
 
 /** The department's rows and Order Status in a detail read (`order` and `planData` of the answer). */
 export function storedDept(order: Loose, planData: Loose, dept: string): StoredDept {
-  return { rows: buildMergedItems(order || {}, planData || {}, dept), status: statusOf(planData, dept) };
+  return { rows: mergedRowsOf(order || {}, planData || {}, dept), status: statusOf(planData, dept) };
 }
 
 /**
@@ -461,7 +501,7 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
         const dropped = (action.drop || []).filter((d) => d.dept === dept).map((d) => d.group);
         const reload = groupsOf(dept).filter((g) => dropped.includes(g) || !isGroupDirty(draft, dept, g));
         const keep = groupsOf(dept).filter((g) => !reload.includes(g));
-        const merged = buildMergedItems(order, planData, dept);
+        const merged = mergedRowsOf(order, planData, dept);
         const status = statusOf(planData, dept);
         const stale = keep.filter((g) => !baseMatchesRead(draft, dept, g, merged, status));
         const fp = data.fingerprints ? data.fingerprints[dept] : undefined;
@@ -517,7 +557,7 @@ export function orderPageReducer(state: OrderPageModel, action: OrderPageAction)
       action.saved.forEach(({ dept, groups }) => {
         const draft = drafts[dept];
         if (!draft) return;
-        const merged = buildMergedItems(order, planData, dept);
+        const merged = mergedRowsOf(order, planData, dept);
         const status = statusOf(planData, dept);
         // The saved groups and the clean ones are merged again; a group this save did not send keeps its unsaved work.
         const reload = groupsOf(dept).filter((g) => groups.includes(g) || !isGroupDirty(draft, dept, g));

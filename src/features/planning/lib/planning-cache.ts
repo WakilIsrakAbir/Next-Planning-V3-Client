@@ -109,11 +109,13 @@ export interface IPlanningListQuery {
   page: number;
   limit: number;
   globalSearch: string;
+  /** US-11: 'all' searches every list (Pending, Tentative, Confirm, Completed). */
+  scope?: 'all';
 }
 
 /** Cache key of a department list page in `cachedPlanningOrders` (shared by the screen and the prefetch). */
 export function planningListKey(q: IPlanningListQuery): string {
-  return `${q.dept}_${q.activeTab}_${q.activeBuyer}_${q.page}_${q.limit}_${q.globalSearch}`;
+  return `${q.dept}_${q.activeTab}_${q.activeBuyer}_${q.page}_${q.limit}_${q.globalSearch}${q.scope === 'all' ? '_all' : ''}`;
 }
 
 /**
@@ -148,6 +150,8 @@ export function fetchPlanningOrders(q: IPlanningListQuery): Promise<ICachedPlann
     limit: String(q.limit),
     search: q.globalSearch,
   });
+  // US-11: a search across every list (the server drops the status filter; each order carries `<dept>PlanStatus`).
+  if (q.scope === 'all') query.set('scope', 'all');
   const url = `${API_BASE}/api/orders?${query.toString()}`;
 
   return sharedRequest(url, async () => {
@@ -291,7 +295,8 @@ export function setPrecachedOrderDetail(dept: string, orderNo: string, data: IOr
 }
 
 /** The department keys of the order detail cache (every order page reads the key of its own department). */
-export const ORDER_DETAIL_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery'];
+// US-11: the Delivery Floor and Lock routes read the same detail under their own route keys.
+export const ORDER_DETAIL_DEPTS = ['yd', 'knitting', 'dyeing', 'finishing', 'delivery', 'deliveryfloor', 'deliverylock'];
 
 /** Stores the same detail under all five department keys (after a save from the universal order page). */
 export function setPrecachedOrderDetailAllDepts(orderNo: string, data: IOrderDetailData): void {

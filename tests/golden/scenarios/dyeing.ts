@@ -33,7 +33,6 @@ export const dyeingScenarios: Scenario[] = [
       { step: 1, field: [1, 'unit'], value: 'EKL' },
       { step: 1, cell: [0, 3], text: '05-Oct-2026' },
       { step: 1, cell: [0, 5], text: 'Confirm' },
-      { step: 1, cell: [0, 6], text: 'KL-red' },
       { step: 1, cell: [3, 3], text: '—' },
       { step: 1, cell: [3, 5], text: '-' },
       { step: 1, status: 'Pending' },

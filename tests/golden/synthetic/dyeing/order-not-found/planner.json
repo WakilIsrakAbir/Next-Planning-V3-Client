@@ -50,7 +50,7 @@
         "table": {
           "plan": "dyeing",
           "head": [
-            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","Knitting Limitation","Remarks (Knitting)","Dyeing Planning","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
+            ["Color","Unit","Process Name","Knitting Planning","Knitting Plan Type","LD Plan Date","Actual LD Date","Dyeing Planning","DS-DE","Plan Type","Dyeing Limitation","Remarks","BP Qty","Dyeing Prod.","Dyeing Bala.","Knit Prod.","Knit. Bala."],
             ["Start Date","End Date","Start Date","End Date"]
           ],
           "rows": [],

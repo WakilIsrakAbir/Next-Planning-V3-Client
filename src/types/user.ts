@@ -30,6 +30,18 @@ export interface IUserPermissions {
       finishing?: boolean;
       delivery?: boolean;
     };
+    /** The Sidebar's Order Management group (menus.orderManagement.<key>). */
+    orderManagement?: {
+      yd?: boolean;
+      knitting?: boolean;
+      dyeing?: boolean;
+      finishing?: boolean;
+      delivery?: boolean;
+      /** US-11: when unset, the Sidebar uses `delivery`. */
+      deliveryFloor?: boolean;
+      deliveryLock?: boolean;
+      [key: string]: boolean | undefined;
+    };
     reports?: {
       yd?: boolean;
       knitting?: boolean;

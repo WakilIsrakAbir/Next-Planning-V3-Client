@@ -300,7 +300,17 @@ describe('Save Data (plan D5, D6)', () => {
     await page.saveData();
     expect(page.savePlansRequests()).toHaveLength(1);
     expect(page.toasts).toEqual([`success: ${T.saved('SYN-S1')}`]);
-    expect(withoutTimes({ orderDates: page.server.db.orderDates, orders: page.server.db.orders })).toEqual(
+    // US-11: the page also stores the Knitting and Dyeing extra dates (none typed here: blanks) in planExtras, which
+    // today's save-dates never wrote. Everything else must be what today's saves stored.
+    const stored = page.server.db.orderDates.map((d: Record<string, unknown>) => {
+      const { planExtras, ...rest } = d;
+      expect(planExtras).toEqual({
+        knitting: { 'syn-s1_blue_rib_180': { actualYarnDate: '' }, 'syn-s1_red_s/j_160': { actualYarnDate: '' } },
+        dyeing: { 'syn-s1_blue_solid': { ldPlanDate: '', actualLdDate: '' }, 'syn-s1_red_solid': { ldPlanDate: '', actualLdDate: '' } },
+      });
+      return rest;
+    });
+    expect(withoutTimes({ orderDates: stored, orders: page.server.db.orders })).toEqual(
       withoutTimes({ orderDates: oracle.db.orderDates, orders: oracle.db.orders })
     );
   });
