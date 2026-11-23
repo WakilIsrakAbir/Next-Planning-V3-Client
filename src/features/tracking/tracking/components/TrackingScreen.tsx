@@ -1,105 +1,23 @@
 'use client';
 
 import React, { useState, useEffect, useRef, use, useCallback } from 'react';
-import {
-  Activity,
-  Search,
-  Download,
-  CheckCircle,
-  AlertCircle,
-  Save,
-  LayoutGrid,
-} from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
-import { formatDateDisplay } from '@/lib/date-utils';
 import { sharedGetJson } from '@/lib/shared-request';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import Pagination from '@/components/ui/Pagination';
-import InlineSpinner from '@/components/ui/InlineSpinner';
 import { pageForNewLimit, useFitRows } from '@/hooks/use-fit-rows';
 import OttBoardModal from '@/features/tracking/ott-board/components/OttBoardModal';
 import { OTT_BOARD_DEPTS } from '@/features/tracking/ott-board/lib/ott-board';
+import { ROW_HEIGHT } from '@/features/tracking/tracking/lib/tracking-table';
+import { cachedTrackingOrders, lastListRequest, trackingCacheKey } from '@/features/tracking/tracking/lib/tracking-cache';
+import type { TrackingEdit, TrackingOrder } from '@/features/tracking/tracking/types';
+import TrackingHeader from '@/features/tracking/tracking/components/TrackingHeader';
+import TrackingToolbar from '@/features/tracking/tracking/components/TrackingToolbar';
+import TrackingBuyerPills from '@/features/tracking/tracking/components/TrackingBuyerPills';
+import TrackingDateRangeFilter from '@/features/tracking/tracking/components/TrackingDateRangeFilter';
+import TrackingTable from '@/features/tracking/tracking/components/TrackingTable';
 
 interface PageProps {
   params: Promise<{ dept: string }>;
-}
-
-// Port of the old `.resizable-table-input` CSS (index.html): one-row textarea that resizes both ways.
-const RESIZABLE_INPUT_CLS =
-  'resize min-w-[90px] min-h-[26px] h-[26px] leading-[1.25] align-middle box-border overflow-auto dark:bg-[#151921] dark:border-[#2a3346] dark:text-[#cbd5e1]';
-
-// Natural height of a list row (date inputs / one-row textareas + padding); "Auto" stretches rows slightly to fill the table area.
-const ROW_HEIGHT = 35;
-
-function calcTrackingBadge(actualDateStr?: string, planDateStr?: string) {
-  const hasActual = actualDateStr && String(actualDateStr).trim() !== '' && String(actualDateStr).trim() !== '-';
-  const hasPlan = planDateStr && String(planDateStr).trim() !== '' && String(planDateStr).trim() !== '-';
-
-  if (hasActual) {
-    if (!hasPlan) return '—';
-    const aDate = new Date(actualDateStr).setHours(0, 0, 0, 0);
-    const pDate = new Date(planDateStr).setHours(0, 0, 0, 0);
-    return aDate <= pDate ? 'Pass' : 'Fail';
-  }
-
-  if (hasPlan) {
-    const pDate = new Date(planDateStr).setHours(0, 0, 0, 0);
-    const today = new Date().setHours(0, 0, 0, 0);
-    if (pDate < today) return 'Fail';
-  }
-
-  return '—';
-}
-
-// Editable actual-tracking fields per order (saved as `actualData`).
-interface TrackingEdit {
-  actualStart: string;
-  actualEnd: string;
-  failReason: string;
-  relatedDept: string;
-}
-
-// One row of /api/orders/tracking/:dept.
-interface TrackingOrder {
-  orderNo: string;
-  buyer?: string;
-  extProd?: string | number | null;
-  extBal?: string | number | null;
-  planStart?: string;
-  planEnd?: string;
-  actualStart?: string;
-  actualEnd?: string;
-  failReason?: string;
-  relatedDept?: string;
-}
-
-const cachedTrackingOrders: Record<
-  string,
-  {
-    orders: TrackingOrder[];
-    total: number;
-    totalPages: number;
-    buyers: string[];
-    initialEdits: Record<string, TrackingEdit>;
-  }
-> = {};
-// Rows per page of the last list request, so a revisit can show that cached first page before "Auto" has measured the table
-const lastListRequest = { limit: 10 };
-
-// Cache key of one tracking list page (the same format when reading and storing).
-function trackingCacheKey(
-  dept: string,
-  tab: string,
-  buyer: string,
-  page: number,
-  limit: number,
-  search: string,
-  sMin: string,
-  sMax: string,
-  eMin: string,
-  eMax: string
-): string {
-  return `${dept}_${tab}_${buyer}_${page}_${limit}_${search}_${sMin}_${sMax}_${eMin}_${eMax}`;
 }
 
 export default function TrackingScreen({ params }: PageProps) {
@@ -367,341 +285,69 @@ export default function TrackingScreen({ params }: PageProps) {
       )}
 
       {/* Header */}
-      <div className="flex-none flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
-            <Activity className="h-6 w-6 text-primary" />
-            Plan vs Actual Tracking: <span className="uppercase">{dept}</span>
-          </h2>
-          <p className="text-xs text-base-content/60">
-            Inline real-time floor execution tracking with instant Pass / Fail result calculation and delay attribution.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={downloadTrackingExcel}
-            className="btn btn-sm btn-outline gap-2 font-bold"
-          >
-            <Download className="w-4 h-4" /> Export Excel
-          </button>
-          <button
-            onClick={handleSaveAll}
-            disabled={saveLoading || orders.length === 0}
-            className="btn btn-sm btn-primary gap-2 font-bold shadow-md shadow-primary/25"
-          >
-            {saveLoading ? <InlineSpinner size={14} /> : <Save className="w-4 h-4" />}
-            Save Actual Tracking
-          </button>
-        </div>
-      </div>
+      <TrackingHeader
+        dept={dept}
+        downloadTrackingExcel={downloadTrackingExcel}
+        handleSaveAll={handleSaveAll}
+        saveLoading={saveLoading}
+        ordersCount={orders.length}
+      />
 
       {/* Tab Controls: Pending vs Complete */}
-      <div className="flex-none flex items-center justify-between border-b border-base-300 pb-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setActiveTab('Pending');
-              setPage(1);
-            }}
-            className={`btn btn-sm font-bold ${
-              activeTab === 'Pending' ? 'btn-primary' : 'btn-ghost text-base-content/70'
-            }`}
-          >
-            Pending Execution
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('Complete');
-              setPage(1);
-            }}
-            className={`btn btn-sm font-bold ${
-              activeTab === 'Complete' ? 'btn-success text-white' : 'btn-ghost text-base-content/70'
-            }`}
-          >
-            Completed Execution
-          </button>
-        </div>
-
-        {/* Global Search */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-base-content/50" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Booking No..."
-              className="input input-bordered input-sm w-48 sm:w-64 pl-8 text-xs"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  runSearch();
-                }
-              }}
-            />
-          </div>
-          <button
-            onClick={runSearch}
-            className="btn btn-primary btn-sm font-bold text-xs"
-          >
-            Search
-          </button>
-        </div>
-      </div>
+      <TrackingToolbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        setPage={setPage}
+        search={search}
+        setSearch={setSearch}
+        runSearch={runSearch}
+      />
 
       {/* Buyer Filter Pills (always shown, also before the buyers have loaded, so the table area keeps its height) */}
-      <div className="flex-none flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-        <button
-          onClick={() => {
-            setSelectedBuyer('');
-            setPage(1);
-          }}
-          className={`btn btn-xs font-bold shrink-0 ${
-            selectedBuyer === '' ? 'btn-primary' : 'btn-ghost bg-base-200/60'
-          }`}
-        >
-          ALL BUYERS
-        </button>
-        {availableBuyers.map((b) => (
-          <button
-            key={b}
-            onClick={() => {
-              setSelectedBuyer(b);
-              setPage(1);
-            }}
-            className={`btn btn-xs font-bold shrink-0 ${
-              selectedBuyer === b ? 'btn-primary' : 'btn-ghost bg-base-200/60'
-            }`}
-          >
-            {b}
-          </button>
-        ))}
-      </div>
+      <TrackingBuyerPills
+        availableBuyers={availableBuyers}
+        selectedBuyer={selectedBuyer}
+        setSelectedBuyer={setSelectedBuyer}
+        setPage={setPage}
+      />
 
       {/* Date Range Filter (Exact 1-row layout matching Exp) */}
-      <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap custom-scrollbar shrink-0 py-1">
-        <span className="text-[11px] font-bold text-gray-600 bg-gray-100 dark:bg-base-200 dark:text-base-content/70 px-2 py-1 rounded">Start</span>
-        <input
-          type="date"
-          value={startMin}
-          onChange={(e) => setStartMin(e.target.value)}
-          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
-          title="Min Start Date"
-        />
-        <span className="text-gray-400 font-bold shrink-0">—</span>
-        <input
-          type="date"
-          value={startMax}
-          onChange={(e) => setStartMax(e.target.value)}
-          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
-          title="Max Start Date"
-        />
-
-        <span className="text-[11px] font-bold text-gray-600 bg-gray-100 dark:bg-base-200 dark:text-base-content/70 px-2 py-1 rounded ml-2 shrink-0">End</span>
-        <input
-          type="date"
-          value={endMin}
-          onChange={(e) => setEndMin(e.target.value)}
-          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
-          title="Min End Date"
-        />
-        <span className="text-gray-400 font-bold shrink-0">—</span>
-        <input
-          type="date"
-          value={endMax}
-          onChange={(e) => setEndMax(e.target.value)}
-          className="p-1 border border-gray-300 dark:border-base-300 rounded text-[11px] bg-base-100 focus:border-blue-500 outline-none w-[125px] shrink-0"
-          title="Max End Date"
-        />
-
-        <button
-          onClick={handleApplyFilter}
-          className="px-3 py-1 bg-green-600 text-white font-bold rounded text-[11px] hover:bg-green-700 transition-colors ml-2 shrink-0 shadow-xs"
-        >
-          Apply Filter
-        </button>
-        <button
-          onClick={handleClearFilter}
-          className="px-3 py-1 bg-gray-200 dark:bg-base-200 text-gray-600 dark:text-base-content/70 font-bold rounded text-[11px] hover:bg-gray-300 dark:hover:bg-base-300 transition-colors shrink-0"
-        >
-          Clear
-        </button>
-      </div>
+      <TrackingDateRangeFilter
+        startMin={startMin}
+        setStartMin={setStartMin}
+        startMax={startMax}
+        setStartMax={setStartMax}
+        endMin={endMin}
+        setEndMin={setEndMin}
+        endMax={endMax}
+        setEndMax={setEndMax}
+        handleApplyFilter={handleApplyFilter}
+        handleClearFilter={handleClearFilter}
+      />
 
       {/* Interactive Tracking Table */}
-      <div className="card bg-base-100 border border-base-300 shadow-sm overflow-hidden flex-1 min-h-0 relative flex flex-col">
-        {/* Exact Exp 3-Ring Loading Overlay */}
-        {loading && <LoadingSpinner message="Processing Tracking Data..." />}
-
-        {/* The table area stays mounted (also while empty), so "Auto" keeps measuring it */}
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto custom-scrollbar">
-          <table className="table table-xs w-full">
-            {/* Sticky header: an opaque base under the same tint, so scrolled rows do not show through */}
-            <thead className="sticky top-0 z-10 bg-base-100 text-[11px] font-bold">
-              <tr className="bg-base-200/80">
-                <th className="text-center w-10">SL</th>
-                <th>Order / Booking No</th>
-                <th>Buyer</th>
-                {dynCol1 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol1}</th>}
-                {dynCol2 && <th className="text-center bg-amber-500/10 text-amber-700">{dynCol2}</th>}
-                <th className="text-center bg-primary/10 text-primary">Plan Start</th>
-                <th className="text-center bg-primary/10 text-primary">Plan End</th>
-                <th className="text-center min-w-[125px]">Actual Start</th>
-                <th className="text-center min-w-[125px]">Actual End</th>
-                <th className="text-center w-16">Start Result</th>
-                <th className="text-center w-16">End Result</th>
-                <th className="min-w-[150px]">Fail Reason</th>
-                <th className="min-w-[130px]">Related Dept.</th>
-              </tr>
-            </thead>
-            <tbody className="text-xs divide-y divide-base-200">
-              {!loading && visibleOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={columnCount} className="p-16 text-center text-base-content/60">
-                    <div className="space-y-2">
-                      <AlertCircle className="h-8 w-8 mx-auto text-base-content/30" />
-                      <p className="text-sm font-bold">No {activeTab} tracking records found.</p>
-                      <p className="text-xs">Adjust your search or filter parameters to find confirmed plans.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                visibleOrders.map((ord, idx) => {
-                  const sl = (page - 1) * (limit ?? 0) + idx + 1;
-                  const rowEdit = editedRows[ord.orderNo] || {
-                    actualStart: ord.actualStart || '',
-                    actualEnd: ord.actualEnd || '',
-                    failReason: ord.failReason || '',
-                    relatedDept: ord.relatedDept || '',
-                  };
-
-                  const startResult = calcTrackingBadge(rowEdit.actualStart, ord.planStart);
-                  const endResult = calcTrackingBadge(rowEdit.actualEnd, ord.planEnd);
-
-                  return (
-                    <tr key={ord.orderNo} style={rowStyle} className="hover:bg-base-200/40 transition-colors">
-                      <td className="text-center font-bold text-base-content/40">{sl}</td>
-                      <td className="font-bold text-primary whitespace-nowrap">
-                        {ord.orderNo}
-                        {hasOttBoard && (
-                          <button
-                            type="button"
-                            data-action="ott-board"
-                            onClick={() => setOttOrderNo(ord.orderNo)}
-                            className="btn btn-ghost btn-xs btn-square ml-1 align-middle"
-                            title="OTT Board — Same Booking Status"
-                            aria-label={`OTT board of ${ord.orderNo}`}
-                          >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </td>
-                      <td className="font-medium whitespace-nowrap">{ord.buyer}</td>
-                      {dynCol1 && (
-                        <td className="text-center font-bold bg-amber-500/5 text-amber-800">
-                          {ord.extProd !== undefined && ord.extProd !== null && ord.extProd !== '' && !isNaN(Number(ord.extProd))
-                            ? Number(ord.extProd).toFixed(2)
-                            : '—'}
-                        </td>
-                      )}
-                      {dynCol2 && (
-                        <td className="text-center font-bold bg-amber-500/5 text-amber-800">
-                          {ord.extBal !== undefined && ord.extBal !== null && ord.extBal !== '' && !isNaN(Number(ord.extBal))
-                            ? Number(ord.extBal).toFixed(2)
-                            : '—'}
-                        </td>
-                      )}
-                      <td className="text-center font-bold text-primary bg-primary/5 whitespace-nowrap">
-                        {formatDateDisplay(ord.planStart) || '—'}
-                      </td>
-                      <td className="text-center font-bold text-primary bg-primary/5 whitespace-nowrap">
-                        {formatDateDisplay(ord.planEnd) || '—'}
-                      </td>
-
-                      {/* Actual Start Input */}
-                      <td className="text-center">
-                        <input
-                          type="date"
-                          value={rowEdit.actualStart}
-                          onChange={(e) => handleRowChange(ord.orderNo, 'actualStart', e.target.value)}
-                          className="input input-bordered input-xs w-full text-center"
-                        />
-                      </td>
-
-                      {/* Actual End Input */}
-                      <td className="text-center">
-                        <input
-                          type="date"
-                          value={rowEdit.actualEnd}
-                          min={rowEdit.actualStart}
-                          onChange={(e) => handleRowChange(ord.orderNo, 'actualEnd', e.target.value)}
-                          className="input input-bordered input-xs w-full text-center"
-                        />
-                      </td>
-
-                      {/* Start Result Badge */}
-                      <td className="text-center">
-                        {startResult === 'Pass' ? (
-                          <span className="badge badge-success text-white badge-xs font-bold">Pass</span>
-                        ) : startResult === 'Fail' ? (
-                          <span className="badge badge-error text-white badge-xs font-bold">Fail</span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-
-                      {/* End Result Badge */}
-                      <td className="text-center">
-                        {endResult === 'Pass' ? (
-                          <span className="badge badge-success text-white badge-xs font-bold">Pass</span>
-                        ) : endResult === 'Fail' ? (
-                          <span className="badge badge-error text-white badge-xs font-bold">Fail</span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-
-                      {/* Fail Reason */}
-                      <td>
-                        <textarea
-                          rows={1}
-                          value={rowEdit.failReason}
-                          placeholder="Delay reason..."
-                          onChange={(e) => handleRowChange(ord.orderNo, 'failReason', e.target.value)}
-                          className={`textarea textarea-xs w-full px-2 py-1 ${RESIZABLE_INPUT_CLS}`}
-                        />
-                      </td>
-
-                      {/* Related Dept. */}
-                      <td>
-                        <textarea
-                          rows={1}
-                          value={rowEdit.relatedDept}
-                          placeholder="Attributed dept..."
-                          onChange={(e) => handleRowChange(ord.orderNo, 'relatedDept', e.target.value)}
-                          className={`textarea textarea-xs w-full px-2 py-1 ${RESIZABLE_INPUT_CLS}`}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Exact Exp Pagination Bar */}
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={total}
-          limit={limit ?? fit?.rows ?? 10}
-          onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={handleLimitChange}
-          autoRows={fit?.rows}
-          isAuto={limitChoice === 'auto'}
-        />
-      </div>
+      <TrackingTable
+        loading={loading}
+        scrollRef={scrollRef}
+        dynCol1={dynCol1}
+        dynCol2={dynCol2}
+        columnCount={columnCount}
+        visibleOrders={visibleOrders}
+        activeTab={activeTab}
+        page={page}
+        limit={limit}
+        editedRows={editedRows}
+        rowStyle={rowStyle}
+        hasOttBoard={hasOttBoard}
+        setOttOrderNo={setOttOrderNo}
+        handleRowChange={handleRowChange}
+        totalPages={totalPages}
+        total={total}
+        fit={fit}
+        limitChoice={limitChoice}
+        setPage={setPage}
+        handleLimitChange={handleLimitChange}
+      />
       {ottOrderNo && <OttBoardModal orderNo={ottOrderNo} dept={dept} onClose={closeOttBoard} />}
     </div>
   );
