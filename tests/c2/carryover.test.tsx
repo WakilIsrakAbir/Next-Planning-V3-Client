@@ -154,12 +154,13 @@ describe('4. strip status labels and the failed-check ring', () => {
   it('each strip Order Status select is named by its section', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'admin' });
     const labels = Array.from(document.querySelectorAll('[data-plan-section] [data-field="orderStatus"]')).map((s) => s.getAttribute('aria-label'));
-    expect(labels).toEqual(['Delivery Plan (Lock) Order Status', 'Knitting Plan Order Status', 'Dyeing Plan Order Status']);
+    expect(labels).toEqual(['Delivery Plan (Lock) Order Status', 'YD Plan Order Status', 'Knitting Plan Order Status', 'Dyeing Plan Order Status']);
     // Each strip Discard is named by its section too; the strip selects show a focus ring for the keyboard.
     const discards = Array.from(document.querySelectorAll('[data-plan-section] [data-action="discard"]')).map((b) => b.getAttribute('aria-label'));
     expect(discards).toEqual([
       'Discard Delivery Plan (Floor) changes',
       'Discard Delivery Plan (Lock) changes',
+      'Discard YD Plan changes',
       'Discard Knitting Plan changes',
       'Discard Dyeing Plan changes',
     ]);

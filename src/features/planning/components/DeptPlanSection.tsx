@@ -1,5 +1,5 @@
-import { memo, useId, useLayoutEffect, useMemo, useRef } from 'react';
-import { Layers, Save } from 'lucide-react';
+import { memo, useLayoutEffect, useMemo, useRef } from 'react';
+import { Save } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import { findUpstreamPlans, formatDateDisplay, formatExcelDate, withCurrentOption, type Loose } from '@/features/planning/lib/order-plan-logic';
 import type { DeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
@@ -28,7 +28,7 @@ interface DeptPlanSectionProps {
   logic: DeptPlanLogic;
   /** Delivery only: show just the Floor columns or just the Lock columns (the universal page's two delivery tables). */
   columns?: 'floor' | 'lock';
-  /** A view-only section: no "Row 1 changes auto-fill" hint. */
+  /** A view-only section: no Row 1 auto-fill cell tooltips. */
   readOnly?: boolean;
   /** Cancel and Save Planning Schedule in the footer (the section of the page's own department). */
   showFooterActions?: boolean;
@@ -65,7 +65,6 @@ export default function DeptPlanSection({
   footerSavesDept = false,
   onExtraChange = NO_EXTRA_CHANGE,
 }: DeptPlanSectionProps) {
-  const processListId = `process-options-${useId().replace(/:/g, '')}`;
   const showFloor = columns !== 'lock';
   const showLock = columns !== 'floor';
   // Stable row handlers that call the latest logic: a row whose item did not change is not rendered again.
@@ -91,21 +90,6 @@ export default function DeptPlanSection({
 
   return (
     <div className="bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm shadow-sm overflow-hidden flex flex-col">
-      <div className="bg-gray-100 dark:bg-[#1f2637] p-2 font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center justify-between border-b border-gray-200 dark:border-[#2a3346]">
-        <div className="flex items-center">
-          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-2" />
-          <span>Department Fabric Items</span>
-          <span className="ml-2 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-bold">
-            {planItems.length}
-          </span>
-        </div>
-        {!readOnly && (
-          <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400 italic">
-            Row 1 changes auto-fill all items below
-          </span>
-        )}
-      </div>
-
       <div className="overflow-x-auto custom-scrollbar w-full bg-white dark:bg-[#151921]">
         <table
           data-plan-table={dept}
@@ -592,20 +576,12 @@ export default function DeptPlanSection({
                   showLock={showLock}
                   readOnly={readOnly}
                   handlers={handlers}
-                  processListId={processListId}
                   onExtraChange={onExtraChange}
                 />
               ))
           )}
         </tbody>
         </table>
-        {dept === 'dyeing' && (
-          <datalist id={processListId}>
-            {processOptions.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
-        )}
       </div>
 
       {/* Footer info & Save trigger */}
@@ -672,8 +648,6 @@ interface DeptPlanRowProps {
   /** A view-only section: no per-cell tooltips, so the section's "View only" reason shows instead. */
   readOnly: boolean;
   handlers: RowHandlers;
-  /** The Dyeing Process Name suggestions (one <datalist> per table). */
-  processListId: string;
   onExtraChange: (index: number, field: string, value: string) => void;
 }
 
@@ -712,7 +686,6 @@ const DeptPlanRow = memo(function DeptPlanRow({
   showLock,
   readOnly,
   handlers,
-  processListId,
   onExtraChange,
 }: DeptPlanRowProps) {
   const {
@@ -933,17 +906,20 @@ const DeptPlanRow = memo(function DeptPlanRow({
             </select>
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center min-w-[110px]">
-            {/* US-11: the Dropdown Master Setup Process Names are offered, any typed value is allowed. */}
-            <input
+            {/* US-12: a select of the Dropdown Master Setup Dyeing Processes; a stored value not in the list stays an option. */}
+            <select
               data-field="processName"
-              type="text"
-              list={processListId}
               value={item.processName || ''}
               onChange={(e) => handleUnitProcessChange(idx, 'processName', e.target.value)}
-              placeholder="Select or type"
-              autoComplete="off"
-              className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none bg-white dark:bg-[#151921]"
-            />
+              className="row-process p-1 border border-gray-300 dark:border-[#2a3346] rounded text-[10px] w-full focus:border-blue-500 outline-none cursor-pointer bg-white dark:bg-[#151921]"
+            >
+              <option value="">Select</option>
+              {withCurrentOption(processOptions, item.processName).map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
           </td>
           <td className="p-2 border-r border-gray-300 dark:border-[#2a3346] text-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181f2c] min-w-[80px]">
             {formatDateDisplay(knitItem?.startDate || knitItem?.planStart)}

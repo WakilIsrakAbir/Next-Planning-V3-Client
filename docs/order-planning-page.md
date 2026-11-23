@@ -59,8 +59,12 @@ for V2 and the Tracking pages.
 - First the route department's own section(s). On the delivery page that is Delivery Floor, then Delivery Lock. On
   `/planning/deliveryfloor/<orderNo>` it is Delivery Floor only (Lock is an added section, Admin-edit as in D4), and on
   `/planning/deliverylock/<orderNo>` Delivery Lock only (Floor is the added section).
-- Then, in pipeline order, the others from: Knitting, Dyeing, Delivery Floor, Delivery Lock.
-- YD and Finishing appear only on their own pages.
+- Then, in pipeline order, the others from: YD, Knitting, Dyeing, Delivery Floor, Delivery Lock.
+- YD (US-12) is an added section on the Knitting, Dyeing, Delivery, Delivery Floor and Delivery Lock pages, and only
+  when the order has YD items (`orderHasYdItems`: `deptFlags.yd.hasItems`, else `order.ydItems`). Without YD items
+  it is not drawn at all (`showsSection`), not even with the "no items" note. Like every added section it is View
+  only, and editable for Admin (D4); its Save, Save Data, backup, conflict and guard handling are those of the YD page.
+- Finishing appears only on its own page, and the Finishing page has no YD section.
 
 | Section key | Title (also the unsaved-work label) | Department | Field group |
 |---|---|---|---|
@@ -85,7 +89,9 @@ columns.
 Each section has a strip above today's table card. The strip holds:
 
 - the title;
+- the subheader "Department Fabric Items" (US-12: it was the table card's own header row, now removed);
 - the pills `<n> items`, `Unsaved`, `View only` and `Not in latest file`;
+- the hint "Row 1 changes auto-fill all items below" (`data-hint="row1"`), only while the section is editable;
 - the section's own Order Status select (for delivery it is on the Lock section);
 - Discard (named "Discard <Section> changes"; asks first: "Discard the unsaved changes in <Section>?"), `Save <Dept>`
   (`Save Floor` / `Save Lock` for delivery) and Hide/Unhide.
@@ -116,8 +122,9 @@ page adds around today's card is marked `data-c2-chrome`.
 
 - **Knitting:** Actual Yarn Date after Yarn Date; Y-KS and KS-KE after Knitting Planning.
 - **Dyeing:** Knitting Limitation and Remarks (Knitting) removed; LD Plan Date and Actual LD Date before Dyeing Planning;
-  DS-DE after it. Process Name is an `<input list>` with a `<datalist>` of the Dropdown Master Setup Process Names
-  (`GET /api/dropdowns`, as before), so any typed value is allowed; it calls today's `handleUnitProcessChange`, and every
+  DS-DE after it. Process Name is a `<select>` again (US-12 reverts the US-11 `<input list>`): the Dropdown Master
+  Setup Dyeing Processes (type `PROCESS`, `processes` of `GET /api/dropdowns`). A stored value that is not in the list
+  is kept as an extra option (`withCurrentOption`, as Unit). It calls today's `handleUnitProcessChange`, and every
   check that reads `processName` is unchanged.
 - **Delivery Floor:** Knitting Planning removed; DelS-DelE after Delivery Planning (Floor).
 - **Delivery Lock:** Dyeing Planning, Dyeing Plan Type and Knitting Planning removed; LockS-LockE after Delivery Planning.
@@ -444,6 +451,10 @@ never compiles them; `npx tsc -p tests/tsconfig.json` type-checks them.
 back, not copied by Row 1), their dirty, Discard and conflict handling, the Floor and Lock routes, the YD page's
 sections (item 01), the Sidebar items and their permission fallback, the list search across all lists, and the OTT board.
 
+`tests/us12/` covers US-12: the YD section on the other pages (order, View only, Admin save, none without YD items), the
+Process Name select and its kept extra value, the strip subheader and hint, the compact Order Management header (menu
+tab, Full), the Delivery Floor / Lock report menus and their fallback, and the PPI Style column and search.
+
 `tests/c2/driver.tsx` opens the page on the mock server (fake clock, stored login, scripted `window.confirm`) and lets a
 test act on any section. `reload()` is a browser reload: fresh modules, storage kept, and an optional step between
 unmount and mount (e.g. signing in again).
@@ -494,7 +505,9 @@ recording or expectation was changed for it. These are all the adaptations, with
      back into today's single table (header rows and each row's fields): Floor's columns, then Lock's, then the Dyeing
      columns (since US-11 only on the Floor table), then the quantities.
    - C2 chrome (`[data-c2-chrome]`: strips, pills, notes, alerts, Hide/Unhide, Discard, Save Data) and the other
-     sections are not part of today's page and are not read.
+     sections (the YD section added in US-12 among them) are not part of today's page and are not read.
+   - `section.header` is the card's header row; since US-12 the card starts with its table and it is recorded as ''
+     (`cardHeader`).
 4. **The `save` step.** It clicks the route section's own Save; `via: 'footer'` clicks the card footer's Save Planning
    Schedule. On the delivery page it clicks:
    - Save Data when both Floor and Lock are dirty (today's single save stored both);
@@ -542,6 +555,15 @@ disabled state, title, min, toast, confirm, request body and router call is iden
 were re-indexed to the new Delivery columns; the two that read removed columns (the Dyeing page's Knitting Limitation
 and the Delivery page's Knitting Start) were dropped. `tests/harness/mock-server.ts` stores `extras` and fingerprints
 non-empty extras as the server does.
+
+### US-12 re-recording
+
+US-12 moved the card's "Department Fabric Items (n)" row into the strip and made Dyeing Process Name a select again,
+so every recording was re-recorded. A comparison of the US-11 and US-12 recordings (433 recordings, 1634 steps) allows
+exactly two differences: `section.header` (old: exactly "Department Fabric Items <n>" plus the Row 1 hint, with <n> the
+table's row count; new: '') and the Dyeing `processName` option lists (new only; each starts with '' and holds the
+row's value). It found no other difference in 460521 compared values. The added YD section is not read, so it changes
+no recording.
 
 ### Browser checks
 

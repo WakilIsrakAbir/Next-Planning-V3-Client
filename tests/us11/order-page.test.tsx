@@ -83,7 +83,7 @@ describe('day columns (whole local days, later − earlier)', () => {
 });
 
 describe('columns', () => {
-  it('Knitting, Dyeing, Floor and Lock headers (removed and added columns); Process Name is a free input with suggestions', async () => {
+  it('Knitting, Dyeing, Floor and Lock headers (removed and added columns); Process Name is a select again (US-12)', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'knitting', role: 'admin' });
     expect(headers(page, 'knitting').slice(3, 8)).toEqual(['Yarn Date', 'Actual Yarn Date', 'Knitting Planning', 'Y-KS', 'KS-KE']);
     const dye = headers(page, 'dyeing');
@@ -97,14 +97,10 @@ describe('columns', () => {
     for (const gone of ['Dyeing Planning', 'Dyeing Plan Type', 'Knitting Planning']) expect(lock).not.toContain(gone);
     expect(lock.slice(3, 5)).toEqual(['Delivery Planning', 'LockS-LockE']);
 
-    const process = page.field('dyeing', 0, 'processName') as HTMLInputElement;
-    expect(process.tagName).toBe('INPUT');
-    const list = document.getElementById(process.getAttribute('list') || '');
-    expect(list?.tagName).toBe('DATALIST');
-    expect(Array.from(list!.querySelectorAll('option')).map((o) => o.getAttribute('value')).length).toBeGreaterThan(0);
-    // Any typed value is kept (today's on-change handler, unchanged).
-    await page.set('dyeing', 0, 'processName', 'My own process');
-    expect(process.value).toBe('My own process');
+    // US-12 reverts the US-11 <input list>: Process Name is a <select> (tests/us12 covers its options).
+    const process = page.field('dyeing', 0, 'processName') as HTMLSelectElement;
+    expect(process.tagName).toBe('SELECT');
+    expect(document.querySelector('datalist')).toBeNull();
   });
 });
 
@@ -184,16 +180,16 @@ describe('Delivery Floor and Lock routes', () => {
     expect(planDeptOf('deliverylock')).toBe('delivery');
     expect(planDeptOf('dyeing')).toBe('dyeing');
     const view = (route: string) => sectionsFor(route).map((s) => `${s.key}${s.isRoute ? '*' : ''}`);
-    expect(view('deliveryfloor')).toEqual(['deliveryFloor*', 'knitting', 'dyeing', 'deliveryLock']);
-    expect(view('deliverylock')).toEqual(['deliveryLock*', 'knitting', 'dyeing', 'deliveryFloor']);
-    expect(view('delivery')).toEqual(['deliveryFloor*', 'deliveryLock*', 'knitting', 'dyeing']);
+    expect(view('deliveryfloor')).toEqual(['deliveryFloor*', 'yd', 'knitting', 'dyeing', 'deliveryLock']);
+    expect(view('deliverylock')).toEqual(['deliveryLock*', 'yd', 'knitting', 'dyeing', 'deliveryFloor']);
+    expect(view('delivery')).toEqual(['deliveryFloor*', 'deliveryLock*', 'yd', 'knitting', 'dyeing']);
     expect(sectionsFor('deliveryfloor').every((s) => !s.footerSavesDept)).toBe(true);
     expect(sectionsFor('delivery').filter((s) => s.footerSavesDept).map((s) => s.key)).toEqual(['deliveryFloor', 'deliveryLock']);
   });
 
   it('Floor route: Floor is the route section, Lock is Admin-edit; a planner saves Floor (department delivery)', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'deliveryfloor', role: 'planner' });
-    expect(sectionKeys()).toEqual(['deliveryFloor', 'knitting', 'dyeing', 'deliveryLock']);
+    expect(sectionKeys()).toEqual(['deliveryFloor', 'yd', 'knitting', 'dyeing', 'deliveryLock']);
     expect(routeKeys()).toEqual(['deliveryFloor']);
     expect(document.querySelector('h3')?.textContent).toContain('Delivery Plan (Floor)');
     expect(viewOnly(page, 'deliveryFloor')).toBe(false);
@@ -214,7 +210,7 @@ describe('Delivery Floor and Lock routes', () => {
 
   it('Lock route: the reverse; an Admin may edit the added section', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'deliverylock', role: 'planner' });
-    expect(sectionKeys()).toEqual(['deliveryLock', 'knitting', 'dyeing', 'deliveryFloor']);
+    expect(sectionKeys()).toEqual(['deliveryLock', 'yd', 'knitting', 'dyeing', 'deliveryFloor']);
     expect(routeKeys()).toEqual(['deliveryLock']);
     expect(viewOnly(page, 'deliveryLock')).toBe(false);
     expect(viewOnly(page, 'deliveryFloor')).toBe(true);
@@ -225,7 +221,7 @@ describe('Delivery Floor and Lock routes', () => {
 
   it('/planning/delivery keeps both route sections and the footer that saves Floor and Lock together', async () => {
     page = await openPage({ fixture: twoRows(), dept: 'delivery', role: 'planner' });
-    expect(sectionKeys()).toEqual(['deliveryFloor', 'deliveryLock', 'knitting', 'dyeing']);
+    expect(sectionKeys()).toEqual(['deliveryFloor', 'deliveryLock', 'yd', 'knitting', 'dyeing']);
     expect(routeKeys()).toEqual(['deliveryFloor', 'deliveryLock']);
     expect(page.section('deliveryFloor').querySelector('[data-action="save"]')?.getAttribute('title')).toBe('Saves Delivery Floor and Lock together');
   });

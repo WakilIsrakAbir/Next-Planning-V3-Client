@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { API_BASE } from '@/lib/constants';
 import { formatDateDisplay } from '@/lib/date-utils';
+import { deptShortName } from '@/lib/page-title';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 
@@ -62,8 +63,13 @@ export default function DepartmentReportScreen({ params }: PageProps) {
   const [tentativeCount, setTentativeCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Old data-processing.js (HEAD): YD and Delivery reports also include Pending orders.
-  const includesPending = dept === 'yd' || dept === 'delivery';
+  // US-12: the Delivery Plan (Floor) / (Lock) reports list the Delivery orders (deliveryItems) with their Floor / Lock
+  // status (<dept>PlanStatus from the server).
+  const isDeliverySplit = dept === 'deliveryfloor' || dept === 'deliverylock';
+  const itemsDept = isDeliverySplit ? 'delivery' : dept;
+  const reportName = deptShortName(dept).toUpperCase();
+  // Old data-processing.js (HEAD): YD and Delivery reports also include Pending orders (so do Floor and Lock).
+  const includesPending = dept === 'yd' || dept === 'delivery' || isDeliverySplit;
   // Updated card: Confirm / Tentative (plus Pending for YD / Delivery). Pending card: the Pending orders alone.
   const hasUpdatedData = confirmCount > 0 || tentativeCount > 0 || (includesPending && pendingCount > 0);
   const hasPendingData = pendingCount > 0;
@@ -199,7 +205,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       });
 
       if (!res.ok) {
-        alert(`No data found for ${fileTag === 'Pending' ? 'Pending ' : ''}${dept.toUpperCase()} report.`);
+        alert(`No data found for ${fileTag === 'Pending' ? 'Pending ' : ''}${reportName} report.`);
         return;
       }
 
@@ -240,12 +246,12 @@ export default function DepartmentReportScreen({ params }: PageProps) {
       {/* Prominent Exp Report Action Card matching Exp index.html */}
       <div className="bg-white dark:bg-[#151921] rounded-md shadow-sm border border-gray-200 dark:border-[#2a3346] w-full p-6 sm:p-8 flex flex-col items-center justify-center text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-[#313644] dark:text-gray-100 mb-6">
-          {dept.toUpperCase()} Department Reports
+          {reportName} Department Reports
         </h2>
 
         {checking ? (
           <div className="p-8">
-            <LoadingSpinner message={`Checking ${dept.toUpperCase()} report availability...`} overlay={false} />
+            <LoadingSpinner message={`Checking ${reportName} report availability...`} overlay={false} />
           </div>
         ) : !hasData ? (
           <div className="flex flex-col items-center text-center p-8 sm:p-10 w-full max-w-lg bg-gray-50 dark:bg-[#1a202c] border border-gray-200 dark:border-[#2a3346] rounded-xl shadow-sm">
@@ -335,7 +341,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                     className="flex-1 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
                   >
                     {downloading ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
-                    <span>Download {dept.toUpperCase()} Data</span>
+                    <span>Download {reportName} Data</span>
                   </button>
 
                   <PreviewToggleButton open={previewKind === 'updated'} onClick={() => handleTogglePreview('updated')} />
@@ -414,15 +420,15 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                 <LoadingSpinner
                   message={
                     isPendingPreview
-                      ? `Loading ${dept.toUpperCase()} pending orders...`
-                      : `Generating ${dept.toUpperCase()} consolidated report...`
+                      ? `Loading ${reportName} pending orders...`
+                      : `Generating ${reportName} consolidated report...`
                   }
                   overlay={false}
                 />
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="p-12 text-center text-gray-500">
-                No {isPendingPreview ? 'Pending' : 'Confirmed or Tentative'} data matching filter for {dept.toUpperCase()}.
+                No {isPendingPreview ? 'Pending' : 'Confirmed or Tentative'} data matching filter for {reportName}.
               </div>
             ) : (
               <table className="w-full text-left whitespace-nowrap min-w-[900px] border-collapse">
@@ -439,7 +445,7 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-[#2a3346] text-[11px]">
                   {filteredOrders.map((ord) => {
-                    const deptItems = ord[`${dept}Items`];
+                    const deptItems = ord[`${itemsDept}Items`];
                     const items = Array.isArray(deptItems) ? deptItems : [];
                     const statusKey = `${dept}PlanStatus`;
                     const planStatus = String(ord[statusKey] || 'Pending');

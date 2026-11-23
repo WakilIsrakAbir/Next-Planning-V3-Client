@@ -32,10 +32,10 @@ const LIVE = {
 const HEATSET_DATES = { ...LIVE, knitStart: '2026-10-12', knitEnd: '2026-10-28' };
 const SECTIONS: Record<string, string[]> = {
   yd: ['yd', 'knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'],
-  knitting: ['knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'],
-  dyeing: ['dyeing', 'knitting', 'deliveryFloor', 'deliveryLock'],
+  knitting: ['knitting', 'yd', 'dyeing', 'deliveryFloor', 'deliveryLock'],
+  dyeing: ['dyeing', 'yd', 'knitting', 'deliveryFloor', 'deliveryLock'],
   finishing: ['finishing', 'knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'],
-  delivery: ['deliveryFloor', 'deliveryLock', 'knitting', 'dyeing'],
+  delivery: ['deliveryFloor', 'deliveryLock', 'yd', 'knitting', 'dyeing'],
 };
 const GUIDE_SAVED = `success: Planning Guide saved for Order #${ORDER}.`;
 const PUT = `PUT /api/orders/${ORDER}/plan-guide`;

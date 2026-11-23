@@ -19,10 +19,11 @@ const isDisabled = (el: Element) => el.matches(':disabled');
 describe('sections and their order (plan D2)', () => {
   const cases: Array<[string, string[], string[]]> = [
     ['yd', ['yd', 'knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'], ['yd']],
-    ['knitting', ['knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'], ['knitting']],
-    ['dyeing', ['dyeing', 'knitting', 'deliveryFloor', 'deliveryLock'], ['dyeing']],
+    // US-12: the order has YD items, so the YD section is added after the route section(s).
+    ['knitting', ['knitting', 'yd', 'dyeing', 'deliveryFloor', 'deliveryLock'], ['knitting']],
+    ['dyeing', ['dyeing', 'yd', 'knitting', 'deliveryFloor', 'deliveryLock'], ['dyeing']],
     ['finishing', ['finishing', 'knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'], ['finishing']],
-    ['delivery', ['deliveryFloor', 'deliveryLock', 'knitting', 'dyeing'], ['deliveryFloor', 'deliveryLock']],
+    ['delivery', ['deliveryFloor', 'deliveryLock', 'yd', 'knitting', 'dyeing'], ['deliveryFloor', 'deliveryLock']],
   ];
   for (const [dept, keys, route] of cases) {
     it(`${dept} page: ${keys.join(', ')}`, async () => {
@@ -277,13 +278,14 @@ describe('Hide/Unhide', () => {
       ['Hide General Information', 'true', 'order-general-info-body'],
       ['Hide Delivery Plan (Floor)', 'true', 'plan-section-body-deliveryFloor'],
       ['Hide Delivery Plan (Lock)', 'true', 'plan-section-body-deliveryLock'],
+      ['Hide YD Plan', 'true', 'plan-section-body-yd'],
       ['Hide Knitting Plan', 'true', 'plan-section-body-knitting'],
       ['Hide Dyeing Plan', 'true', 'plan-section-body-dyeing'],
     ]);
     for (const [, , id] of toggles()) expect(document.getElementById(id as string)).not.toBeNull();
     expect(page.section('dyeing').querySelector('fieldset')?.id).toBe('plan-section-body-dyeing');
     await page.toggle('dyeing');
-    expect(toggles()[4]).toEqual(['Unhide Dyeing Plan', 'false', null]);
+    expect(toggles()[5]).toEqual(['Unhide Dyeing Plan', 'false', null]);
   });
 
   it('storage that throws: Hide/Unhide still works for the page', async () => {

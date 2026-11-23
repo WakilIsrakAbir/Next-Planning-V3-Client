@@ -1,8 +1,9 @@
 import DepartmentReportScreen from '@/features/reports/components/DepartmentReportScreen';
-import { PLAN_DEPT_KEYS, deptParams } from '@/lib/constants';
+import { PLAN_LIST_KEYS, deptParams } from '@/lib/constants';
 import { deptShortName } from '@/lib/page-title';
 
-export const generateStaticParams = () => deptParams(PLAN_DEPT_KEYS);
+// US-12: also the Delivery Plan (Floor) and (Lock) reports.
+export const generateStaticParams = () => deptParams(PLAN_LIST_KEYS);
 
 export default function Page({ params }: { params: Promise<{ dept: string }> }) {
   return <DepartmentReportScreen params={params} />;

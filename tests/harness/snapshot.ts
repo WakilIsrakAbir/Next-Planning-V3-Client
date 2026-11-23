@@ -154,7 +154,8 @@ function readButton(b: Element): NonNullable<PageState['buttons']>[number] {
  *   Lock tables are merged back into today's single table (Floor's identification + Floor columns, then Lock's
  *   columns, then the Dyeing columns, which since US-11 only the Floor table shows, then the read-only quantity
  *   columns, which both tables show);
- * - the section header/footer: the route section's table card (today's card, unchanged);
+ * - the section header/footer: the route section's table card. US-12 moved the card's "Department Fabric Items (n)"
+ *   header row into the strip (C2 chrome), so a card without that row records an empty header (`cardHeader`);
  * - buttons: today's five: the header arrow and Back, today's header "Save Planning" (now: the route section's own
  *   Save, recorded with today's label and the state of the card's Save), and the card footer's Cancel and Save
  *   Planning Schedule. C2 chrome (strips, pills, notes, Hide/Unhide, Discard, Save Data: [data-c2-chrome]) and the
@@ -165,6 +166,12 @@ function readButton(b: Element): NonNullable<PageState['buttons']>[number] {
  *   clicks is (`saving`; a route section never has `noItems`) and shows the spinner while its section is saved, so
  *   no plan, check or save difference can hide behind the entry.
  */
+/** The table card's header row (before US-12: "Department Fabric Items <n> ..."); '' when the card starts with its table. */
+function cardHeader(card: HTMLElement): string {
+  const first = card.firstElementChild;
+  return first && !first.querySelector('table') ? textOf(first) : '';
+}
+
 function readRouteSections(root: HTMLElement, state: PageState): boolean {
   const sections = Array.from(root.querySelectorAll('[data-route-section]'));
   if (sections.length === 0) return false;
@@ -175,7 +182,7 @@ function readRouteSections(root: HTMLElement, state: PageState): boolean {
 
   const card = tables[0].closest('.overflow-hidden') as HTMLElement | null;
   if (card) {
-    state.section = { header: textOf(card.firstElementChild), footer: textOf(card.lastElementChild) };
+    state.section = { header: cardHeader(card), footer: textOf(card.lastElementChild) };
   }
 
   if (tables.length === 1) {
@@ -241,7 +248,7 @@ export function readPage(root: HTMLElement): PageState {
     const card = table.closest('.overflow-hidden') as HTMLElement | null;
     if (card) {
       state.section = {
-        header: textOf(card.firstElementChild),
+        header: cardHeader(card),
         footer: textOf(card.lastElementChild),
       };
     }

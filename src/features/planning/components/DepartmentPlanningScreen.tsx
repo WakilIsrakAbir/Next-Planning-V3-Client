@@ -296,9 +296,9 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
       <h1 className="sr-only" data-page-title>
         {deptConfig.name}
       </h1>
-      {/* Top Bar with Exact Exp Tabs and Compact Search (index.html lines 1245-1282) */}
-      <div className="flex-none bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm p-2 shadow-sm">
-        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+      {/* Top Bar with Exact Exp Tabs and Compact Search (index.html lines 1245-1282); US-12: one lower row from md up */}
+      <div data-list-topbar className="flex-none bg-white dark:bg-[#151921] border border-gray-200 dark:border-[#2a3346] rounded-sm p-1.5 shadow-sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2">
           {/* Left: 4 Exp Status Tabs */}
           <div className="flex flex-wrap sm:flex-nowrap gap-1 sm:gap-2">
             {[
@@ -312,7 +312,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id as any)}
-                  className={`px-3 sm:px-6 py-1.5 sm:py-2 font-bold rounded-sm cursor-pointer shadow-sm uppercase tracking-wide transition-colors text-[10px] sm:text-[12px] flex-1 sm:flex-none text-center ${
+                  className={`px-3 sm:px-4 py-1 font-bold rounded-sm cursor-pointer shadow-sm uppercase tracking-wide transition-colors text-[10px] sm:text-[11px] flex-1 sm:flex-none text-center ${
                     isActive
                       ? 'bg-[#313644] text-white'
                       : 'bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-50 dark:hover:bg-[#1f2637]'
@@ -325,10 +325,10 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
           </div>
 
           {/* Right: Compact Search Bar matching Exp */}
-          <div className="flex flex-col sm:flex-row w-full xl:w-auto items-stretch sm:items-center gap-2">
+          <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-2">
             <form
               onSubmit={handleGlobalSearch}
-              className="flex items-center gap-1 bg-emerald-50/70 dark:bg-[#1e2330] border border-emerald-200 dark:border-[#2a3346] rounded p-1 px-2 flex-1 xl:flex-none shadow-sm"
+              className="flex items-center gap-1 bg-emerald-50/70 dark:bg-[#1e2330] border border-emerald-200 dark:border-[#2a3346] rounded p-0.5 px-1.5 flex-1 md:flex-none shadow-sm"
             >
               <Search className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 ml-1" />
               <input
@@ -336,11 +336,11 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 placeholder="Search Booking No..."
-                className="w-full xl:w-56 px-2 py-1 border border-emerald-300 dark:border-[#2a3346] rounded text-xs focus:border-emerald-500 outline-none bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-100"
+                className="w-full md:w-44 lg:w-56 px-2 py-0.5 border border-emerald-300 dark:border-[#2a3346] rounded text-xs focus:border-emerald-500 outline-none bg-white dark:bg-[#151921] text-gray-800 dark:text-gray-100"
               />
               <button
                 type="submit"
-                className="px-3 py-1 bg-emerald-600 text-white font-bold rounded shadow hover:bg-emerald-700 transition text-xs whitespace-nowrap"
+                className="px-3 py-0.5 bg-emerald-600 text-white font-bold rounded shadow hover:bg-emerald-700 transition text-xs whitespace-nowrap"
               >
                 Search
               </button>
@@ -348,7 +348,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
                 <button
                   type="button"
                   onClick={clearGlobalSearch}
-                  className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs"
+                  className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-xs"
                   title="Clear search"
                 >
                   <X className="h-3 w-3" />
@@ -359,7 +359,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
         </div>
 
         {/* Horizontal Buyer Filter Pills Bar matching Exp buyerFilterContainer */}
-        <div className="flex flex-nowrap gap-1.5 mt-2.5 overflow-x-auto custom-scrollbar pb-1 w-full border-t border-gray-100 dark:border-[#2a3346] pt-2">
+        <div className="flex flex-nowrap gap-1.5 mt-1.5 overflow-x-auto custom-scrollbar pb-1 w-full border-t border-gray-100 dark:border-[#2a3346] pt-1.5">
           <button
             onClick={() => handleBuyerChange('')}
             className={`px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap shadow-sm ${

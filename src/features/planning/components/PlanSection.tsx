@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Save } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Layers, Save } from 'lucide-react';
 import InlineSpinner from '@/components/ui/InlineSpinner';
 import DeptPlanSection from '@/features/planning/components/DeptPlanSection';
 import { createDeptPlanLogic } from '@/features/planning/lib/dept-plan-logic';
@@ -183,9 +183,19 @@ function PlanSection({
             {hidden ? <ChevronRight className="h-4 w-4 opacity-60" /> : <ChevronDown className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
             <span>{def.title}</span>
           </button>
+          {/* US-12: the table card's former "Department Fabric Items (n)" row, as the strip's subheader. */}
+          <span data-subheader className="flex items-center gap-1 font-semibold text-gray-600 dark:text-gray-400">
+            <Layers className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            Department Fabric Items
+          </span>
           <span data-pill="items" className={PILL_ITEMS}>
             {itemCount}
           </span>
+          {editable && (
+            <span data-hint="row1" className="text-[10px] font-normal text-gray-500 dark:text-gray-400 italic">
+              Row 1 changes auto-fill all items below
+            </span>
+          )}
           {dirty && (
             <span data-pill="unsaved" className={PILL_UNSAVED}>
               Unsaved
