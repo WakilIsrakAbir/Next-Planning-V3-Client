@@ -44,6 +44,8 @@ export interface PPIOrder extends PPIRecord {
   buyer?: string;
   status?: string;
   bookingDate?: string;
+  /** US-12: the General Info Style (GET /api/orders/all-list). */
+  style?: string;
   yarnDate?: string;
   knitStart?: string;
   knitEnd?: string;

@@ -121,7 +121,10 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
       { key: 'knitting', label: 'Updated Knitting Report', href: '/reports/knitting' },
       { key: 'dyeing', label: 'Updated Dyeing Report', href: '/reports/dyeing' },
       { key: 'finishing', label: 'Updated Finishing Report', href: '/reports/finishing' },
-      { key: 'delivery', label: 'Updated Delivery Report', href: '/reports/delivery' },
+      // US-12: the Delivery report split into Floor and Lock (as the US-11 Order Management menus); a user without the
+      // new keys keeps the old `delivery` one. /reports/delivery keeps working.
+      { key: 'deliveryFloor', label: 'Updated Delivery Plan (Floor) Report', href: '/reports/deliveryfloor', fallbackKey: 'delivery' },
+      { key: 'deliveryLock', label: 'Updated Delivery Plan (Lock) Report', href: '/reports/deliverylock', fallbackKey: 'delivery' },
       { key: 'orderStatus', label: 'Order Status', href: '/reports/order-status' },
       { key: 'productInfo', label: 'Product Info', href: '/reports/product-info' },
       { key: 'planningProdInfo', label: 'Planning & Production Info', href: '/reports/planning-prod-info' },

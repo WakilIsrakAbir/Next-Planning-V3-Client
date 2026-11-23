@@ -48,6 +48,9 @@ export interface IUserPermissions {
       dyeing?: boolean;
       finishing?: boolean;
       delivery?: boolean;
+      /** US-12: when unset, the Sidebar uses `delivery`. */
+      deliveryFloor?: boolean;
+      deliveryLock?: boolean;
       orderStatus?: boolean;
       productInfo?: boolean;
       planningProdInfo?: boolean;

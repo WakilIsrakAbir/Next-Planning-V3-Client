@@ -139,6 +139,9 @@ export const MENU_GROUPS: MenuGroup[] = [
       ['dyeing', 'Updated Dyeing Report'],
       ['finishing', 'Updated Finishing Report'],
       ['delivery', 'Updated Delivery Report'],
+      // US-12 (the Sidebar uses `delivery` while a user has neither of these keys)
+      ['deliveryFloor', 'Updated Delivery Plan (Floor) Report'],
+      ['deliveryLock', 'Updated Delivery Plan (Lock) Report'],
       ['orderStatus', 'Order Status'],
       ['productInfo', 'Product Info'],
       ['planningProdInfo', 'Planning & Production Info'],

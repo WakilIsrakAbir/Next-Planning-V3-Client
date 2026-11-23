@@ -84,8 +84,11 @@ const hasValue = (v: unknown) => v !== undefined && v !== null && v !== '';
 
 export default function PlanningProdInfoScreen() {
   const [search, setSearch] = useState('');
-  // Search text actually requested: follows `search` after a typing pause, or at once on Enter
+  // US-12: a second box searches by Style (the General Info Style); both must match when both are filled.
+  const [styleSearch, setStyleSearch] = useState('');
+  // Search texts actually requested: follow the boxes after a typing pause, or at once on Enter
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedStyle, setAppliedStyle] = useState('');
   const [page, setPage] = useState(1);
   const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
   // The list's table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band.
@@ -102,7 +105,7 @@ export default function PlanningProdInfoScreen() {
     if (limitChoice === 'auto' && prevLimit && limit) setPage(pageForNewLimit(page, prevLimit, limit));
   }
 
-  const listKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}`;
+  const listKey = `${page}_${limit}_${appliedSearch.trim().toLowerCase()}_${appliedStyle.trim().toLowerCase()}`;
   const [listState, setListState] = useState<{ key: string; data: PPIListResult } | null>(null);
 
   // Detailed view state
@@ -128,13 +131,20 @@ export default function PlanningProdInfoScreen() {
 
   // Debounced search: one request after the user stops typing instead of one per keystroke
   useEffect(() => {
-    if (search === appliedSearch) return;
+    if (search === appliedSearch && styleSearch === appliedStyle) return;
     const timer = window.setTimeout(() => {
       setAppliedSearch(search);
+      setAppliedStyle(styleSearch);
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [search, appliedSearch]);
+  }, [search, appliedSearch, styleSearch, appliedStyle]);
+
+  const applySearchNow = () => {
+    setAppliedSearch(search);
+    setAppliedStyle(styleSearch);
+    setPage(1);
+  };
 
   // Order list: cached pages show instantly, the server copy refreshes them.
   useEffect(() => {
@@ -143,7 +153,9 @@ export default function PlanningProdInfoScreen() {
     let isMounted = true;
     const fetchOrders = async () => {
       try {
-        const endpoint = `/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(appliedSearch)}`;
+        const endpoint =
+          `/api/orders/all-list?page=${page}&limit=${limit}&search=${encodeURIComponent(appliedSearch)}` +
+          (appliedStyle.trim() ? `&style=${encodeURIComponent(appliedStyle)}` : '');
         const res = await sharedRequest(endpoint, () => apiClient<Partial<PPIListResult>>(endpoint));
         if (!isMounted) return;
         const result: PPIListResult = {
@@ -164,7 +176,7 @@ export default function PlanningProdInfoScreen() {
     return () => {
       isMounted = false;
     };
-  }, [listKey, page, limit, appliedSearch, showToast]);
+  }, [listKey, page, limit, appliedSearch, appliedStyle, showToast]);
 
   const cachedList = cachedPPI.data.get(listKey);
   const listData = listState?.key === listKey ? listState.data : (cachedList ?? listState?.data ?? EMPTY_LIST);
@@ -422,22 +434,36 @@ export default function PlanningProdInfoScreen() {
               </p>
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setAppliedSearch(search);
-                    setPage(1);
-                  }
-                }}
-                placeholder="Search Booking / Order No..."
-                className="input input-bordered input-sm w-48 sm:w-64 pl-8 text-xs"
-              />
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-base-content/50" />
+            {/* Search: Booking / Order No. and Style (US-12) */}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') applySearchNow();
+                  }}
+                  placeholder="Search Booking / Order No..."
+                  aria-label="Search Booking / Order No."
+                  className="input input-bordered input-sm w-44 sm:w-56 pl-8 text-xs"
+                />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-base-content/50" />
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={styleSearch}
+                  onChange={(e) => setStyleSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') applySearchNow();
+                  }}
+                  placeholder="Search Style..."
+                  aria-label="Search Style"
+                  className="input input-bordered input-sm w-36 sm:w-48 pl-8 text-xs"
+                />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-base-content/50" />
+              </div>
             </div>
           </div>
 
@@ -459,7 +485,7 @@ export default function PlanningProdInfoScreen() {
                     <th>Booking No. / Order No.</th>
                     <th>Buyer Name</th>
                     <th>Booking Date</th>
-                    <th>Status</th>
+                    <th>Style</th>
                   </tr>
                 </thead>
                 <tbody className="text-xs divide-y divide-base-200">
@@ -484,9 +510,7 @@ export default function PlanningProdInfoScreen() {
                         <td className="font-mono font-bold text-primary">{ord.orderNo}</td>
                         <td className="font-semibold uppercase text-[11px]">{ord.buyer || 'N/A'}</td>
                         <td>{formatPPIDate(ord.bookingDate)}</td>
-                        <td>
-                          <span className="badge badge-sm badge-outline font-bold">{ord.status || 'Active'}</span>
-                        </td>
+                        <td className="text-[11px]">{ord.style || '—'}</td>
                       </tr>
                     ))
                   )}
