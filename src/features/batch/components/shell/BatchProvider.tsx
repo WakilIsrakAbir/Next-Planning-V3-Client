@@ -2,8 +2,10 @@
 
 /* Batch Plan module root: loads the Batch data once, connects the Batch logic to the Next router and renders
    the feature root ([data-batch-app]) with its loading screen, load error banner and toast.
-   It is rendered by app/(dashboard)/batch/layout.tsx, so it stays mounted while the user moves between
-   the Batch routes; the data stays in memory when the user leaves the Batch pages and comes back, and is
+   It is rendered by app/(dashboard)/batch/layout.tsx and by the Batch Setup layout
+   (app/(dashboard)/management/setup/(batch)/layout.tsx). It stays mounted while the user moves between
+   the routes of one layout; the data lives in module state, so it stays in memory when the user leaves the
+   Batch pages (or moves between /batch and the Setup pages) and comes back, and is
    reloaded when another page changed it (upload, plan save, Dropdown Master unit change). */
 import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';

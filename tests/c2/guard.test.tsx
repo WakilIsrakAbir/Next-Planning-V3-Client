@@ -135,7 +135,7 @@ describe('Sidebar links (G guards them; the order page registers its work)', () 
   async function openWithSidebar(fixtureDept: string) {
     const p = await openPage({ fixture: twoRows(), dept: fixtureDept, role: 'admin' });
     // The Sidebar from the same module graph as the page (vi.resetModules gave the page a fresh guard store).
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     sidebar = render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />).container;
     await p.settle();
     return p;

@@ -15,7 +15,7 @@
    Dialog contexts keep their old fields; the dialogs show `context.error` (old #...Error texts), and the
    tentative questionnaire keeps its inputs in `context.answers`. */
 import { BatchApi } from '@/features/batch/api/batch-api';
-import { pageForNewLimit } from '@/lib/use-fit-rows';
+import { pageForNewLimit } from '@/hooks/use-fit-rows';
 import { BATCH_FLOORS, S, navigateTo, notify } from '@/features/batch/store/batch-store';
 import {
   canChangeData,
@@ -55,6 +55,7 @@ import {
   revisionNumberFromRows,
 } from './bookings';
 import { getFlatAllowance } from './batch-calculation';
+import { batchPathFromRoute } from './batch-navigation';
 import {
   copyReportData,
   currentReportBooking,
@@ -1132,7 +1133,7 @@ function currentPathname(): string {
 }
 
 /** Old switchMainView(view): closes the dialogs and the open report, and moves to the view's route:
-    'batch' -> /batch/plan[/<unit>], 'cards' -> /batch/card[/<unit>], 'setup' -> /batch/setup/<panel>,
+    'batch' -> /batch/plan[/<unit>], 'cards' -> /batch/card[/<unit>], 'setup' -> /management/setup/<page>,
     'reports' -> /batch/report/<mode>, 'upload' -> the Source File Upload page. A unit change on the same
     page replaces the URL (old syncRoute); nothing moves when the route is already open. */
 export function switchMainView(view: string): void {
@@ -1153,7 +1154,7 @@ export function switchMainView(view: string): void {
       : view === 'cards'
         ? '/batch/card' + (S.activeCardFloor ? '/' + S.activeCardFloor : '')
         : view === 'setup'
-          ? '/batch/setup/' + S.activeSetupPanel
+          ? batchPathFromRoute('setup/' + S.activeSetupPanel)
           : view === 'upload'
             ? '/management/upload'
             : '';

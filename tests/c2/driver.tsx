@@ -88,7 +88,7 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
 
   vi.resetModules();
-  let OrderPlanningScreen = (await import('@/features/planning/components/OrderPlanningScreen')).default;
+  let OrderPlanningScreen = (await import('@/features/planning/order-page/components/OrderPlanningScreen')).default;
   let mounted = render(<OrderPlanningScreen />);
 
   const settle = async () => {
@@ -168,7 +168,7 @@ export async function openPage(opts: { fixture: Fixture; dept: string; role: Rol
         harness.fetchHandler = server.fetch;
       }
       vi.resetModules();
-      OrderPlanningScreen = (await import('@/features/planning/components/OrderPlanningScreen')).default;
+      OrderPlanningScreen = (await import('@/features/planning/order-page/components/OrderPlanningScreen')).default;
       mounted = render(<OrderPlanningScreen />);
       await settle();
     },

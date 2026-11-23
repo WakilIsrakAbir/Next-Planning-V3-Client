@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
+import Sidebar from '@/components/layout/sidebar/Sidebar';
 import { API_BASE } from '@/lib/constants';
 import { isBatchPath } from '@/features/batch/lib/batch-navigation';
 import { prefetchOrderManagement } from '@/features/planning/lib/planning-cache';

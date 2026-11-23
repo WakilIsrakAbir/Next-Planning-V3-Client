@@ -2,9 +2,10 @@
 import type { AnchorHTMLAttributes, MouseEvent as ReactMouseEvent } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import Sidebar from '@/components/layout/Sidebar';
+import Sidebar from '@/components/layout/sidebar/Sidebar';
 import { BATCH_NAVIGATE_EVENT } from '@/features/batch/lib/batch-navigation';
-import { getUnsavedLabels, useUnsavedChanges } from '@/lib/unsaved-changes';
+import { getUnsavedLabels } from '@/lib/unsaved-changes';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { harnessState } from '../harness/state';
 
 // Sidebar + shared unsaved-work guard (SPEC section 4, milestone G). Every effect of a click is written to one log,

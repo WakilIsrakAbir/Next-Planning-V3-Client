@@ -1,6 +1,6 @@
 import { harnessState } from '../harness/state';
 import { PlanCheckListServer, STANDARD, formatDhakaDateTime, type FakeResponse, type Item, type MockUser } from '../plan-check-list/mock-server';
-import { GUIDE_DATE_KEYS, TNA_KEYS, computeLead, isIsoDay, type GuideDates } from '@/features/planning/lib/plan-guide';
+import { GUIDE_DATE_KEYS, TNA_KEYS, computeLead, isIsoDay, type GuideDates } from '@/features/planning/guide/lib/plan-guide';
 
 /*
  * In-memory stand-in for the parts of the Next Planning V3 server the Planning Guide card uses. Each part is a port

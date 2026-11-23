@@ -8,8 +8,8 @@ import {
   guardedLinkHandlers,
   guardLinkNavigate,
   registerUnsavedChanges,
-  useUnsavedChanges,
 } from '@/lib/unsaved-changes';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 
 // Shared unsaved-work guard (SPEC section 4, milestone G): the store, the hook, the prompt and the link guard.
 

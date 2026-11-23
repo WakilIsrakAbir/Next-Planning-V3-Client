@@ -1,4 +1,4 @@
-import TrackingFilterScreen from '@/features/filters/components/TrackingFilterScreen';
+import TrackingFilterScreen from '@/features/filters/tracking-filter/components/TrackingFilterScreen';
 import { FILTER_DEPT_KEYS, deptParams } from '@/lib/constants';
 import { deptPlanName } from '@/lib/page-title';
 

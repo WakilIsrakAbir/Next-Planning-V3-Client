@@ -154,7 +154,7 @@ export async function openGuidePage(opts: {
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
 
   vi.resetModules();
-  const OrderPlanningScreen = (await import('@/features/planning/components/OrderPlanningScreen')).default;
+  const OrderPlanningScreen = (await import('@/features/planning/order-page/components/OrderPlanningScreen')).default;
   const modules: PageModules = {
     cache: await import('@/features/planning/lib/planning-cache'),
     guard: await import('@/lib/unsaved-changes'),

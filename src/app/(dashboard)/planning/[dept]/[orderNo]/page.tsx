@@ -1,4 +1,4 @@
-import OrderPlanningScreen from '@/features/planning/components/OrderPlanningScreen';
+import OrderPlanningScreen from '@/features/planning/order-page/components/OrderPlanningScreen';
 import { deptPlanName } from '@/lib/page-title';
 
 export default function Page() {

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { openPage, type PageDriver } from '../c2/driver';
 import { savedOrder, twoRows } from '../c2/fixtures';
 import type { Loose } from '../harness/types';
-import { orderHasYdItems, sectionsFor, showsSection } from '@/features/planning/lib/order-page-model';
+import { orderHasYdItems, sectionsFor, showsSection } from '@/features/planning/order-page/lib/order-page-model';
 
 // US-12 on the order page: the YD section on the other department pages (12.1), the Dyeing Process Name select
 // (12.2) and the strip's "Department Fabric Items" subheader with the Row 1 hint (12.3).

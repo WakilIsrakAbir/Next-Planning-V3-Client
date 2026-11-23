@@ -12,16 +12,16 @@ const PAGE_HREF = 'http://plan-check-list.test/management/plan-check-list';
 const UNSAVED_MESSAGE = 'Unsaved changes in: Plan Check List. Leave without saving?';
 
 type Modules = {
-  PlanCheckListScreen: typeof import('@/features/management/components/PlanCheckListScreen').default;
-  data: typeof import('@/features/management/lib/plan-check-list');
+  PlanCheckListScreen: typeof import('@/features/management/plan-check-list/components/PlanCheckListScreen').default;
+  data: typeof import('@/features/management/plan-check-list/lib/plan-check-list');
   guard: typeof import('@/lib/unsaved-changes');
 };
 
 // Fresh modules for every test: an empty shared copy of the list and an empty unsaved-work store.
 async function freshModules(): Promise<Modules> {
   vi.resetModules();
-  const { default: PlanCheckListScreen } = await import('@/features/management/components/PlanCheckListScreen');
-  const data = await import('@/features/management/lib/plan-check-list');
+  const { default: PlanCheckListScreen } = await import('@/features/management/plan-check-list/components/PlanCheckListScreen');
+  const data = await import('@/features/management/plan-check-list/lib/plan-check-list');
   const guard = await import('@/lib/unsaved-changes');
   return { PlanCheckListScreen, data, guard };
 }

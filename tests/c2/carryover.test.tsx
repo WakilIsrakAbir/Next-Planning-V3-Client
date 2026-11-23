@@ -4,7 +4,7 @@ import { openPage, type PageDriver } from './driver';
 import { twoRows } from './fixtures';
 import { API_BASE, TEST_TOKEN } from '../harness/mock-server';
 import { T } from '../golden/scenarios/texts';
-import { initOrderPageModel, isOlderPlanData, orderPageReducer } from '@/features/planning/lib/order-page-model';
+import { initOrderPageModel, isOlderPlanData, orderPageReducer } from '@/features/planning/order-page/lib/order-page-model';
 
 // The lows carried over from the C2a verification (SPEC section 6, items 1-5).
 

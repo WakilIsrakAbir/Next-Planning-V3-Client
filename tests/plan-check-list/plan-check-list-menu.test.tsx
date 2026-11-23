@@ -30,7 +30,7 @@ describe('Sidebar: Data Management > Plan Check List', () => {
   async function dataManagementLinks(user: MockUser): Promise<Array<[string, string | null]>> {
     signIn('test-token', user);
     vi.resetModules();
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     const view = render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />);
     await screen.findByText(user.username);
     const groupButton = screen.queryByRole('button', { name: 'Data Management' });
@@ -78,7 +78,7 @@ describe('Sidebar: Data Management > Plan Check List', () => {
     harnessState().pathname = '/management/plan-check-list';
     signIn('test-token', ADMIN);
     vi.resetModules();
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />);
     const link = (await screen.findByText('Plan Check List')).closest('a') as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/management/plan-check-list');
@@ -90,7 +90,7 @@ describe('Sidebar: Data Management > Plan Check List', () => {
 describe('Manage Users: the Plan Check List permission', () => {
   it('is listed in Data Management right after Atlas Monitor; Admin template on, other templates off', async () => {
     vi.resetModules();
-    const ums = await import('@/features/management/components/UserManagementScreen');
+    const ums = await import('@/features/management/users/lib/permissions');
     const dataManagement = ums.MENU_GROUPS.find((group) => group.key === 'dataManagement');
     expect(dataManagement?.items).toEqual([
       ['view', 'Source File Upload'],
@@ -135,7 +135,7 @@ describe('Manage Users: the Plan Check List permission', () => {
     };
     signIn('test-token', ADMIN);
     vi.resetModules();
-    const { default: UserManagementScreen } = await import('@/features/management/components/UserManagementScreen');
+    const { default: UserManagementScreen } = await import('@/features/management/users/components/UserManagementScreen');
     render(<UserManagementScreen />);
 
     async function planCheckListSwitch(username: string): Promise<{ checked: boolean; order: string[] }> {

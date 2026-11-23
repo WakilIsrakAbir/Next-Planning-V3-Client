@@ -194,7 +194,7 @@ export async function runScenario(sc: Scenario, fixture: Fixture): Promise<Recor
 
   // Every scenario starts from fresh modules: empty client caches, as on a first visit.
   vi.resetModules();
-  const { default: OrderPlanningScreen } = await import('@/features/planning/components/OrderPlanningScreen');
+  const { default: OrderPlanningScreen } = await import('@/features/planning/order-page/components/OrderPlanningScreen');
 
   // Every toast that reaches the screen during a step, in order ("<type>: <text>").
   let toastsSeen: string[] = [];

@@ -4,8 +4,8 @@ import { openPage, type PageDriver } from '../c2/driver';
 import { twoRows } from '../c2/fixtures';
 import { API_BASE, TEST_TOKEN } from '../harness/mock-server';
 import type { Loose } from '../harness/types';
-import { dayDiff, extrasPayload, withSavedExtras, yarnToKnitStart } from '@/features/planning/lib/plan-extras';
-import { planDeptOf, sectionsFor } from '@/features/planning/lib/order-page-model';
+import { dayDiff, extrasPayload, withSavedExtras, yarnToKnitStart } from '@/features/planning/order-page/lib/plan-extras';
+import { planDeptOf, sectionsFor } from '@/features/planning/order-page/lib/order-page-model';
 
 // US-11 on the order page: the new date columns (stored in planExtras), the read-only day columns, the removed
 // columns, the Dyeing Process Name input, and the Delivery Floor / Lock routes.

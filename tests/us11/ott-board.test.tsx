@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { harnessState } from '../harness/state';
-import { buildOttBoard, formatOttDate, OTT_BOARD_DEPTS, toDay, type OttCard } from '@/features/tracking/lib/ott-board';
+import { buildOttBoard, formatOttDate, OTT_BOARD_DEPTS, toDay, type OttCard } from '@/features/tracking/ott-board/lib/ott-board';
 import type { Loose } from '../harness/types';
 
 // US-11 (TASK-11.6): the OTT board of an order, and its popup on the Plan Vs Actual Tracking lists.
@@ -87,7 +87,7 @@ describe('OttBoardModal', () => {
       });
     };
     vi.resetModules();
-    const { default: OttBoardModal } = await import('@/features/tracking/components/OttBoardModal');
+    const { default: OttBoardModal } = await import('@/features/tracking/ott-board/components/OttBoardModal');
     const onClose = vi.fn();
     await act(async () => {
       render(<OttBoardModal orderNo="B-1" dept="deliveryfloor" onClose={onClose} />);

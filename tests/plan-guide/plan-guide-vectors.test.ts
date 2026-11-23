@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import * as guide from '@/features/planning/lib/plan-guide';
+import * as guide from '@/features/planning/guide/lib/plan-guide';
 
 /*
  * Parity of the client's Planning Guide rules (src/features/planning/lib/plan-guide.ts) with the server's

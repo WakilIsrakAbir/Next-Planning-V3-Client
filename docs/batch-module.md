@@ -14,10 +14,11 @@ as it was, because the old app and this one read and write the same records thro
 |---|---|
 | `/batch/plan`, `/batch/plan/<UNIT>` | Batch Plan register and report (`components/plan/BatchPlanPage.tsx`) |
 | `/batch/card`, `/batch/card/<UNIT>` | Batch Card (`components/card/BatchCardPage.tsx`) |
-| `/batch/setup/{dyeing,flat,unit}` | Setup (`components/setup/BatchSetupPage.tsx`) |
+| `/management/setup/{dyeing-mc,flat-allowance,unit}` | Setup (`components/setup/BatchSetupPage.tsx`); routes `setup/{dyeing,flat,unit}` (`BATCH_SETUP_PATHS`). The old `/batch/setup/{dyeing,flat,unit}` redirect here (`next.config.ts`) |
 | `/batch/report/{detail,summary,daily}` | Reports (`components/reports/BatchReportsPage.tsx`) |
 
-`src/app/(dashboard)/batch/layout.tsx` renders `BatchProvider`, which loads `GET /api/batch/state` once and
+`src/app/(dashboard)/batch/layout.tsx` and `src/app/(dashboard)/management/setup/(batch)/layout.tsx` render
+`BatchProvider`, which loads `GET /api/batch/state` once (module state, so not again when the layout changes) and
 stays mounted while the user moves between these routes. Route permissions: `BatchRouteGuard`
 (`menus.batchPlan.all` or `menus.batchPlan.<unit>` etc., the same rule the server uses).
 

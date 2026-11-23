@@ -1,4 +1,4 @@
-import UserManagementScreen from '@/features/management/components/UserManagementScreen';
+import UserManagementScreen from '@/features/management/users/components/UserManagementScreen';
 
 export default function Page() {
   return <UserManagementScreen />;

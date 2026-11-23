@@ -1,4 +1,4 @@
-import PlanCheckListScreen from '@/features/management/components/PlanCheckListScreen';
+import PlanCheckListScreen from '@/features/management/plan-check-list/components/PlanCheckListScreen';
 
 export default function Page() {
   return <PlanCheckListScreen />;

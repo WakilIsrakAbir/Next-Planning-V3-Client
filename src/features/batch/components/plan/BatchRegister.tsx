@@ -10,7 +10,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Search, X } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
-import { useFitRows } from '@/lib/use-fit-rows';
+import { useFitRows } from '@/hooks/use-fit-rows';
 import {
   S,
   buyerPillNames,

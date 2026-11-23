@@ -19,8 +19,8 @@ vi.mock('next/link', async () => {
 });
 
 // "Auto" rows need a measured table area, which jsdom does not have: ten rows.
-vi.mock('@/lib/use-fit-rows', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/use-fit-rows')>()),
+vi.mock('@/hooks/use-fit-rows', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-fit-rows')>()),
   useFitRows: () => ({ rows: 10, rowHeight: 41 }),
 }));
 
@@ -110,7 +110,7 @@ describe('12.4 Report menu: Updated Delivery Plan (Floor) and (Lock) Reports', (
     harnessState().pathname = '/dashboard';
     harnessState().fetchHandler = async () => json({});
     vi.resetModules();
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     const view = render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />);
     await screen.findByText(user.username);
     const groupButton = screen.queryByRole('button', { name: 'Report' });
@@ -170,7 +170,7 @@ describe('12.5 Planning & Production Info: Style column and search', () => {
 
   async function openPPI() {
     vi.resetModules();
-    const { default: Screen } = await import('@/features/planning-prod-info/components/PlanningProdInfoScreen');
+    const { default: Screen } = await import('@/features/reports/planning-prod-info/components/PlanningProdInfoScreen');
     await act(async () => {
       render(<Screen />);
     });
