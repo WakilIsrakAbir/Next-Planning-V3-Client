@@ -15,7 +15,7 @@ export default function TrackingBuyerPills({
   setPage,
 }: TrackingBuyerPillsProps) {
   return (
-    <div className="flex-none flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+    <div className="flex-none flex items-center gap-1.5 overflow-x-scroll pb-1 custom-scrollbar">
       <button
         onClick={() => {
           setSelectedBuyer('');
