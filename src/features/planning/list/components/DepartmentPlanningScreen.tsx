@@ -359,7 +359,7 @@ export default function DepartmentPlanningScreen({ params }: PageProps) {
         </div>
 
         {/* Horizontal Buyer Filter Pills Bar matching Exp buyerFilterContainer */}
-        <div className="flex flex-nowrap gap-1.5 mt-1.5 overflow-x-auto custom-scrollbar pb-1 w-full border-t border-gray-100 dark:border-[#2a3346] pt-1.5">
+        <div className="flex flex-nowrap gap-1.5 mt-1.5 overflow-x-scroll custom-scrollbar pb-1 w-full border-t border-gray-100 dark:border-[#2a3346] pt-1.5">
           <button
             onClick={() => handleBuyerChange('')}
             className={`px-3 py-1 rounded text-xs font-bold transition whitespace-nowrap shadow-sm ${

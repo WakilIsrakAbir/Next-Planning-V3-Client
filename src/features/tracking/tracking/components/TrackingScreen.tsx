@@ -39,7 +39,9 @@ export default function TrackingScreen({ params }: PageProps) {
   const [limitChoice, setLimitChoice] = useState<number | 'auto'>('auto');
   // The table area: "Auto" shows as many rows as fit in it, so the page neither scrolls nor leaves an empty band
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fit = useFitRows(scrollRef, ROW_HEIGHT);
+  // Only a window resize or sidebar toggle changes the row count; content settling after the first load does not,
+  // so the (slow) tracking list is requested once on first open.
+  const fit = useFitRows(scrollRef, ROW_HEIGHT, 5, true);
   // Rows per page in use (the fitted row count while "Auto" is selected); the request and the list cache key use it
   const limit = limitChoice === 'auto' ? (fit?.rows ?? null) : limitChoice;
 
