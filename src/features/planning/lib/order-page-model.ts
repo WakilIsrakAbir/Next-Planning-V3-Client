@@ -138,14 +138,34 @@ function sectionDef(key: string, routeDept: string): SectionDef {
   return { key, dept: key, group: 'main', title: meta.name, saveLabel: `Save ${meta.label}`, hasStatus: true, isRoute: routeDept === key, footerSavesDept: false };
 }
 
+/** US-12: the pages that also show the YD section (as an added section) when the order has YD items. */
+const YD_ADDED_ROUTES = ['knitting', 'dyeing', 'delivery', 'deliveryfloor', 'deliverylock'];
+
 /**
- * Plan D2: the route department's section(s) first, then Knitting, Dyeing, Delivery Floor and Delivery Lock. On the
- * Delivery Floor route only Floor is the route section (Lock is an added section), and the reverse on the Lock route.
+ * Plan D2: the route department's section(s) first, then YD (US-12, see `showsSection`), Knitting, Dyeing, Delivery
+ * Floor and Delivery Lock. On the Delivery Floor route only Floor is the route section (Lock is an added section), and
+ * the reverse on the Lock route.
  */
 export function sectionsFor(routeDept: string): SectionDef[] {
   const routeKeys = routeSectionKeys(routeDept);
-  const rest = ['knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'].filter((k) => !routeKeys.includes(k));
+  const added = YD_ADDED_ROUTES.includes(routeDept) ? ['yd'] : [];
+  const rest = [...added, 'knitting', 'dyeing', 'deliveryFloor', 'deliveryLock'].filter((k) => !routeKeys.includes(k));
   return [...routeKeys, ...rest].map((k) => sectionDef(k, routeDept));
+}
+
+/** US-12: the order has YD items (the server's `deptFlags.yd.hasItems`, else the order's `ydItems`). */
+export function orderHasYdItems(order: Loose | null | undefined, deptFlags: DeptFlags | null): boolean {
+  const flags = deptFlags?.yd;
+  if (flags) return flags.hasItems === true;
+  return Array.isArray(order?.ydItems) && order.ydItems.length > 0;
+}
+
+/**
+ * Whether a section is drawn. Every section is drawn, except the added YD section of an order without YD items
+ * (US-12): it is not shown at all, rather than as an added section with the "no items" note.
+ */
+export function showsSection(def: SectionDef, order: Loose | null | undefined, deptFlags: DeptFlags | null): boolean {
+  return def.key !== 'yd' || def.isRoute || orderHasYdItems(order, deptFlags);
 }
 
 export type DeptFlags = Partial<Record<string, { inLatestFile: boolean; hasItems: boolean }>>;

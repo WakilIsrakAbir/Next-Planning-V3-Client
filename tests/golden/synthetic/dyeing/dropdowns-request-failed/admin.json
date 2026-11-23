@@ -46,7 +46,7 @@
           "Dye End Date": "—",
           "Fabric Notes": ""
         },
-        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "section": {"header":"","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
         "table": {
           "plan": "dyeing",
           "head": [
@@ -106,7 +106,7 @@
           "Dye End Date": "30-Oct-2026",
           "Fabric Notes": "Synthetic order SYN-D1."
         },
-        "section": {"header":"Department Fabric Items 7 Row 1 changes auto-fill all items below","footer":"Total 7 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "section": {"header":"","footer":"Total 7 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
         "table": {
           "plan": "dyeing",
           "head": [
@@ -119,7 +119,12 @@
               "text": ["Red",null,null,"05-Oct-2026","15-Oct-2026","Confirm",null,null,null,null,"9",null,null,null,"470","60","440","500","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"Solid","disabled":false,"title":null},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-16","disabled":false,"title":null},
@@ -134,7 +139,12 @@
               "text": ["Blue",null,null,"06-Oct-2026","16-Oct-2026","Tentative",null,null,null,null,"",null,null,null,"270","60","240","300","20"],
               "fields": {
                 "unit": {"value":"EKL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"HTR","disabled":false,"title":null},
+                "processName": {
+                  "value": "HTR",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":false,"title":null},
@@ -149,7 +159,12 @@
               "text": ["Green",null,null,"—","—","-",null,null,null,null,"8",null,null,null,"170","60","140","200","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"Dyeing Wash","disabled":false,"title":null},
+                "processName": {
+                  "value": "Dyeing Wash",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-19","disabled":false,"title":null},
@@ -164,7 +179,12 @@
               "text": ["White",null,null,"—","—","-",null,null,null,null,"",null,null,null,"120","60","90","150","20"],
               "fields": {
                 "unit": {"value":"","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"","disabled":false,"title":null},
+                "processName": {
+                  "value": "",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":true,"title":"Unit & Process Name must be selected before planning","greyed":true},
@@ -179,7 +199,12 @@
               "text": ["Navy",null,null,"07-Oct-2026","17-Oct-2026","-",null,null,null,null,"",null,null,null,"90","60","60","120","20"],
               "fields": {
                 "unit": {"value":"Ext","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"Pluvia","disabled":false,"title":null},
+                "processName": {
+                  "value": "Pluvia",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-18","disabled":false,"title":null},
@@ -194,7 +219,12 @@
               "text": ["Black",null,null,"08-Oct-2026","18-Oct-2026","Confirm",null,null,null,null,"8",null,null,null,"70","60","40","100","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"Solid","disabled":false,"title":null},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"2026-10-20","disabled":false,"title":null},
@@ -209,7 +239,12 @@
               "text": ["Grey",null,null,"—","—","-",null,null,null,null,"",null,null,null,"60","60","30","90","20"],
               "fields": {
                 "unit": {"value":"EFL","disabled":false,"title":null,"options":["","EFL","EKL","Ext","Outside"]},
-                "processName": {"value":"Solid","disabled":false,"title":null},
+                "processName": {
+                  "value": "Solid",
+                  "disabled": false,
+                  "title": null,
+                  "options": ["","Solid","Dyeing Wash","HTR","Pluvia","SB","WH","DF"]
+                },
                 "ldPlanDate": {"value":"","disabled":false,"title":null},
                 "actualLdDate": {"value":"","disabled":false,"title":null},
                 "startDate": {"value":"","disabled":false,"title":null},

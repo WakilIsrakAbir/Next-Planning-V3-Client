@@ -46,7 +46,7 @@
           "Dye End Date": "—",
           "Fabric Notes": ""
         },
-        "section": {"header":"Department Fabric Items 0 Row 1 changes auto-fill all items below","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "section": {"header":"","footer":"Total 0 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
         "table": {
           "plan": "finishing",
           "head": [
@@ -106,7 +106,7 @@
           "Dye End Date": "30-Oct-2026",
           "Fabric Notes": "Synthetic order SYN-S1."
         },
-        "section": {"header":"Department Fabric Items 1 Row 1 changes auto-fill all items below","footer":"Total 1 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
+        "section": {"header":"","footer":"Total 1 fabric items ready for schedule synchronization. Cancel Save Planning Schedule"},
         "table": {
           "plan": "finishing",
           "head": [

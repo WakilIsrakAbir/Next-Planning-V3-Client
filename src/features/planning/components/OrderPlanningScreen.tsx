@@ -40,6 +40,7 @@ import {
   rowsOnRead,
   sectionAccess,
   sectionsFor,
+  showsSection,
   storedDept,
   type GroupKey,
   type OrderPageAction,
@@ -945,9 +946,11 @@ function OrderPlanningPage({ dept, orderNo }: { dept: string; orderNo: string })
       />
 
       {/* ==========================================================
-          PLAN SECTIONS: the page's own department first, then Knitting, Dyeing, Delivery Floor and Delivery Lock
+          PLAN SECTIONS: the page's own department first, then YD (when the order has YD items), Knitting, Dyeing,
+          Delivery Floor and Delivery Lock
          ========================================================== */}
       {sections.map((def) => {
+        if (!showsSection(def, model.order, model.deptFlags)) return null;
         const draft = model.drafts[def.dept];
         // Plan D4 / D8: the page's own department as today; any other section for 'Admin' only, and only while the
         // order is in that department's latest file (the same rule decides what a save may send).
