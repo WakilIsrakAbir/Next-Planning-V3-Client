@@ -90,7 +90,7 @@ describe('Sidebar: Data Management > Plan Check List', () => {
 describe('Manage Users: the Plan Check List permission', () => {
   it('is listed in Data Management right after Atlas Monitor; Admin template on, other templates off', async () => {
     vi.resetModules();
-    const ums = await import('@/features/management/users/components/UserManagementScreen');
+    const ums = await import('@/features/management/users/lib/permissions');
     const dataManagement = ums.MENU_GROUPS.find((group) => group.key === 'dataManagement');
     expect(dataManagement?.items).toEqual([
       ['view', 'Source File Upload'],
