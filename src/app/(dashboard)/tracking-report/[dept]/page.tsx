@@ -1,4 +1,4 @@
-import TrackingReportScreen from '@/features/tracking/components/TrackingReportScreen';
+import TrackingReportScreen from '@/features/tracking/tracking-report/components/TrackingReportScreen';
 import { TRACKING_DEPT_KEYS, deptParams } from '@/lib/constants';
 import { deptShortName } from '@/lib/page-title';
 

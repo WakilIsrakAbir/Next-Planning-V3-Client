@@ -1,4 +1,4 @@
-import DropdownSetupScreen from '@/features/management/components/DropdownSetupScreen';
+import DropdownSetupScreen from '@/features/management/dropdown-setup/components/DropdownSetupScreen';
 
 export default function Page() {
   return <DropdownSetupScreen />;

@@ -1,4 +1,4 @@
-import DepartmentPlanningScreen from '@/features/planning/components/DepartmentPlanningScreen';
+import DepartmentPlanningScreen from '@/features/planning/list/components/DepartmentPlanningScreen';
 import { PLAN_LIST_KEYS, deptParams } from '@/lib/constants';
 import { deptPlanName } from '@/lib/page-title';
 

@@ -1,4 +1,4 @@
-import ProductInfoScreen from '@/features/reports/components/ProductInfoScreen';
+import ProductInfoScreen from '@/features/reports/product-info/components/ProductInfoScreen';
 
 export default function Page() {
   return <ProductInfoScreen />;

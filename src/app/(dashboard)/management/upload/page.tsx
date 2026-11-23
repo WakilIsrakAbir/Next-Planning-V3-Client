@@ -1,4 +1,4 @@
-import FileUploadScreen from '@/features/management/components/FileUploadScreen';
+import FileUploadScreen from '@/features/management/upload/components/FileUploadScreen';
 
 export default function Page() {
   return <FileUploadScreen />;

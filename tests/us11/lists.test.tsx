@@ -28,7 +28,7 @@ describe('Sidebar: Order Management delivery items', () => {
     signIn('test-token', user);
     harnessState().fetchHandler = async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
     vi.resetModules();
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     const view = render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />);
     await screen.findByText(user.username);
     const groupButton = screen.queryByRole('button', { name: 'Order Management' });
@@ -101,7 +101,7 @@ describe('list pages: Floor / Lock titles and the search across all lists', () =
       });
     };
     vi.resetModules();
-    const { default: Screen } = await import('@/features/planning/components/DepartmentPlanningScreen');
+    const { default: Screen } = await import('@/features/planning/list/components/DepartmentPlanningScreen');
     const params = Promise.resolve({ dept });
     await act(async () => {
       render(

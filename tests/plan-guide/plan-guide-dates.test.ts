@@ -8,7 +8,7 @@ import {
   isIsoDay,
   toIsoDay,
   type PlanCheck,
-} from '@/features/planning/lib/plan-guide';
+} from '@/features/planning/guide/lib/plan-guide';
 
 /*
  * The client's Planning Guide rules (src/features/planning/lib/plan-guide.ts, SPEC D10 / D11 / C4): strict date

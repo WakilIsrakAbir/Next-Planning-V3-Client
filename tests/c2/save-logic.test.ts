@@ -6,8 +6,8 @@ import {
   findFailingEntry,
   planDataForValidation,
   type PlanSaveEntry,
-} from '@/features/planning/lib/order-page-save';
-import { initOrderPageModel, isGroupDirty, orderPageReducer, rowsForSave } from '@/features/planning/lib/order-page-model';
+} from '@/features/planning/order-page/lib/order-page-save';
+import { initOrderPageModel, isGroupDirty, orderPageReducer, rowsForSave } from '@/features/planning/order-page/lib/order-page-model';
 import { T } from '../golden/scenarios/texts';
 import { twoRows } from './fixtures';
 import type { Loose } from '../harness/types';

@@ -5,7 +5,7 @@ import { API_BASE, TEST_TOKEN, fingerprintDept } from '../harness/mock-server';
 import { T } from '../golden/scenarios/texts';
 import { harnessState } from '../harness/state';
 import type { Loose } from '../harness/types';
-import { initOrderPageModel, orderPageReducer } from '@/features/planning/lib/order-page-model';
+import { initOrderPageModel, orderPageReducer } from '@/features/planning/order-page/lib/order-page-model';
 
 // Lost-update sequences against the fingerprint-adoption rule (a read adopts a department's fingerprint only when every
 // group that keeps a draft was made on what the read shows), against "Save mine anyway" and against the keep-newest

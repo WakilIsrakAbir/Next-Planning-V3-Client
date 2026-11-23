@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { harnessState } from '../harness/state';
 import { ADMIN, STANDARD, signIn, type Item } from '../plan-check-list/mock-server';
 import { GuideServer, guidePath, type StoredGuide } from './guide-server';
-import type { PlanGuide } from '@/features/planning/lib/plan-guide-api';
-import type { SaveExtra } from '@/features/planning/lib/use-planning-guide';
+import type { PlanGuide } from '@/features/planning/guide/lib/plan-guide-api';
+import type { SaveExtra } from '@/features/planning/guide/hooks/use-planning-guide';
 
 // The order page's Checkpoint & Planning Guide card (SPEC D10-D13, C4) against an in-memory port of the server's
 // guide API: defaults, the user's example, the lead rule and its tooltip, saving and showing a saved guide, the
@@ -42,19 +42,19 @@ const EXAMPLE_LIVE = {
 };
 
 type Modules = {
-  PlanningGuideCard: typeof import('@/features/planning/components/PlanningGuideCard').default;
+  PlanningGuideCard: typeof import('@/features/planning/guide/components/PlanningGuideCard').default;
   guard: typeof import('@/lib/unsaved-changes');
   cache: typeof import('@/features/planning/lib/planning-cache');
-  api: typeof import('@/features/planning/lib/plan-guide-api');
+  api: typeof import('@/features/planning/guide/lib/plan-guide-api');
 };
 
 // Fresh modules for every test: an empty shared Plan Check List copy, unsaved-work store and detail cache.
 async function freshModules(): Promise<Modules> {
   vi.resetModules();
-  const { default: PlanningGuideCard } = await import('@/features/planning/components/PlanningGuideCard');
+  const { default: PlanningGuideCard } = await import('@/features/planning/guide/components/PlanningGuideCard');
   const guard = await import('@/lib/unsaved-changes');
   const cache = await import('@/features/planning/lib/planning-cache');
-  const api = await import('@/features/planning/lib/plan-guide-api');
+  const api = await import('@/features/planning/guide/lib/plan-guide-api');
   return { PlanningGuideCard, guard, cache, api };
 }
 

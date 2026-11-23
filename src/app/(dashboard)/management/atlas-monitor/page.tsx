@@ -1,4 +1,4 @@
-import AtlasMonitorScreen from '@/features/management/components/AtlasMonitorScreen';
+import AtlasMonitorScreen from '@/features/management/atlas-monitor/components/AtlasMonitorScreen';
 
 export default function Page() {
   return <AtlasMonitorScreen />;

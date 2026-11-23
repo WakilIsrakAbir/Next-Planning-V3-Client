@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-
 /* Unsaved-work guard shared by every page that edits data (order page sections, Planning Guide, Plan Check List)
    and by the Sidebar.
    - A source registers the names of its unsaved work ("Dyeing Plan", "Planning Guide", ...) while it has any.
@@ -69,22 +67,6 @@ export function getUnsavedLabels(): string[] {
     }
   });
   return labels;
-}
-
-/**
- * Registers `labels` as unsaved work of source `id` while the list is not empty; an empty list, another id or
- * unmounting unregisters it. While registered the labels follow the latest render and the source keeps its place.
- */
-export function useUnsavedChanges(id: string, labels: string[]): void {
-  const latest = useRef(labels);
-  useEffect(() => {
-    latest.current = labels;
-  });
-  const active = labels.length > 0;
-  useEffect(() => {
-    if (!active) return undefined;
-    return registerUnsavedChanges(id, () => latest.current);
-  }, [id, active]);
 }
 
 /**

@@ -10,11 +10,11 @@ import { ADMIN, LIST_URL, PLANNER, PlanCheckListServer, SESSION_KEYS, STANDARD, 
 const TOKEN = 'test-token';
 const PAGE_HREF = 'http://plan-check-list.test/planning/knitting/1001';
 
-type Data = typeof import('@/features/management/lib/plan-check-list');
+type Data = typeof import('@/features/management/plan-check-list/lib/plan-check-list');
 
 async function freshData(): Promise<Data> {
   vi.resetModules();
-  return import('@/features/management/lib/plan-check-list');
+  return import('@/features/management/plan-check-list/lib/plan-check-list');
 }
 
 let server: PlanCheckListServer;

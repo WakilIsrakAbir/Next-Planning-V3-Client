@@ -1,4 +1,4 @@
-import PlanningProdInfoScreen from '@/features/planning-prod-info/components/PlanningProdInfoScreen';
+import PlanningProdInfoScreen from '@/features/reports/planning-prod-info/components/PlanningProdInfoScreen';
 
 export default function Page() {
   return <PlanningProdInfoScreen />;

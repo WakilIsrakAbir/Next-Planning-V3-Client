@@ -100,7 +100,7 @@ describe('Sidebar: Data Management > Setup', () => {
     localStorage.setItem('token', 'test-token');
     localStorage.setItem('user', JSON.stringify({ username: 'admin', role: 'Admin', status: 'active', permissions: {} }));
     vi.resetModules();
-    const { default: Sidebar } = await import('@/components/layout/Sidebar');
+    const { default: Sidebar } = await import('@/components/layout/sidebar/Sidebar');
     const view = render(<Sidebar isOpen onToggle={() => {}} onCloseMobile={() => {}} />);
     await screen.findByText('admin');
     if (!screen.queryByText('Source File Upload')) fireEvent.click(screen.getByRole('button', { name: 'Data Management' }));

@@ -124,7 +124,7 @@ describe('placement, strip and Hide/Unhide', () => {
     harness.fetchHandler = server.fetch;
     Object.entries(ROLE_STORAGE.admin).forEach(([k, v]) => localStorage.setItem(k, v));
     vi.resetModules();
-    const { default: OrderPlanningScreen } = await import('@/features/planning/components/OrderPlanningScreen');
+    const { default: OrderPlanningScreen } = await import('@/features/planning/order-page/components/OrderPlanningScreen');
     const { renderToString } = await import('react-dom/server');
     const { hydrateRoot } = await import('react-dom/client');
     const html = renderToString(<OrderPlanningScreen />);
@@ -473,8 +473,8 @@ describe('typing in a plan section does not draw the card (SPEC C2 10c)', () => 
   it('no card render while typing in Knitting or Delivery Lock; a guide edit draws it', async () => {
     const counter = { renders: 0 };
     (globalThis as Loose).__C34_GUIDE_RENDERS__ = counter;
-    vi.doMock('@/features/planning/lib/use-planning-guide', async () => {
-      const real = await vi.importActual<typeof import('@/features/planning/lib/use-planning-guide')>('@/features/planning/lib/use-planning-guide');
+    vi.doMock('@/features/planning/guide/hooks/use-planning-guide', async () => {
+      const real = await vi.importActual<typeof import('@/features/planning/guide/hooks/use-planning-guide')>('@/features/planning/guide/hooks/use-planning-guide');
       return {
         ...real,
         usePlanningGuide: (options: Parameters<typeof real.usePlanningGuide>[0]) => {
@@ -496,7 +496,7 @@ describe('typing in a plan section does not draw the card (SPEC C2 10c)', () => 
       expect(counter.renders).toBeGreaterThan(0);
       expect(page.saveDataButton().textContent).toBe('Save Data (4)');
     } finally {
-      vi.doUnmock('@/features/planning/lib/use-planning-guide');
+      vi.doUnmock('@/features/planning/guide/hooks/use-planning-guide');
     }
   });
 });

@@ -1,4 +1,4 @@
-import DepartmentReportScreen from '@/features/reports/components/DepartmentReportScreen';
+import DepartmentReportScreen from '@/features/reports/department/components/DepartmentReportScreen';
 import { PLAN_LIST_KEYS, deptParams } from '@/lib/constants';
 import { deptShortName } from '@/lib/page-title';
 

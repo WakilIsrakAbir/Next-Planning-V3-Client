@@ -15,7 +15,7 @@
    Dialog contexts keep their old fields; the dialogs show `context.error` (old #...Error texts), and the
    tentative questionnaire keeps its inputs in `context.answers`. */
 import { BatchApi } from '@/features/batch/api/batch-api';
-import { pageForNewLimit } from '@/lib/use-fit-rows';
+import { pageForNewLimit } from '@/hooks/use-fit-rows';
 import { BATCH_FLOORS, S, navigateTo, notify } from '@/features/batch/store/batch-store';
 import {
   canChangeData,

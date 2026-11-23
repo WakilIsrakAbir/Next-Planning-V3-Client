@@ -1,4 +1,4 @@
-import PlanFilterScreen from '@/features/filters/components/PlanFilterScreen';
+import PlanFilterScreen from '@/features/filters/plan-filter/components/PlanFilterScreen';
 import { FILTER_DEPT_KEYS, deptParams } from '@/lib/constants';
 import { deptPlanName } from '@/lib/page-title';
 

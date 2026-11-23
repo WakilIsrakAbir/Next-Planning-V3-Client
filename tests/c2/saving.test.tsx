@@ -632,8 +632,8 @@ describe('only the edited section renders again (SPEC C2 item 10c)', () => {
   it('typing in Knitting renders no other section', async () => {
     const counts: Record<string, number> = {};
     (globalThis as Loose).__C2_RENDERS__ = counts;
-    vi.doMock('@/features/planning/components/DeptPlanSection', async () => {
-      const real = await vi.importActual<Loose>('@/features/planning/components/DeptPlanSection');
+    vi.doMock('@/features/planning/order-page/components/DeptPlanSection', async () => {
+      const real = await vi.importActual<Loose>('@/features/planning/order-page/components/DeptPlanSection');
       return {
         default: (props: Loose) => {
           const key = props.columns ? `delivery-${props.columns}` : props.dept;
@@ -654,15 +654,15 @@ describe('only the edited section renders again (SPEC C2 item 10c)', () => {
       }
       expect(counts).toEqual({ knitting: 3 });
     } finally {
-      vi.doUnmock('@/features/planning/components/DeptPlanSection');
+      vi.doUnmock('@/features/planning/order-page/components/DeptPlanSection');
     }
   });
 
   it('typing in Delivery Lock renders only the Lock section, typing in Floor only the Floor section; both edits are saved', async () => {
     const counts: Record<string, number> = {};
     (globalThis as Loose).__C2_RENDERS__ = counts;
-    vi.doMock('@/features/planning/components/DeptPlanSection', async () => {
-      const real = await vi.importActual<Loose>('@/features/planning/components/DeptPlanSection');
+    vi.doMock('@/features/planning/order-page/components/DeptPlanSection', async () => {
+      const real = await vi.importActual<Loose>('@/features/planning/order-page/components/DeptPlanSection');
       return {
         default: (props: Loose) => {
           const key = props.columns ? `delivery-${props.columns}` : props.dept;
@@ -699,7 +699,7 @@ describe('only the edited section renders again (SPEC C2 item 10c)', () => {
         ['2026-11-04', 'L', 'abcd'],
       ]);
     } finally {
-      vi.doUnmock('@/features/planning/components/DeptPlanSection');
+      vi.doUnmock('@/features/planning/order-page/components/DeptPlanSection');
     }
   });
 });
