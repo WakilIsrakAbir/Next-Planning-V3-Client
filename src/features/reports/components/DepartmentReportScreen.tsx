@@ -40,7 +40,7 @@ function PreviewToggleButton({ open, onClick }: { open: boolean; onClick: () => 
   return (
     <button
       onClick={onClick}
-      className="w-full sm:w-auto px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
+      className="w-full sm:w-auto shrink-0 whitespace-nowrap px-4 py-3 border border-gray-300 dark:border-[#2a3346] hover:bg-gray-100 dark:hover:bg-[#252f44] text-gray-700 dark:text-gray-200 font-bold rounded shadow-sm transition-colors flex justify-center items-center gap-1.5 text-sm"
       title={open ? 'Hide Table' : 'Preview Table Data'}
     >
       {open ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -281,17 +281,17 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                   <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
                 </p>
 
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
                   <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold rounded-full text-xs">
                     Pending: {pendingCount}
                   </span>
                 </div>
 
-                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                <div className="mt-auto flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-[400px]">
                   <button
                     onClick={downloadPendingExcel}
                     disabled={downloadingPending}
-                    className="flex-1 w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-md shadow-amber-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                    className="flex-1 w-full whitespace-nowrap px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-md shadow-amber-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
                   >
                     {downloadingPending ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
                     <span>Download Pending Data</span>
@@ -312,12 +312,12 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                   Updated Report
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 text-[12px] sm:text-[13px] mb-4 leading-relaxed">
-                  Extract all data (both Confirm &amp; Tentative). All buyers will be combined into a{' '}
+                  Extract all data ({includesPending ? 'Confirm, Tentative & Pending' : 'both Confirm & Tentative'}). All buyers will be combined into a{' '}
                   <strong className="text-gray-700 dark:text-gray-200">single sheet.</strong>
                 </p>
 
                 {/* Quick Count Badges */}
-                <div className="flex items-center gap-2 mb-6">
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
                   <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 font-bold rounded-full text-xs">
                     Confirm: {confirmCount}
                   </span>
@@ -334,14 +334,14 @@ export default function DepartmentReportScreen({ params }: PageProps) {
                   </span>
                 </div>
 
-                <div className="mt-auto flex flex-col sm:flex-row items-center gap-3 w-full max-w-[380px]">
+                <div className="mt-auto flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-[400px]">
                   <button
                     onClick={downloadExcel}
                     disabled={downloading}
-                    className="flex-1 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
+                    className="flex-1 w-full whitespace-nowrap px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-md shadow-emerald-600/20 transition-colors flex justify-center items-center gap-2 text-sm disabled:opacity-50"
                   >
                     {downloading ? <InlineSpinner size={16} /> : <FileSpreadsheet className="h-4 w-4" />}
-                    <span>Download {reportName} Data</span>
+                    <span>Download Updated Data</span>
                   </button>
 
                   <PreviewToggleButton open={previewKind === 'updated'} onClick={() => handleTogglePreview('updated')} />
