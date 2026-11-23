@@ -16,24 +16,26 @@ follows, referred to here as D1-D8.
 | File | What it does |
 |---|---|
 | `src/app/(dashboard)/planning/[dept]/[orderNo]/page.tsx` | Thin route: renders `OrderPlanningScreen` |
-| `src/features/planning/components/OrderPlanningScreen.tsx` | The page: reads, page state, saves, conflict handling, leave guard, backup |
-| `src/features/planning/components/OrderGeneralInfo.tsx` | General Information card (unchanged) with Hide/Unhide; its Order Status is the route department's |
-| `src/features/planning/components/PlanSection.tsx` | One section: the strip (title, pills, Order Status, Discard, Save, Hide), the conflict alert, the View only fieldset |
-| `src/features/planning/components/DeptPlanSection.tsx` | Today's table card of one department (moved from the old page), rows memoised (`DeptPlanRow`) |
+| `src/features/planning/order-page/components/OrderPlanningScreen.tsx` | The page: reads, page state, saves, conflict handling, leave guard, backup |
+| `src/features/planning/order-page/components/OrderGeneralInfo.tsx` | General Information card (unchanged) with Hide/Unhide; its Order Status is the route department's |
+| `src/features/planning/order-page/components/PlanSection.tsx` | One section: the strip (title, pills, Order Status, Discard, Save, Hide), the conflict alert, the View only fieldset |
+| `src/features/planning/order-page/components/DeptPlanSection.tsx` | Today's table card of one department (moved from the old page), rows memoised (`DeptPlanRow`) |
+| `src/features/planning/order-page/components/DeptPlanRow.tsx` | One memoised item row of `DeptPlanSection` (moved verbatim out of it), with its props comparison |
 | `src/features/planning/lib/order-plan-logic.ts` | Today's pure helpers, moved verbatim: `buildMergedItems`, `formatPlanPayload`, `findUpstreamPlans`, `ydKnitPlan`, `readIsAdminRole`, ... |
 | `src/features/planning/lib/dept-plan-logic.ts` | `createDeptPlanLogic(ctx)`: today's validators (`validateForSave`, `confirmCompletion`) and 10 edit handlers, moved verbatim |
-| `src/features/planning/lib/order-page-model.ts` | Sections, edit rights, the page state and its reducer, what a save sends (`rowsForSave`, and `rowsOnRead` for "Save mine anyway") |
-| `src/features/planning/lib/plan-extras.ts` | US-11 extra dates (`planExtras`): merge into rows, the `extras` of a save, the day columns (`dayDiff`, `yarnToKnitStart`) |
-| `src/features/planning/lib/order-page-save.ts` | Save Data planner (checks, SAVE-02 overlay, Completed prompts), the `save-plans` request, `SavePlansError` |
-| `src/features/planning/lib/order-page-backup.ts` | sessionStorage backup of unsaved work |
-| `src/features/planning/lib/section-visibility.ts` | Hide/Unhide store (localStorage) |
+| `src/features/planning/order-page/lib/order-page-model.ts` | Sections, edit rights, the page state and its reducer, what a save sends (`rowsForSave`, and `rowsOnRead` for "Save mine anyway") |
+| `src/features/planning/order-page/lib/plan-extras.ts` | US-11 extra dates (`planExtras`): merge into rows, the `extras` of a save, the day columns (`dayDiff`, `yarnToKnitStart`) |
+| `src/features/planning/order-page/lib/order-page-save.ts` | Save Data planner (checks, SAVE-02 overlay, Completed prompts), the `save-plans` request, `SavePlansError` |
+| `src/features/planning/order-page/lib/order-page-backup.ts` | sessionStorage backup of unsaved work |
+| `src/features/planning/order-page/lib/section-visibility.ts` | Hide/Unhide store (localStorage) |
 | `src/features/planning/lib/planning-cache.ts` | Order detail cache (the guide travels with each entry), the 2-minute `fresh=1` mark after a save |
-| `src/features/planning/components/PlanningGuideCard.tsx` | Checkpoint & Planning Guide card (`React.memo`), between General Information and the sections |
-| `src/features/planning/lib/use-planning-guide.ts` | The card's state: Yes/No, dates, its own dirty flag, Save Guide, Reload, its Save Data step |
-| `src/features/planning/lib/plan-guide.ts` | Guide dates and lead, the client copy of SERVER `src/utils/plan-guide-dates.ts` |
-| `src/features/planning/lib/plan-guide-api.ts` | `PUT plan-guide`, `readPlanGuide`, `isNewerGuide`, the guide in the detail cache keys |
-| `src/features/management/lib/plan-check-list.ts` | The Plan Check List the card reads (shared cached copy) |
+| `src/features/planning/guide/components/PlanningGuideCard.tsx` | Checkpoint & Planning Guide card (`React.memo`), between General Information and the sections |
+| `src/features/planning/guide/hooks/use-planning-guide.ts` | The card's state: Yes/No, dates, its own dirty flag, Save Guide, Reload, its Save Data step |
+| `src/features/planning/guide/lib/plan-guide.ts` | Guide dates and lead, the client copy of SERVER `src/utils/plan-guide-dates.ts` |
+| `src/features/planning/guide/lib/plan-guide-api.ts` | `PUT plan-guide`, `readPlanGuide`, `isNewerGuide`, the guide in the detail cache keys |
+| `src/features/management/plan-check-list/lib/plan-check-list.ts` | The Plan Check List the card reads (shared cached copy) |
 | `src/lib/unsaved-changes.ts` | Shared unsaved-work guard (Sidebar, Back, Sign Out, `beforeunload`), also used by other pages |
+| `src/hooks/use-unsaved-changes.ts` | `useUnsavedChanges(id, labels)`: the hook a page uses to register its unsaved work with the guard |
 
 Server endpoints the page calls:
 
