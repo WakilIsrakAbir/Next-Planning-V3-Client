@@ -73,7 +73,7 @@ export function renderFlatAllowance(): void {
   notify();
 }
 
-/** State only: the route /batch/setup/<panel> shows the panel (the old switchMainView('setup') is the route change;
+/** State only: the route /management/setup/<page> shows the panel (the old switchMainView('setup') is the route change;
     call plan-flow's switchMainView('setup') after this to move there from another page). */
 export function selectSetupPanel(panel: string): void {
   S.activeSetupPanel = panel === 'unit' ? 'unit' : panel === 'flat' ? 'flat' : 'dyeing';

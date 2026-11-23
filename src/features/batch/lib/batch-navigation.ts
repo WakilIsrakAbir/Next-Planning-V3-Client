@@ -35,8 +35,25 @@ export function batchRouteInfo(route: string): BatchRouteInfo | null {
     : { title: 'Batch Card', group: 'batchCard', key: key.toLowerCase() };
 }
 
-// "/batch/plan/EFL" -> "plan/EFL"; "/batch" -> "plan". Unknown routes give "plan" (the old default).
+/* The Setup pages live under Data Management > Setup (/management/setup/<page>), next to Dropdown Master
+   Setup; their Batch routes keep the old names ('setup/dyeing', ...) and permission keys. The old
+   /batch/setup/<panel> URLs redirect to these paths (next.config.ts). */
+export const BATCH_SETUP_PATHS: Record<string, string> = {
+  'setup/dyeing': '/management/setup/dyeing-mc',
+  'setup/flat': '/management/setup/flat-allowance',
+  'setup/unit': '/management/setup/unit',
+};
+
+function setupRouteFromPath(pathname: string | null | undefined): string | null {
+  const path = String(pathname || '').replace(/\/+$/, '');
+  return Object.keys(BATCH_SETUP_PATHS).find((route) => BATCH_SETUP_PATHS[route] === path) || null;
+}
+
+// "/batch/plan/EFL" -> "plan/EFL"; "/batch" -> "plan"; "/management/setup/dyeing-mc" -> "setup/dyeing".
+// Unknown routes give "plan" (the old default).
 export function batchRouteFromPath(pathname: string): string {
+  const setupRoute = setupRouteFromPath(pathname);
+  if (setupRoute) return setupRoute;
   const rest = String(pathname || '')
     .replace(/^\/batch\/?/, '')
     .replace(/\/+$/, '');
@@ -50,10 +67,13 @@ export function batchRouteFromPath(pathname: string): string {
 }
 
 export function batchPathFromRoute(route: string): string {
+  if (Object.prototype.hasOwnProperty.call(BATCH_SETUP_PATHS, route)) return BATCH_SETUP_PATHS[route];
   return '/batch/' + (batchRouteInfo(route) ? route : 'plan');
 }
 
+// Pages rendered in BatchProvider fill the whole content area: /batch/... and the three Batch Setup pages.
 export function isBatchPath(pathname: string | null | undefined): boolean {
+  if (setupRouteFromPath(pathname)) return true;
   return pathname === '/batch' || String(pathname || '').startsWith('/batch/');
 }
 

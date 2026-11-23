@@ -1,6 +1,6 @@
 'use client';
 
-/* Setup route page (/batch/setup/dyeing | flat | unit): the old #setupView with its three panels
+/* Setup route page (/management/setup/dyeing-mc | flat-allowance | unit): the old #setupView with its three panels
    (Dyeing MC, Flat Allowance, Unit Setup) and the Not Possible Fabric dialog, without a page heading (each panel
    has its own title). The route gives the panel; selectSetupPanel(panel) keeps S.activeSetupPanel in step and
    builds the panel's draft (old renderSetupPanels). */

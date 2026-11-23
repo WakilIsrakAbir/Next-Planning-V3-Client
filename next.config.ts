@@ -10,9 +10,22 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+// Data Management > Setup pages all live under /management/setup/<page>. /management/setup opens the first page;
+// the old Batch Setup URLs (/batch/setup/<panel>) keep working for bookmarks. Temporary (307), so a later change
+// of these paths is not stuck in browser caches.
+export const setupRedirects = [
+  { source: "/management/setup", destination: "/management/setup/dropdowns", permanent: false },
+  { source: "/batch/setup/dyeing", destination: "/management/setup/dyeing-mc", permanent: false },
+  { source: "/batch/setup/flat", destination: "/management/setup/flat-allowance", permanent: false },
+  { source: "/batch/setup/unit", destination: "/management/setup/unit", permanent: false },
+];
+
 const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
+  },
+  async redirects() {
+    return setupRedirects;
   },
 };
 

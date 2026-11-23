@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { IUser } from '@/types/user';
 import { prefetchOrderManagement } from '@/features/planning/lib/planning-cache';
-import { batchMenuRoute, requestBatchRoute } from '@/features/batch/lib/batch-navigation';
+import { batchMenuRoute, batchRouteFromPath, requestBatchRoute } from '@/features/batch/lib/batch-navigation';
 import { confirmPageLeave, guardedLinkHandlers } from '@/lib/unsaved-changes';
 
 interface SidebarProps {
@@ -71,11 +71,11 @@ export const SIDEBAR_MENU_GROUPS: MenuGroupDef[] = [
         label: 'Setup',
         href: '',
         children: [
-          { key: 'setup', label: 'Dropdown Master Setup', href: '/management/setup' },
-          // Batch Plan module Setup pages
-          { key: 'dyeingMc', label: 'Dyeing MC', href: '/batch/setup/dyeing', batchRoute: 'setup/dyeing' },
-          { key: 'flatAllowance', label: 'Flat Allowance', href: '/batch/setup/flat', batchRoute: 'setup/flat' },
-          { key: 'unitSetup', label: 'Unit Setup', href: '/batch/setup/unit', batchRoute: 'setup/unit' },
+          { key: 'setup', label: 'Dropdown Master Setup', href: '/management/setup/dropdowns' },
+          // Batch Plan module Setup pages (BatchProvider; Batch routes setup/<panel>, batch-navigation BATCH_SETUP_PATHS)
+          { key: 'dyeingMc', label: 'Dyeing MC', href: '/management/setup/dyeing-mc', batchRoute: 'setup/dyeing' },
+          { key: 'flatAllowance', label: 'Flat Allowance', href: '/management/setup/flat-allowance', batchRoute: 'setup/flat' },
+          { key: 'unitSetup', label: 'Unit Setup', href: '/management/setup/unit', batchRoute: 'setup/unit' },
         ],
       },
     ],
@@ -324,7 +324,7 @@ export default function Sidebar({ isOpen, onToggle, onCloseMobile }: SidebarProp
   const handleItemClick = (item: MenuItemDef) => {
     handleNavClick();
     // A click on the Batch page that is already open re-opens it there (BatchModuleHost).
-    if (item.batchRoute) requestBatchRoute(itemHref(item).replace(/^\/batch\//, ''));
+    if (item.batchRoute) requestBatchRoute(batchRouteFromPath(itemHref(item)));
   };
 
   const isEntryActive = (item: MenuItemDef): boolean => {
